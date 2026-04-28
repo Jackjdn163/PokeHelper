@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DexterOS | Living Form Dex</title>
+    <meta name="theme-color" content="#071122" />
+    <meta
+      name="description"
+      content="A PokeOS-inspired living form dex with system-style filters, scan results, and full Pokemon form detail."
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="sensor-cluster" aria-hidden="true">
+            <span class="sensor-main"></span>
+            <span class="sensor-dot sensor-blue"></span>
+            <span class="sensor-dot sensor-gold"></span>
+            <span class="sensor-dot sensor-green"></span>
+          </div>
+
+          <div class="brand-block">
+            <h1>DEXTER<span>OS</span></h1>
+            <p>System V6.0 // Living Form Dex</p>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Dex navigation">
+          <button type="button" class="nav-tab active" data-view="archive">Archive</button>
+          <button type="button" class="nav-tab" data-view="scan">Scan</button>
+          <button type="button" class="nav-tab" data-view="collection">Collection</button>
+          <button type="button" class="nav-tab" data-view="home">Home</button>
+          <button type="button" class="nav-tab" data-view="journey">Journey</button>
+          <button type="button" class="nav-tab" data-view="lab">Lab</button>
+          <button type="button" class="nav-tab" data-view="vault">Vault</button>
+        </nav>
+
+        <div class="system-strip" aria-label="System status">
+          <span class="system-chip online">Archive Net Online</span>
+          <span class="system-chip">Form Scan Ready</span>
+        </div>
+
+        <button type="button" class="ghost-button">Guest Session</button>
+      </header>
+
+      <div class="current-scan-shell">
+        <button type="button" class="current-scan-ribbon is-empty" id="current-scan-ribbon">
+          <img class="current-scan-sprite" id="current-scan-sprite" alt="" src="" />
+          <div class="current-scan-copy">
+            <span class="section-label">Current Scan</span>
+            <strong id="current-scan-name">No active scan</strong>
+            <span class="current-scan-meta" id="current-scan-meta">
+              Open a Pokémon and it will stay pinned here while you move around the app.
+            </span>
+          </div>
+          <div class="type-row current-scan-types" id="current-scan-types"></div>
+        </button>
+      </div>
+
+      <main class="workspace-shell app-view active" data-view-panel="archive">
+        <div class="archive-workspace">
+        <aside class="panel control-panel">
+          <section class="panel-section">
+            <p class="section-label">Identification</p>
+            <form class="search-stack" id="search-form">
+              <label class="sr-only" for="pokemon-search">Name or Dex ID</label>
+              <input
+                id="pokemon-search"
+                name="pokemon"
+                type="search"
+                placeholder="Name or ID..."
+                autocomplete="off"
+              />
+              <div class="action-row">
+                <button type="button" class="primary-action" id="open-entry-btn">
+                  Launch Scan
+                </button>
+                <button type="button" class="secondary-action" id="random-btn">
+                  Random
+                </button>
+              </div>
+            </form>
+            <p class="status-text" id="status-text">Connecting to archive...</p>
+          </section>
+
+          <section class="panel-section">
+            <p class="section-label">Source Data</p>
+            <div class="button-bank">
+              <button type="button" class="bank-button active" data-scope="all">
+                All
+              </button>
+              <button type="button" class="bank-button" data-scope="base">
+                Base
+              </button>
+              <button type="button" class="bank-button" data-scope="forms">
+                Forms
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <p class="section-label">Parameters</p>
+            <label class="select-shell">
+              <span>Sort Order</span>
+              <select id="sort-select">
+                <option value="id-asc">Sort: ID Numeric</option>
+                <option value="alpha">Sort: Alphabetical</option>
+                <option value="caught">Sort: Caught First</option>
+                <option value="forms">Sort: Form Priority</option>
+              </select>
+            </label>
+            <label class="select-shell">
+              <span>Generation</span>
+              <select id="generation-select">
+                <option value="all">All Generations</option>
+                <option value="1">Generation 1</option>
+                <option value="2">Generation 2</option>
+                <option value="3">Generation 3</option>
+                <option value="4">Generation 4</option>
+                <option value="5">Generation 5</option>
+                <option value="6">Generation 6</option>
+                <option value="7">Generation 7</option>
+                <option value="8">Generation 8</option>
+                <option value="9">Generation 9</option>
+              </select>
+            </label>
+            <label class="select-shell">
+              <span>Switch Game</span>
+              <select id="game-filter-select">
+                <option value="all">All Switch Games</option>
+                <option value="lgpe">LGPE</option>
+                <option value="swsh">SWSH</option>
+                <option value="bdsp">BDSP</option>
+                <option value="pla">PLA</option>
+                <option value="sv">SV</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="panel-section">
+            <p class="section-label">Checklist Status</p>
+            <div class="button-bank">
+              <button type="button" class="bank-button active" data-status="all">
+                All
+              </button>
+              <button type="button" class="bank-button" data-status="caught">
+                Caught
+              </button>
+              <button type="button" class="bank-button" data-status="missing">
+                Missing
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <p class="section-label">Form Signatures</p>
+            <div class="button-bank compact">
+              <button type="button" class="bank-button" data-signature="mega">
+                Mega
+              </button>
+              <button type="button" class="bank-button" data-signature="gmax">
+                GMAX
+              </button>
+              <button type="button" class="bank-button" data-signature="regional">
+                Regional
+              </button>
+              <button type="button" class="bank-button" data-signature="special">
+                Special
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <p class="section-label">Archive Health</p>
+            <div class="signal-grid">
+              <article class="signal-card">
+                <span>Base Index</span>
+                <strong id="archive-base-count">0</strong>
+              </article>
+              <article class="signal-card">
+                <span>Form Index</span>
+                <strong id="archive-form-count">0</strong>
+              </article>
+              <article class="signal-card">
+                <span>Registry</span>
+                <strong id="archive-caught-count">0</strong>
+              </article>
+            </div>
+          </section>
+
+          <footer class="panel-footer">
+            <p>DEXTER OS V6.0</p>
+            <p>Connected to Global Database</p>
+          </footer>
+        </aside>
+
+          <section class="panel results-panel">
+            <div class="results-header">
+              <div>
+                <p class="section-label">Entities Detected</p>
+                <h2 id="results-count">0</h2>
+                <p class="results-summary" id="results-summary">
+                  Guest mode active. Awaiting first scan.
+                </p>
+              </div>
+
+              <div class="metric-grid">
+                <article class="metric-card">
+                  <span>Caught</span>
+                  <strong id="stat-caught">0</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Missing</span>
+                  <strong id="stat-missing">0</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Visible</span>
+                  <strong id="stat-visible">0</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Open Entry</span>
+                  <strong id="stat-selected">None</strong>
+                </article>
+              </div>
+            </div>
+
+            <div class="toolbar-row">
+              <span class="toolbar-pill">Mode Guest - Public Access</span>
+              <span class="toolbar-pill" id="sort-indicator">Sort: ID Numeric</span>
+            </div>
+
+            <div class="result-list" id="dex-list"></div>
+          </section>
+        </div>
+      </main>
+
+      <main class="workspace-shell app-view" data-view-panel="scan">
+        <section class="panel detail-panel scan-detail-panel">
+            <div class="detail-head">
+              <div>
+                <p class="section-label">Scan Console</p>
+                <h2 id="pokemon-name">No active scan</h2>
+              </div>
+              <div class="detail-actions">
+                <button
+                  type="button"
+                  class="primary-action compact"
+                  id="toggle-caught-btn"
+                  disabled
+                >
+                  Register Caught
+                </button>
+                <button type="button" class="ghost-button detail-ghost" id="toggle-shiny-btn" disabled>
+                  Log Shiny
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-state" id="detail-empty">
+              <p>Select any detected entity to open its live Pokédex scan.</p>
+            </div>
+
+            <div class="detail-content hidden" id="detail-content">
+              <div class="screen-frame">
+                <img id="pokemon-art" alt="" src="" />
+              </div>
+
+              <div class="identity-strip">
+                <span class="dex-tag" id="pokemon-dex"></span>
+                <div class="type-row" id="pokemon-types"></div>
+              </div>
+
+              <div class="detail-link-bank">
+                <button type="button" class="ghost-button detail-link-button" id="favorite-btn">
+                  Favorite
+                </button>
+                <button type="button" class="ghost-button detail-link-button" id="bookmark-btn">
+                  Bookmark
+                </button>
+                <button type="button" class="ghost-button detail-link-button" id="favorite-types-btn">
+                  Fav Of Its Types
+                </button>
+                <a
+                  class="ghost-button detail-link-button detail-link-anchor"
+                  id="bulbapedia-link"
+                  href="#"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Bulbapedia
+                </a>
+                <a
+                  class="ghost-button detail-link-button detail-link-anchor"
+                  id="serebii-link"
+                  href="#"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Serebii
+                </a>
+              </div>
+
+              <div class="detail-tab-bank" role="tablist" aria-label="Scan detail views">
+                <button
+                  type="button"
+                  class="bank-button detail-tab active"
+                  id="detail-tab-overview"
+                  data-detail-tab="overview"
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  class="bank-button detail-tab"
+                  id="detail-tab-battle"
+                  data-detail-tab="battle"
+                >
+                  Battle
+                </button>
+                <button
+                  type="button"
+                  class="bank-button detail-tab"
+                  id="detail-tab-field"
+                  data-detail-tab="field"
+                >
+                  Field
+                </button>
+              </div>
+
+              <div class="detail-pane active" data-detail-panel="overview">
+                <p class="flavor-text" id="pokemon-flavor"></p>
+
+                <div class="meta-grid">
+                  <div>
+                    <span class="meta-label">Category</span>
+                    <strong id="pokemon-genus">-</strong>
+                  </div>
+                  <div>
+                    <span class="meta-label">Height</span>
+                    <strong id="pokemon-height">-</strong>
+                  </div>
+                  <div>
+                    <span class="meta-label">Weight</span>
+                    <strong id="pokemon-weight">-</strong>
+                  </div>
+                  <div>
+                    <span class="meta-label">Abilities</span>
+                    <strong id="pokemon-abilities">-</strong>
+                  </div>
+                  <div>
+                    <span class="meta-label">Habitat</span>
+                    <strong id="pokemon-habitat">-</strong>
+                  </div>
+                  <div>
+                    <span class="meta-label">Generation</span>
+                    <strong id="pokemon-generation">-</strong>
+                  </div>
+                </div>
+
+                <article class="subcard">
+                  <div class="subcard-heading">
+                    <h3>Pokédex Entries</h3>
+                    <span id="pokedex-entry-count">0 notes</span>
+                  </div>
+                  <div class="pokedex-entry-list" id="pokedex-entry-list"></div>
+                </article>
+
+                <article class="subcard">
+                  <div class="subcard-heading">
+                    <h3>Related Forms</h3>
+                    <span id="form-count">0 forms</span>
+                  </div>
+                  <div class="form-bank" id="form-list"></div>
+                </article>
+              </div>
+
+              <div class="detail-pane" data-detail-panel="battle">
+                <div class="detail-grid">
+                  <article class="subcard">
+                    <div class="subcard-heading">
+                      <h3>Base Stats</h3>
+                      <span id="bst-total">BST 0</span>
+                    </div>
+                    <div class="stats-list" id="stats-list"></div>
+                  </article>
+
+                  <article class="subcard">
+                    <div class="subcard-heading">
+                      <h3>Defensive Matchups</h3>
+                      <span>Incoming damage</span>
+                    </div>
+                    <div class="matchup-stack">
+                      <div>
+                        <p class="matchup-label">Weak to</p>
+                        <div class="chip-row" id="weakness-list"></div>
+                      </div>
+                      <div>
+                        <p class="matchup-label">Resists</p>
+                        <div class="chip-row" id="resistance-list"></div>
+                      </div>
+                      <div>
+                        <p class="matchup-label">Immune to</p>
+                        <div class="chip-row" id="immunity-list"></div>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+
+                <article class="subcard">
+                  <div class="subcard-heading">
+                    <h3>Switch Game Availability</h3>
+                    <span id="game-availability-count">Syncing</span>
+                  </div>
+                  <div class="availability-grid" id="game-availability-list"></div>
+                  <p class="availability-footnote" id="game-availability-note">
+                    Species-level coverage is syncing from the Switch game dex indexes.
+                  </p>
+                </article>
+              </div>
+
+              <div class="detail-pane" data-detail-panel="field">
+                <div class="detail-grid">
+                  <article class="subcard">
+                    <div class="subcard-heading">
+                      <h3>Evolution Intel</h3>
+                      <span id="evolution-summary">Syncing</span>
+                    </div>
+                    <div class="evolution-list" id="evolution-list"></div>
+                  </article>
+
+                  <article class="subcard">
+                    <div class="subcard-heading">
+                      <h3>Location Intel</h3>
+                      <span id="location-summary">Syncing</span>
+                    </div>
+                    <div class="location-list" id="location-list"></div>
+                  </article>
+                </div>
+              </div>
+            </div>
+        </section>
+      </main>
+
+      <section class="systems-grid app-view" data-view-panel="systems">
+        <article class="panel system-panel collection-panel-shell" data-module-view="collection">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Collection Board</p>
+                <h2 class="system-title">Progress & Targets</h2>
+              </div>
+              <span class="toolbar-pill" id="collection-focus">Living Dex</span>
+            </div>
+
+            <div class="progress-stack">
+              <article class="progress-card">
+                <div class="progress-head">
+                  <strong>Main Dex</strong>
+                  <span id="main-progress-text">0%</span>
+                </div>
+                <div class="progress-bar"><span id="main-progress-bar"></span></div>
+              </article>
+
+              <article class="progress-card">
+                <div class="progress-head">
+                  <strong>Shiny Dex</strong>
+                  <span id="shiny-progress-text">0%</span>
+                </div>
+                <div class="progress-bar"><span id="shiny-progress-bar"></span></div>
+              </article>
+
+              <article class="progress-card">
+                <div class="progress-head">
+                  <strong>Owned Game Coverage</strong>
+                  <span id="owned-progress-text">0%</span>
+                </div>
+                <div class="progress-bar"><span id="owned-progress-bar"></span></div>
+              </article>
+            </div>
+
+            <article class="subcard collection-card">
+              <div class="subcard-heading">
+                <h3>Random Hunt Board</h3>
+                <button type="button" class="ghost-button detail-link-button" id="refresh-targets-btn">
+                  Refresh
+                </button>
+              </div>
+              <p class="results-summary" id="random-target-summary">
+                Eight uncaught targets and two bonus shiny ideas will appear here.
+              </p>
+              <div class="target-board">
+                <div>
+                  <p class="matchup-label">8 random uncaught</p>
+                  <div class="collection-list" id="target-list"></div>
+                </div>
+                <div>
+                  <div class="subcard-heading compact-heading">
+                    <p class="matchup-label">2 random shiny targets</p>
+                    <button type="button" class="ghost-button detail-link-button" id="toggle-shiny-checklist-btn">
+                      Show Shiny Checklist
+                    </button>
+                  </div>
+                  <div class="collection-list" id="shiny-target-list"></div>
+                </div>
+              </div>
+              <div class="shiny-checklist hidden" id="shiny-checklist"></div>
+            </article>
+
+            <div class="collection-grid">
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Favorites</h3>
+                  <span id="favorites-count">0</span>
+                </div>
+                <div class="collection-list" id="favorites-list"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Bookmarks</h3>
+                  <span id="bookmarks-count">0</span>
+                </div>
+                <div class="collection-list" id="bookmarks-list"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Fav Of Each Type</h3>
+                  <span id="favorite-types-count">0/18</span>
+                </div>
+                <div class="collection-list" id="favorite-types-list"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Unobtainable</h3>
+                  <span id="unobtainable-count">0</span>
+                </div>
+                <p class="results-summary" id="unobtainable-summary">
+                  Based on the Switch games you currently marked as owned.
+                </p>
+                <div class="collection-list" id="unobtainable-list"></div>
+              </article>
+            </div>
+          </article>
+
+          <article class="panel system-panel tracker-panel-shell" data-module-view="journey">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Playthrough Tracker</p>
+                <h2 class="system-title">Switch Save Matrix</h2>
+              </div>
+              <span class="toolbar-pill" id="tracker-summary">No games tracked</span>
+            </div>
+            <div class="tracker-grid" id="tracker-grid"></div>
+          </article>
+
+          <article class="panel system-panel exp-panel-shell" data-module-view="lab">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Training Lab</p>
+                <h2 class="system-title">EXP Planner</h2>
+              </div>
+              <span class="toolbar-pill" id="exp-species-label">Open a Pokédex entry</span>
+            </div>
+
+            <div class="exp-form-grid">
+              <label class="select-shell compact-field">
+                <span>Game Context</span>
+                <select id="exp-game-select"></select>
+              </label>
+
+              <label class="select-shell compact-field exp-range-field">
+                <span>Current Level <strong id="exp-current-level-value">25</strong></span>
+                <input id="exp-current-level" type="range" min="1" max="100" value="25" />
+                <div class="exp-range-scale">
+                  <span>Lv. 1</span>
+                  <span>Lv. 100</span>
+                </div>
+              </label>
+
+              <label class="select-shell compact-field">
+                <span>Target Level</span>
+                <input id="exp-target-level" type="number" min="1" max="100" value="50" />
+              </label>
+
+              <label class="select-shell compact-field">
+                <span>EXP Per Battle</span>
+                <input id="exp-yield-input" type="number" min="0" step="1" value="0" />
+              </label>
+            </div>
+
+            <div class="exp-quick-actions">
+              <button type="button" class="ghost-button" id="exp-next-level-btn">
+                Next Level
+              </button>
+              <button type="button" class="ghost-button" id="exp-next-evo-btn">
+                Next Evolution
+              </button>
+              <button type="button" class="ghost-button" id="exp-level-100-btn">
+                Level 100
+              </button>
+            </div>
+
+            <div class="metric-grid exp-metric-grid">
+              <article class="metric-card">
+                <span>Growth Rate</span>
+                <strong id="exp-growth-rate">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Current Total</span>
+                <strong id="exp-current-total">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>EXP To Target</span>
+                <strong id="exp-gap">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Target Total</span>
+                <strong id="exp-target-total">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>EXP To Lv. 100</span>
+                <strong id="exp-level-100-gap">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Battle Estimate</span>
+                <strong id="exp-battle-count">-</strong>
+              </article>
+            </div>
+
+            <div class="exp-insight-grid">
+              <article class="subcard">
+                <div class="subcard-heading">
+                  <h3>Evolution Target</h3>
+                  <span id="exp-evolution-target">No target</span>
+                </div>
+                <p class="results-summary" id="exp-evolution-text">
+                  Open a Pokémon entry to inspect the next evolution gate and jump your target level there.
+                </p>
+              </article>
+
+              <article class="subcard">
+                <div class="subcard-heading">
+                  <h3>Level 100 Route</h3>
+                  <span id="exp-level-100-text">Endgame</span>
+                </div>
+                <p class="results-summary" id="exp-level-100-note">
+                  Open a Pokémon entry to calculate how far this project is from level 100.
+                </p>
+              </article>
+            </div>
+
+            <p class="results-summary system-summary" id="exp-plan-text">
+              Open a Pokémon entry to calculate growth-rate projections and training targets.
+            </p>
+          </article>
+
+          <article class="panel system-panel hunt-panel-shell" data-module-view="journey">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Shiny Hunt Helper</p>
+                <h2 class="system-title">Per-Game Routes</h2>
+              </div>
+              <span class="toolbar-pill" id="hunt-focus">Pick a target</span>
+            </div>
+
+            <p class="results-summary system-summary" id="hunt-summary">
+              Open a Pokémon entry to compare the cleanest shiny hunt route in each supported Switch game.
+            </p>
+
+            <div class="hunt-grid" id="hunt-grid"></div>
+          </article>
+
+          <article class="panel system-panel vault-panel-shell" data-module-view="vault">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Trainer Vault</p>
+                <h2 class="system-title">Profiles, Notes & AI</h2>
+              </div>
+              <span class="toolbar-pill" id="profile-pill">Guest Trainer</span>
+            </div>
+
+            <div class="vault-grid">
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Trainer Accounts</h3>
+                  <span id="profile-count">1 profile</span>
+                </div>
+                <label class="select-shell compact-field">
+                  <span>Active Profile</span>
+                  <select id="profile-select"></select>
+                </label>
+                <div class="vault-inline">
+                  <input id="profile-name-input" type="text" placeholder="New trainer name" />
+                  <button type="button" class="primary-action compact" id="create-profile-btn">
+                    Create
+                  </button>
+                </div>
+                <p class="results-summary">
+                  Local trainer profiles switch your saved notes, trackers, boxes, favorites, and checklists.
+                </p>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Notebook</h3>
+                  <span id="notebook-status">Autosaved</span>
+                </div>
+                <textarea
+                  id="trainer-notebook"
+                  class="trainer-notebook"
+                  placeholder="Write hunt notes, route reminders, sandwich ideas, trade plans, or anything else here..."
+                ></textarea>
+              </article>
+
+              <article class="subcard collection-card vault-wide">
+                <div class="subcard-heading">
+                  <h3>Dexter Companion</h3>
+                  <span id="companion-status">Offline Helper</span>
+                </div>
+                <div class="vault-inline">
+                  <input
+                    id="companion-input"
+                    type="text"
+                    placeholder="Ask about evolutions, shiny methods, owned games, favorites, or the open Pokémon..."
+                  />
+                  <button type="button" class="primary-action compact" id="companion-ask-btn">
+                    Ask
+                  </button>
+                </div>
+                <div class="companion-answer" id="companion-answer">
+                  Ask a question and Dexter will answer from your current archive, trackers, and Pokémon data.
+                </div>
+              </article>
+            </div>
+          </article>
+
+          <article class="panel system-panel home-panel-shell" data-module-view="home">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Pokemon Home</p>
+                <h2 class="system-title">Boxes & Game Checklists</h2>
+              </div>
+              <span class="toolbar-pill" id="home-focus">Box 1</span>
+            </div>
+
+            <div class="home-grid">
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Home Living Form Template</h3>
+                  <button type="button" class="ghost-button detail-link-button" id="clear-box-btn">
+                    Clear Box Marks
+                  </button>
+                </div>
+                <div class="box-tabs" id="home-box-tabs"></div>
+                <p class="results-summary" id="home-box-summary">
+                  Follow the fixed HOME template: click a slot to mark or unmark that target as boxed in HOME.
+                </p>
+                <div class="home-box-grid" id="home-box-grid"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Game-By-Game Checklists</h3>
+                  <span id="game-checklist-summary">Linked to main dex</span>
+                </div>
+                <div class="game-checklist-grid" id="game-checklist-grid"></div>
+              </article>
+            </div>
+          </article>
+
+          <article class="panel system-panel suggestion-panel-shell" data-module-view="lab">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Smart Suggestors</p>
+                <h2 class="system-title">Mission Control</h2>
+              </div>
+              <span class="toolbar-pill" id="advisor-focus">Focus: Living Dex</span>
+            </div>
+
+            <div class="suggestion-stack">
+              <article class="suggestion-card">
+                <span class="meta-label">What to Catch Next</span>
+                <strong id="suggest-catch-name">Waiting for archive scan</strong>
+                <p class="results-summary" id="suggest-catch-text">
+                  Suggestions will use your current checklist progress and active filters.
+                </p>
+                <button type="button" class="ghost-button suggestion-button" id="suggest-catch-btn">
+                  Open Recommendation
+                </button>
+              </article>
+
+              <article class="suggestion-card">
+                <span class="meta-label">What to Shiny Hunt Next</span>
+                <strong id="suggest-shiny-name">No shiny target yet</strong>
+                <p class="results-summary" id="suggest-shiny-text">
+                  Mark shiny targets from the scan console to unlock personalized hunt ideas.
+                </p>
+                <button type="button" class="ghost-button suggestion-button" id="suggest-shiny-btn">
+                  Open Shiny Target
+                </button>
+              </article>
+
+              <article class="suggestion-card">
+                <span class="meta-label">What to Do Next</span>
+                <strong id="suggest-task-name">Set your first objective</strong>
+                <p class="results-summary" id="suggest-task-text">
+                  Tracker data, living dex progress, and EXP plans will roll into one next-step feed.
+                </p>
+              </article>
+            </div>
+          </article>
+
+        <article class="panel system-panel modules-panel-shell" data-module-view="lab">
+            <div class="system-head">
+              <div>
+                <p class="section-label">Feature Queue</p>
+                <h2 class="system-title">Trainer OS Modules</h2>
+              </div>
+              <span class="toolbar-pill">Build Queue</span>
+            </div>
+            <div class="module-grid" id="module-grid"></div>
+        </article>
+      </section>
+    </div>
+
+    <template id="dex-entry-template">
+      <article class="dex-entry">
+        <label class="entry-toggle" aria-label="Toggle caught state">
+          <input class="entry-checkbox" type="checkbox" />
+          <span class="check-core"></span>
+        </label>
+
+        <button type="button" class="dex-entry-button">
+          <span class="entry-visual">
+            <span class="entry-sprite-frame">
+              <img class="entry-sprite" alt="" loading="lazy" decoding="async" />
+            </span>
+            <span class="entry-number"></span>
+          </span>
+          <span class="entry-copy">
+            <strong class="entry-name"></strong>
+            <span class="entry-status"></span>
+          </span>
+          <span class="entry-tags"></span>
+        </button>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
