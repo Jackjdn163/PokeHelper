@@ -11,8 +11,12 @@ const FAVORITE_TYPES_STORAGE_KEY = "dexter-favorite-types-v1";
 const GAME_CHECKLIST_STORAGE_KEY = "dexter-game-checklists-v1";
 const HOME_BOX_STORAGE_KEY = "dexter-home-boxes-v1";
 const API_CACHE_STORAGE_KEY = "dexter-api-cache-v1";
+const ACCOUNT_SYNC_STORAGE_KEY = "dexter-account-sync-v1";
 const BASE_POKEMON_COUNT = 1025;
 const DEFAULT_PROFILE_ID = "guest-trainer";
+const CLOUD_SAVE_TABLE = "cloud_saves";
+const CLOUD_SAVE_VERSION = 1;
+const CLOUD_SYNC_DEBOUNCE_MS = 1200;
 
 const GAME_CATALOG = [
   {
@@ -236,6 +240,87 @@ const VIVILLON_PATTERNS = [
   { slug: "tundra-pattern", label: "Tundra Pattern" }
 ];
 
+const FURFROU_TRIMS = [
+  { slug: "natural", label: "Natural Form" },
+  { slug: "heart", label: "Heart Trim" },
+  { slug: "star", label: "Star Trim" },
+  { slug: "diamond", label: "Diamond Trim" },
+  { slug: "debutante", label: "Debutante Trim" },
+  { slug: "matron", label: "Matron Trim" },
+  { slug: "dandy", label: "Dandy Trim" },
+  { slug: "la-reine", label: "La Reine Trim" },
+  { slug: "kabuki", label: "Kabuki Trim" },
+  { slug: "pharaoh", label: "Pharaoh Trim" }
+];
+
+const FEMALE_SPRITE_DIFFERENCE_IDS = [
+  3, 12, 19, 20, 25, 26, 41, 42, 44, 45, 64, 65, 84, 85, 97, 111, 112, 118, 119, 123, 129, 130,
+  133, 154, 165, 166, 178, 185, 186, 190, 194, 195, 198, 202, 203, 207, 208, 212, 214, 215, 217,
+  221, 224, 229, 232, 255, 256, 257, 267, 269, 272, 274, 275, 307, 308, 315, 316, 317, 322, 323,
+  332, 350, 369, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 407, 415, 417, 418, 419, 424,
+  443, 444, 445, 449, 450, 453, 454, 456, 457, 459, 460, 461, 464, 465, 473, 521, 592, 593, 668,
+  678, 876, 916
+];
+
+const HOME_BOX_COMPATIBILITY_RULES = [
+  {
+    tag: "Dex Only",
+    reason: "Mega Evolutions register in HOME's dex but cannot live in a HOME box as separate targets.",
+    matches: (entry) => entry.name.includes("-mega")
+  },
+  {
+    tag: "Dex Only",
+    reason: "Gigantamax is tracked as a factor on the base Pokemon, not as its own boxed form.",
+    archiveVisible: true,
+    matches: (entry) => entry.name.includes("-gmax")
+  },
+  {
+    tag: "Dex Only",
+    reason: "Primal forms are battle transformations, so HOME does not store them as separate box targets.",
+    matches: (entry) => entry.name.includes("-primal")
+  },
+  {
+    tag: "Dex Only",
+    reason: "This is a battle-only or temporary form that HOME can register without needing a dedicated storage slot.",
+    matches: (entry) =>
+      /^(castform-(sunny|rainy|snowy)|cherrim-sunshine|meloetta-pirouette|aegislash-blade|darmanitan-(zen|galar-zen)|greninja-(battle-bond|ash)|zygarde-(10-power-construct|50-power-construct|complete)|wishiwashi-school|mimikyu-busted|cramorant-(gulping|gorging)|eiscue-noice|morpeko-hangry|palafin-hero|eternatus-eternamax|xerneas-active|terapagos-(terastal|stellar))$/.test(
+        entry.name
+      )
+  },
+  {
+    tag: "Dex Only",
+    reason: "Fusion forms register in HOME's dex, but HOME stores the component Pokemon separately instead of boxing the fused form.",
+    matches: (entry) =>
+      /^(kyurem-(black|white)|necrozma-(dusk|dawn|ultra)|calyrex-(ice|shadow))$/.test(entry.name)
+  },
+  {
+    tag: "Dex Only",
+    reason: "This form depends on an item or mask that HOME does not preserve as its own boxed form.",
+    matches: (entry) =>
+      /^(dialga-origin|palkia-origin|giratina-origin|genesect-(burn|chill|douse|shock)|shaymin-sky|ogerpon-(wellspring-mask|hearthflame-mask|cornerstone-mask)|zacian-crowned|zamazenta-crowned)$/.test(
+        entry.name
+      ) ||
+      (entry.basePokemonName === "arceus" && entry.name !== "arceus") ||
+      (entry.basePokemonName === "silvally" && entry.name !== "silvally")
+  },
+  {
+    tag: "Not Supported",
+    reason: "This special event or costume form is not treated as its own Pokemon HOME entry.",
+    matches: (entry) =>
+      /^(pikachu-(rock-star|belle|pop-star|phd|libre|cosplay|starter)|eevee-starter|spiky-eared-pichu)$/.test(
+        entry.name
+      )
+  },
+  {
+    tag: "Not Supported",
+    reason: "Totem, ride, or scripted-only forms are not stored as separate Pokemon HOME targets.",
+    matches: (entry) =>
+      /(^|-)totem(-|$)|starmobile|^koraidon-(limited-build|sprinting-build|swimming-build|gliding-build)$|^miraidon-(low-power-mode|drive-mode|aquatic-mode|glide-mode)$/.test(
+        entry.name
+      )
+  }
+];
+
 const TYPE_COLORS = {
   normal: "#9e957f",
   fire: "#dd6b3f",
@@ -436,17 +521,24 @@ const elements = {
   randomButton: document.querySelector("#random-btn"),
   statusText: document.querySelector("#status-text"),
   scopeButtons: [...document.querySelectorAll("[data-scope]")],
+  archiveModeButtons: [...document.querySelectorAll("[data-archive-mode]")],
   statusButtons: [...document.querySelectorAll("[data-status]")],
   signatureButtons: [...document.querySelectorAll("[data-signature]")],
   sortSelect: document.querySelector("#sort-select"),
+  sortCaughtOption: document.querySelector('#sort-select option[value="caught"]'),
   generationSelect: document.querySelector("#generation-select"),
   gameFilterSelect: document.querySelector("#game-filter-select"),
+  sessionButton: document.querySelector("#session-button"),
+  archiveModeIndicator: document.querySelector("#archive-mode-indicator"),
   archiveBaseCount: document.querySelector("#archive-base-count"),
   archiveFormCount: document.querySelector("#archive-form-count"),
+  archiveRegistryLabel: document.querySelector("#archive-registry-label"),
   archiveCaughtCount: document.querySelector("#archive-caught-count"),
   resultsCount: document.querySelector("#results-count"),
   resultsSummary: document.querySelector("#results-summary"),
   sortIndicator: document.querySelector("#sort-indicator"),
+  statTrackedLabel: document.querySelector("#stat-tracked-label"),
+  statMissingLabel: document.querySelector("#stat-missing-label"),
   statCaught: document.querySelector("#stat-caught"),
   statMissing: document.querySelector("#stat-missing"),
   statVisible: document.querySelector("#stat-visible"),
@@ -548,6 +640,18 @@ const elements = {
   profileSelect: document.querySelector("#profile-select"),
   profileNameInput: document.querySelector("#profile-name-input"),
   createProfileButton: document.querySelector("#create-profile-btn"),
+  accountBadge: document.querySelector("#account-badge"),
+  accountSummary: document.querySelector("#account-summary"),
+  accountDetail: document.querySelector("#account-detail"),
+  accountEmailInput: document.querySelector("#account-email-input"),
+  accountPasswordInput: document.querySelector("#account-password-input"),
+  accountSignInButton: document.querySelector("#account-sign-in-btn"),
+  accountSignUpButton: document.querySelector("#account-sign-up-btn"),
+  accountGoogleSignInButton: document.querySelector("#account-google-sign-in-btn"),
+  accountSignOutButton: document.querySelector("#account-sign-out-btn"),
+  cloudPullButton: document.querySelector("#cloud-pull-btn"),
+  cloudPushButton: document.querySelector("#cloud-push-btn"),
+  cloudSyncButton: document.querySelector("#cloud-sync-btn"),
   notebookStatus: document.querySelector("#notebook-status"),
   trainerNotebook: document.querySelector("#trainer-notebook"),
   companionStatus: document.querySelector("#companion-status"),
@@ -559,6 +663,10 @@ const elements = {
   homeBoxTabs: document.querySelector("#home-box-tabs"),
   homeBoxSummary: document.querySelector("#home-box-summary"),
   homeBoxGrid: document.querySelector("#home-box-grid"),
+  homeExcludedCount: document.querySelector("#home-excluded-count"),
+  homeExcludedToggleButton: document.querySelector("#home-excluded-toggle-btn"),
+  homeExcludedSummary: document.querySelector("#home-excluded-summary"),
+  homeExcludedList: document.querySelector("#home-excluded-list"),
   gameChecklistSummary: document.querySelector("#game-checklist-summary"),
   gameChecklistGrid: document.querySelector("#game-checklist-grid"),
   advisorFocus: document.querySelector("#advisor-focus"),
@@ -576,16 +684,20 @@ const elements = {
 const profileMetaSeed = loadProfileMeta();
 window.__dexterProfileSeed = profileMetaSeed;
 const cachedGameAvailability = loadGameAvailabilityCache();
+const cloudConfigSeed = loadCloudConfig();
 
 const state = {
   entries: [],
+  parkedEntries: [],
   entriesByName: new Map(),
   baseEntriesByName: new Map(),
   baseNamesSorted: [],
   query: "",
   ui: {
     activeView: "archive",
-    activeDetailTab: "overview"
+    activeDetailTab: "overview",
+    archiveMode: "living",
+    homeExcludedVisible: false
   },
   filters: {
     scope: "all",
@@ -620,7 +732,22 @@ const state = {
   gameAvailabilityLoading: false,
   gameAvailabilityError: false,
   currentPokemon: null,
-  activeRequestId: 0
+  activeRequestId: 0,
+  accountSync: loadAccountSyncState(),
+  cloud: {
+    config: cloudConfigSeed,
+    configured: Boolean(cloudConfigSeed.url && cloudConfigSeed.publishableKey),
+    client: null,
+    session: null,
+    user: null,
+    busy: false,
+    ready: false,
+    autoSyncTimer: null,
+    remoteSave: null,
+    messageTone: "neutral",
+    message: "",
+    authSubscription: null
+  }
 };
 
 window.__dexterState = state;
@@ -645,6 +772,50 @@ function saveStoredObject(key, value) {
   } catch (error) {
     console.warn("Local save failed", key, error);
   }
+}
+
+function getCloudRedirectUrl() {
+  const configured = window.DEXTER_SUPABASE_CONFIG?.redirectTo;
+  if (configured) {
+    return String(configured);
+  }
+
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function loadCloudConfig() {
+  const configured = window.DEXTER_SUPABASE_CONFIG ?? {};
+
+  return {
+    url: String(configured.url ?? "").trim(),
+    publishableKey: String(configured.publishableKey ?? configured.anonKey ?? "").trim(),
+    redirectTo: getCloudRedirectUrl()
+  };
+}
+
+function createDefaultAccountSyncState() {
+  return {
+    linkedUserId: null,
+    pendingUserId: null,
+    pendingResolution: false,
+    lastSyncedAt: null,
+    lastLocalChangeAt: null,
+    lastRemoteUpdatedAt: null,
+    lastDirection: null
+  };
+}
+
+function loadAccountSyncState() {
+  const loaded = loadStoredObject(ACCOUNT_SYNC_STORAGE_KEY, createDefaultAccountSyncState());
+
+  return {
+    ...createDefaultAccountSyncState(),
+    ...(loaded && typeof loaded === "object" ? loaded : {})
+  };
+}
+
+function saveAccountSyncState() {
+  saveStoredObject(ACCOUNT_SYNC_STORAGE_KEY, state.accountSync);
 }
 
 function createDefaultProfileMeta() {
@@ -683,6 +854,7 @@ function loadProfileMeta() {
 
 function saveProfileMeta() {
   saveStoredObject(PROFILE_META_STORAGE_KEY, state.profileMeta);
+  markCloudDirty();
 }
 
 function getActiveProfileId() {
@@ -746,6 +918,206 @@ function createDefaultTrackerState() {
       ])
     )
   };
+}
+
+function cloneJson(value, fallback = {}) {
+  try {
+    return JSON.parse(JSON.stringify(value ?? fallback));
+  } catch {
+    return fallback;
+  }
+}
+
+function getProfileScopedStorageKey(baseKey, profileId) {
+  return `${baseKey}::${profileId}`;
+}
+
+function getCloudProfileFieldFallback(field) {
+  switch (field) {
+    case "caughtMap":
+    case "shinyMap":
+    case "favoritesMap":
+    case "bookmarksMap":
+    case "favoriteTypes":
+      return {};
+    case "tracker":
+      return createDefaultTrackerState();
+    case "expPlan":
+      return {
+        gameId: "none",
+        currentLevel: 25,
+        targetLevel: 50,
+        expYield: 0
+      };
+    case "notebook":
+      return { text: "" };
+    case "gameChecklistState":
+      return createDefaultGameChecklistState();
+    case "homeBoxes":
+      return createDefaultHomeBoxesState();
+    default:
+      return {};
+  }
+}
+
+function readCloudFieldForProfile(profileId, baseKey, field) {
+  const fallback = getCloudProfileFieldFallback(field);
+  const scopedKey = getProfileScopedStorageKey(baseKey, profileId);
+  const scopedValue = loadStoredObject(scopedKey, null);
+
+  if (scopedValue && typeof scopedValue === "object") {
+    return cloneJson(scopedValue, fallback);
+  }
+
+  if (profileId === DEFAULT_PROFILE_ID) {
+    if (field === "notebook") {
+      return {
+        text: String(loadStoredObject(baseKey, { text: "" }).text ?? "")
+      };
+    }
+
+    return cloneJson(loadStoredObject(baseKey, fallback), fallback);
+  }
+
+  return cloneJson(fallback, fallback);
+}
+
+function buildProfileCloudPayload(profileId) {
+  return {
+    caughtMap: readCloudFieldForProfile(profileId, STORAGE_KEY, "caughtMap"),
+    shinyMap: readCloudFieldForProfile(profileId, SHINY_STORAGE_KEY, "shinyMap"),
+    tracker: readCloudFieldForProfile(profileId, TRACKER_STORAGE_KEY, "tracker"),
+    expPlan: readCloudFieldForProfile(profileId, EXP_STORAGE_KEY, "expPlan"),
+    notebook: readCloudFieldForProfile(profileId, NOTEBOOK_STORAGE_KEY, "notebook"),
+    favoritesMap: readCloudFieldForProfile(profileId, FAVORITES_STORAGE_KEY, "favoritesMap"),
+    bookmarksMap: readCloudFieldForProfile(profileId, BOOKMARKS_STORAGE_KEY, "bookmarksMap"),
+    favoriteTypes: readCloudFieldForProfile(profileId, FAVORITE_TYPES_STORAGE_KEY, "favoriteTypes"),
+    gameChecklistState: readCloudFieldForProfile(profileId, GAME_CHECKLIST_STORAGE_KEY, "gameChecklistState"),
+    homeBoxes: readCloudFieldForProfile(profileId, HOME_BOX_STORAGE_KEY, "homeBoxes")
+  };
+}
+
+function buildCloudSnapshot() {
+  const normalizedProfiles = state.profileMeta.profiles.length
+    ? state.profileMeta.profiles
+    : createDefaultProfileMeta().profiles;
+
+  return {
+    version: CLOUD_SAVE_VERSION,
+    savedAt: new Date().toISOString(),
+    profileMeta: cloneJson({
+      activeProfileId: state.profileMeta.activeProfileId,
+      profiles: normalizedProfiles
+    }),
+    profiles: Object.fromEntries(
+      normalizedProfiles.map((profile) => [profile.id, buildProfileCloudPayload(profile.id)])
+    )
+  };
+}
+
+function sanitizeCloudProfileMeta(meta) {
+  const fallback = createDefaultProfileMeta();
+  const rawProfiles = Array.isArray(meta?.profiles) ? meta.profiles : fallback.profiles;
+  const profiles = rawProfiles
+    .map((profile) => ({
+      id: String(profile?.id || "").trim(),
+      name: String(profile?.name || "").trim()
+    }))
+    .filter((profile) => profile.id && profile.name);
+
+  if (!profiles.length) {
+    return fallback;
+  }
+
+  if (!profiles.some((profile) => profile.id === DEFAULT_PROFILE_ID)) {
+    profiles.unshift({ id: DEFAULT_PROFILE_ID, name: "Guest Trainer" });
+  }
+
+  const activeProfileId = profiles.some((profile) => profile.id === meta?.activeProfileId)
+    ? meta.activeProfileId
+    : profiles[0].id;
+
+  return { activeProfileId, profiles };
+}
+
+function writeProfileCloudPayload(profileId, payload) {
+  const normalizedPayload = payload && typeof payload === "object" ? payload : {};
+
+  saveStoredObject(
+    getProfileScopedStorageKey(STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.caughtMap, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(SHINY_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.shinyMap, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(TRACKER_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.tracker, createDefaultTrackerState())
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(EXP_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.expPlan, getCloudProfileFieldFallback("expPlan"))
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(NOTEBOOK_STORAGE_KEY, profileId),
+    {
+      text: String(normalizedPayload.notebook?.text ?? "")
+    }
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(FAVORITES_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.favoritesMap, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(BOOKMARKS_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.bookmarksMap, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(FAVORITE_TYPES_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.favoriteTypes, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(GAME_CHECKLIST_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.gameChecklistState, createDefaultGameChecklistState())
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(HOME_BOX_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.homeBoxes, createDefaultHomeBoxesState())
+  );
+}
+
+function applyCloudSnapshot(snapshot) {
+  const normalizedMeta = sanitizeCloudProfileMeta(snapshot?.profileMeta);
+  const payloads = snapshot?.profiles && typeof snapshot.profiles === "object" ? snapshot.profiles : {};
+
+  normalizedMeta.profiles.forEach((profile) => {
+    writeProfileCloudPayload(profile.id, payloads[profile.id]);
+  });
+
+  state.profileMeta = normalizedMeta;
+  state.companionReply = "";
+  saveStoredObject(PROFILE_META_STORAGE_KEY, state.profileMeta);
+  loadProfileIntoState();
+
+  if (state.entries.length) {
+    refreshRandomTargets();
+  }
+
+  syncExpInputsFromState();
+  renderTracker();
+  renderExpGameOptions();
+  renderCollections();
+  renderTrainerVault();
+  renderHomeOrganizer();
+  renderShinyHelper();
+  renderSuggestors();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  void renderExpPlanner();
 }
 
 function loadCaughtMap() {
@@ -878,42 +1250,52 @@ function loadExpPlanState() {
 
 function saveCaughtMap() {
   saveProfileStoredObject(STORAGE_KEY, state.caughtMap);
+  markCloudDirty();
 }
 
 function saveShinyMap() {
   saveProfileStoredObject(SHINY_STORAGE_KEY, state.shinyMap);
+  markCloudDirty();
 }
 
 function saveTrackerState() {
   saveProfileStoredObject(TRACKER_STORAGE_KEY, state.tracker);
+  markCloudDirty();
 }
 
 function saveExpPlanState() {
   saveProfileStoredObject(EXP_STORAGE_KEY, state.expPlan);
+  markCloudDirty();
 }
 
 function saveNotebookState() {
   saveProfileStoredObject(NOTEBOOK_STORAGE_KEY, { text: state.notebook });
+  markCloudDirty();
 }
 
 function saveFavoritesMap() {
   saveProfileStoredObject(FAVORITES_STORAGE_KEY, state.favoritesMap);
+  markCloudDirty();
 }
 
 function saveBookmarksMap() {
   saveProfileStoredObject(BOOKMARKS_STORAGE_KEY, state.bookmarksMap);
+  markCloudDirty();
 }
 
 function saveFavoriteTypesState() {
   saveProfileStoredObject(FAVORITE_TYPES_STORAGE_KEY, state.favoriteTypes);
+  markCloudDirty();
 }
 
 function saveGameChecklistState() {
   saveProfileStoredObject(GAME_CHECKLIST_STORAGE_KEY, state.gameChecklistState);
+  markCloudDirty();
 }
 
 function saveHomeBoxesState() {
   saveProfileStoredObject(HOME_BOX_STORAGE_KEY, state.homeBoxes);
+  markCloudDirty();
 }
 
 function loadProfileIntoState() {
@@ -1145,6 +1527,35 @@ function getFavoriteTypeEntries() {
   }));
 }
 
+function isArchiveShinyMode() {
+  return state.ui.archiveMode === "shiny";
+}
+
+function getArchiveModeLabel() {
+  return isArchiveShinyMode() ? "Shiny Dex" : "Living Dex";
+}
+
+function getArchiveTrackedLabel() {
+  return isArchiveShinyMode() ? "Logged" : "Caught";
+}
+
+function getArchiveMissingLabel() {
+  return isArchiveShinyMode() ? "Unlogged" : "Missing";
+}
+
+function isArchiveTracked(name) {
+  return isArchiveShinyMode() ? isShiny(name) : isCaught(name);
+}
+
+function setArchiveMode(mode) {
+  if (!mode || state.ui.archiveMode === mode) {
+    return;
+  }
+
+  state.ui.archiveMode = mode;
+  refreshResults();
+}
+
 function getPrimaryGameEntry(baseNumber) {
   const ownedGames = getOwnedGameIds();
   if (!state.gameAvailabilityReady) {
@@ -1159,6 +1570,602 @@ function getActiveProfile() {
     state.profileMeta.profiles.find((profile) => profile.id === state.profileMeta.activeProfileId) ??
     state.profileMeta.profiles[0]
   );
+}
+
+function getCloudUserLabel(user = state.cloud.user) {
+  if (!user) {
+    return "";
+  }
+
+  return String(
+    user.user_metadata?.display_name ||
+      user.user_metadata?.username ||
+      user.user_metadata?.full_name ||
+      user.email ||
+      "Trainer Account"
+  ).trim();
+}
+
+function getSessionButtonLabel() {
+  if (state.cloud.user) {
+    return getCloudUserLabel();
+  }
+
+  const profile = getActiveProfile();
+  return profile.id === DEFAULT_PROFILE_ID ? "Guest Session" : profile.name;
+}
+
+function setCloudMessage(message, tone = "neutral") {
+  state.cloud.message = message;
+  state.cloud.messageTone = tone;
+}
+
+function formatCloudError(error, fallback = "Cloud account action failed.") {
+  const rawMessage = String(error?.message || error || fallback).trim();
+  const normalized = rawMessage.toLowerCase();
+
+  if (normalized.includes("invalid login credentials")) {
+    return "That email and password combination did not match a trainer account.";
+  }
+
+  if (normalized.includes("oauth") && normalized.includes("email")) {
+    return "That trainer account uses a social login provider like Google. Use the Google button instead of email/password.";
+  }
+
+  if (normalized.includes("provider is not enabled")) {
+    return "Google sign-in is not enabled in your Supabase project yet.";
+  }
+
+  if (normalized.includes("email not confirmed")) {
+    return "Check your inbox and confirm the account email before signing in.";
+  }
+
+  if (normalized.includes("user already registered")) {
+    return "That email already has a trainer account. Try signing in instead.";
+  }
+
+  if (normalized.includes("failed to fetch")) {
+    return "The cloud service could not be reached right now. Check your connection and try again.";
+  }
+
+  if (normalized.includes("invalid api key") || normalized.includes("project not found")) {
+    return "The Supabase project settings for cloud accounts are not configured correctly yet.";
+  }
+
+  return rawMessage || fallback;
+}
+
+function hasUnsyncedLocalChanges() {
+  if (!state.accountSync.lastLocalChangeAt) {
+    return false;
+  }
+
+  if (!state.accountSync.lastSyncedAt) {
+    return true;
+  }
+
+  return new Date(state.accountSync.lastLocalChangeAt) > new Date(state.accountSync.lastSyncedAt);
+}
+
+function isCloudLinkedToCurrentUser() {
+  return Boolean(
+    state.cloud.user &&
+      state.accountSync.linkedUserId === state.cloud.user.id &&
+      !state.accountSync.pendingResolution
+  );
+}
+
+function markCloudDirty() {
+  state.accountSync.lastLocalChangeAt = new Date().toISOString();
+  saveAccountSyncState();
+  scheduleCloudAutoSync();
+}
+
+function scheduleCloudAutoSync() {
+  if (
+    !state.cloud.configured ||
+    !state.cloud.user ||
+    !isCloudLinkedToCurrentUser() ||
+    state.cloud.busy ||
+    state.accountSync.pendingResolution
+  ) {
+    return;
+  }
+
+  if (state.cloud.autoSyncTimer) {
+    window.clearTimeout(state.cloud.autoSyncTimer);
+  }
+
+  state.cloud.autoSyncTimer = window.setTimeout(() => {
+    state.cloud.autoSyncTimer = null;
+    void pushLocalSnapshotToCloud({ quiet: true, source: "auto" });
+  }, CLOUD_SYNC_DEBOUNCE_MS);
+}
+
+async function ensureCloudClient() {
+  if (!state.cloud.configured) {
+    return null;
+  }
+
+  if (state.cloud.client) {
+    return state.cloud.client;
+  }
+
+  const createClient = window.supabase?.createClient;
+  if (typeof createClient !== "function") {
+    setCloudMessage("The cloud account library could not load in this browser session.", "error");
+    return null;
+  }
+
+  const client = createClient(state.cloud.config.url, state.cloud.config.publishableKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  state.cloud.client = client;
+  state.cloud.ready = true;
+
+  const { data } = client.auth.onAuthStateChange((event, session) => {
+    state.cloud.session = session ?? null;
+    state.cloud.user = session?.user ?? null;
+
+    setTimeout(() => {
+      if (!session?.user) {
+        if (event === "SIGNED_OUT") {
+          state.accountSync.pendingResolution = false;
+          state.accountSync.pendingUserId = null;
+          saveAccountSyncState();
+          setCloudMessage("This device was signed out of its cloud account.", "neutral");
+        }
+
+        renderTrainerVault();
+        return;
+      }
+
+      void hydrateCloudSession(event);
+    }, 0);
+  });
+
+  state.cloud.authSubscription = data?.subscription ?? null;
+
+  const {
+    data: { session }
+  } = await client.auth.getSession();
+
+  state.cloud.session = session ?? null;
+  state.cloud.user = session?.user ?? null;
+
+  return client;
+}
+
+async function fetchCloudSaveForCurrentUser() {
+  const client = await ensureCloudClient();
+  if (!client || !state.cloud.user) {
+    return null;
+  }
+
+  const { data, error } = await client
+    .from(CLOUD_SAVE_TABLE)
+    .select("user_id, email, snapshot, updated_at, created_at")
+    .eq("user_id", state.cloud.user.id);
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data[0] ?? null : null;
+}
+
+async function pushLocalSnapshotToCloud({ quiet = false, source = "manual" } = {}) {
+  const client = await ensureCloudClient();
+  if (!client || !state.cloud.user) {
+    setCloudMessage("Sign in to a trainer account before syncing this device.", "warn");
+    renderTrainerVault();
+    return false;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  const syncedAt = new Date().toISOString();
+  const snapshot = buildCloudSnapshot();
+
+  try {
+    const { error } = await client.from(CLOUD_SAVE_TABLE).upsert(
+      {
+        user_id: state.cloud.user.id,
+        email: state.cloud.user.email ?? null,
+        snapshot,
+        updated_at: syncedAt
+      },
+      { onConflict: "user_id" }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    state.cloud.remoteSave = {
+      user_id: state.cloud.user.id,
+      email: state.cloud.user.email ?? null,
+      snapshot,
+      updated_at: syncedAt
+    };
+    state.accountSync.linkedUserId = state.cloud.user.id;
+    state.accountSync.pendingUserId = null;
+    state.accountSync.pendingResolution = false;
+    state.accountSync.lastSyncedAt = syncedAt;
+    state.accountSync.lastRemoteUpdatedAt = syncedAt;
+    state.accountSync.lastDirection = "push";
+    saveAccountSyncState();
+
+    setCloudMessage(
+      source === "auto"
+        ? "This device auto-synced its latest trainer data to the cloud."
+        : "This device was pushed to the cloud save.",
+      "success"
+    );
+
+    if (!quiet) {
+      setStatus("Trainer cloud save updated.");
+    }
+
+    return true;
+  } catch (error) {
+    setCloudMessage(formatCloudError(error), "error");
+    if (!quiet) {
+      setStatus("Cloud push failed.");
+    }
+    return false;
+  } finally {
+    state.cloud.busy = false;
+    renderTrainerVault();
+  }
+}
+
+async function pullCloudSnapshotToDevice({ quiet = false } = {}) {
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const row = await fetchCloudSaveForCurrentUser();
+
+    if (!row?.snapshot) {
+      setCloudMessage("No cloud save exists for this trainer account yet.", "warn");
+      return false;
+    }
+
+    applyCloudSnapshot(row.snapshot);
+
+    const syncedAt = new Date().toISOString();
+    state.cloud.remoteSave = row;
+    state.accountSync.linkedUserId = state.cloud.user?.id ?? null;
+    state.accountSync.pendingUserId = null;
+    state.accountSync.pendingResolution = false;
+    state.accountSync.lastSyncedAt = syncedAt;
+    state.accountSync.lastRemoteUpdatedAt = row.updated_at ?? syncedAt;
+    state.accountSync.lastDirection = "pull";
+    saveAccountSyncState();
+
+    setCloudMessage("This device was restored from the cloud save.", "success");
+    if (!quiet) {
+      setStatus("Trainer cloud save downloaded.");
+    }
+    return true;
+  } catch (error) {
+    setCloudMessage(formatCloudError(error, "Cloud pull failed."), "error");
+    if (!quiet) {
+      setStatus("Cloud pull failed.");
+    }
+    return false;
+  } finally {
+    state.cloud.busy = false;
+    renderTrainerVault();
+  }
+}
+
+async function hydrateCloudSession(event = "INITIAL_SESSION") {
+  if (!state.cloud.user) {
+    renderTrainerVault();
+    return;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const row = await fetchCloudSaveForCurrentUser();
+    state.cloud.remoteSave = row;
+
+    if (!row) {
+      await pushLocalSnapshotToCloud({ quiet: true, source: "bootstrap" });
+      return;
+    }
+
+    state.accountSync.lastRemoteUpdatedAt = row.updated_at ?? state.accountSync.lastRemoteUpdatedAt;
+    const linkedToThisUser = state.accountSync.linkedUserId === state.cloud.user.id;
+
+    if (!linkedToThisUser) {
+      state.accountSync.pendingResolution = true;
+      state.accountSync.pendingUserId = state.cloud.user.id;
+      saveAccountSyncState();
+      setCloudMessage(
+        `Cloud save found for ${getCloudUserLabel()}. Pull Cloud to use that save here, or Push Local to replace it with this device's data.`,
+        "warn"
+      );
+      return;
+    }
+
+    if (hasUnsyncedLocalChanges()) {
+      state.accountSync.pendingResolution = true;
+      state.accountSync.pendingUserId = state.cloud.user.id;
+      saveAccountSyncState();
+      setCloudMessage(
+        "This device has unsynced local changes. Pull Cloud or Push Local to choose which version wins.",
+        "warn"
+      );
+      return;
+    }
+
+    await pullCloudSnapshotToDevice({ quiet: true });
+    if (event === "SIGNED_IN") {
+      setCloudMessage(`Welcome back, ${getCloudUserLabel()}. Your cloud save is linked on this device.`, "success");
+    }
+  } catch (error) {
+    setCloudMessage(formatCloudError(error, "Cloud account sync could not start."), "error");
+  } finally {
+    state.cloud.busy = false;
+    renderTrainerVault();
+  }
+}
+
+async function signInCloudAccount() {
+  const client = await ensureCloudClient();
+  if (!client) {
+    setCloudMessage("Cloud accounts are not configured on this build yet.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  const email = elements.accountEmailInput.value.trim();
+  const password = elements.accountPasswordInput.value;
+
+  if (!email || !password) {
+    setCloudMessage("Enter both an email and a password to sign in.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw error;
+    }
+
+    elements.accountPasswordInput.value = "";
+    setCloudMessage(`Signed in as ${email}. Checking your cloud save…`, "success");
+  } catch (error) {
+    state.cloud.busy = false;
+    setCloudMessage(formatCloudError(error, "Sign in failed."), "error");
+    renderTrainerVault();
+  }
+}
+
+async function signUpCloudAccount() {
+  const client = await ensureCloudClient();
+  if (!client) {
+    setCloudMessage("Cloud accounts are not configured on this build yet.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  const email = elements.accountEmailInput.value.trim();
+  const password = elements.accountPasswordInput.value;
+
+  if (!email || !password) {
+    setCloudMessage("Enter both an email and a password to create a cloud account.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: state.cloud.config.redirectTo,
+        data: {
+          display_name: getActiveProfile()?.name ?? "Dexter Trainer"
+        }
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    elements.accountPasswordInput.value = "";
+    state.cloud.busy = false;
+
+    if (data.session) {
+      setCloudMessage(`Account created for ${email}. Linking this device now…`, "success");
+      renderTrainerVault();
+      return;
+    }
+
+    setCloudMessage(
+      "Account created. Check your email for the confirmation link, then sign in on this device.",
+      "success"
+    );
+    renderTrainerVault();
+  } catch (error) {
+    state.cloud.busy = false;
+    setCloudMessage(formatCloudError(error, "Account creation failed."), "error");
+    renderTrainerVault();
+  }
+}
+
+async function signInCloudAccountWithGoogle() {
+  const client = await ensureCloudClient();
+  if (!client) {
+    setCloudMessage("Cloud accounts are not configured on this build yet.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: state.cloud.config.redirectTo,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    setCloudMessage("Redirecting to Google so this device can link with your trainer account…", "success");
+
+    if (data?.url) {
+      window.location.assign(data.url);
+      return;
+    }
+  } catch (error) {
+    state.cloud.busy = false;
+    setCloudMessage(formatCloudError(error, "Google sign-in failed."), "error");
+    renderTrainerVault();
+  }
+}
+
+async function signOutCloudAccount() {
+  const client = await ensureCloudClient();
+  if (!client || !state.cloud.user) {
+    setCloudMessage("No cloud account is signed in on this device.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    const { error } = await client.auth.signOut({ scope: "local" });
+    if (error) {
+      throw error;
+    }
+
+    elements.accountPasswordInput.value = "";
+    setStatus("Cloud account signed out on this device.");
+  } catch (error) {
+    state.cloud.busy = false;
+    setCloudMessage(formatCloudError(error, "Sign out failed."), "error");
+    renderTrainerVault();
+  }
+}
+
+async function syncCloudNow() {
+  if (!state.cloud.user) {
+    setCloudMessage("Sign in to a cloud account before syncing.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  if (state.accountSync.pendingResolution) {
+    setCloudMessage("Choose Pull Cloud or Push Local first so this device knows which save to trust.", "warn");
+    renderTrainerVault();
+    return;
+  }
+
+  if (hasUnsyncedLocalChanges()) {
+    await pushLocalSnapshotToCloud();
+    return;
+  }
+
+  await pullCloudSnapshotToDevice();
+}
+
+function renderCloudAccountCard() {
+  const configured = state.cloud.configured;
+  const signedIn = Boolean(state.cloud.user);
+  const pending = state.accountSync.pendingResolution;
+  const linked = isCloudLinkedToCurrentUser();
+  const unsynced = hasUnsyncedLocalChanges();
+
+  let badge = "Offline Only";
+  let summary =
+    "Sign in to link this device and sync your living dex, notes, trackers, and HOME plan across devices.";
+
+  if (!configured) {
+    summary =
+      "Cloud account support is installed, but this build still needs Supabase project keys before devices can sync.";
+  } else if (state.cloud.busy) {
+    badge = "Syncing";
+    summary = signedIn
+      ? `Working with ${getCloudUserLabel()}'s cloud save.`
+      : "Checking cloud account status.";
+  } else if (!signedIn) {
+    badge = "Ready";
+    summary =
+      "Create a trainer account, sign in with email, or use Google to link this browser with your cloud save and carry progress across devices.";
+  } else if (pending) {
+    badge = "Needs Choice";
+    summary =
+      "A cloud save was found, but this device needs a pull/push choice before syncing can continue safely.";
+  } else if (linked) {
+    badge = unsynced ? "Pending Sync" : "Linked";
+    summary = unsynced
+      ? `${getCloudUserLabel()} is linked, and this device has local changes waiting to sync.`
+      : `${getCloudUserLabel()} is linked, and this device is in sync across sessions.`;
+  } else {
+    badge = "Signed In";
+    summary = `${getCloudUserLabel()} is signed in. Pull or push once to link this device.`;
+  }
+
+  elements.accountBadge.textContent = badge;
+  elements.accountSummary.textContent = summary;
+  elements.accountDetail.textContent =
+    state.cloud.message ||
+    (!configured
+      ? "Add your Supabase URL and publishable key to supabase-config.js, then create the cloud_saves table from supabase/schema.sql."
+      : signedIn
+        ? `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}.`
+        : "Email/password and Google auth are ready once Supabase is configured.");
+  elements.accountDetail.className = `results-summary account-detail${
+    state.cloud.messageTone === "error"
+      ? " is-error"
+      : state.cloud.messageTone === "success"
+        ? " is-success"
+        : state.cloud.messageTone === "warn"
+          ? " is-warn"
+          : ""
+  }`;
+
+  elements.accountEmailInput.disabled = !configured || state.cloud.busy;
+  elements.accountPasswordInput.disabled = !configured || state.cloud.busy;
+  elements.accountSignInButton.disabled = !configured || state.cloud.busy || signedIn;
+  elements.accountSignUpButton.disabled = !configured || state.cloud.busy || signedIn;
+  elements.accountGoogleSignInButton.disabled = !configured || state.cloud.busy || signedIn;
+  elements.accountSignOutButton.disabled = !configured || state.cloud.busy || !signedIn;
+  elements.cloudPullButton.disabled = !configured || state.cloud.busy || !signedIn;
+  elements.cloudPushButton.disabled = !configured || state.cloud.busy || !signedIn;
+  elements.cloudSyncButton.disabled = !configured || state.cloud.busy || !signedIn || pending;
 }
 
 function getBaseEntries() {
@@ -1248,9 +2255,12 @@ function createCollectionEmptyState(message) {
   return empty;
 }
 
-function createCollectionItem(entry, note, tags = []) {
-  const button = document.createElement("button");
-  button.type = "button";
+function createCollectionItem(entry, note, tags = [], options = {}) {
+  const interactive = options.interactive !== false;
+  const button = document.createElement(interactive ? "button" : "div");
+  if (interactive) {
+    button.type = "button";
+  }
   button.className = "collection-item";
 
   const art = document.createElement("span");
@@ -1258,20 +2268,9 @@ function createCollectionItem(entry, note, tags = []) {
 
   const sprite = document.createElement("img");
   sprite.className = "collection-item-sprite";
-  sprite.src = entry.listSprite || buildSpriteUrl(entry.baseNumber);
-  sprite.alt = "";
   sprite.loading = "lazy";
   sprite.decoding = "async";
-  sprite.addEventListener("error", () => {
-    if (sprite.dataset.fallback !== "base" && entry.baseNumber !== entry.id) {
-      sprite.dataset.fallback = "base";
-      sprite.src = buildSpriteUrl(entry.baseNumber);
-      return;
-    }
-
-    sprite.classList.add("is-missing");
-    sprite.removeAttribute("src");
-  });
+  applyEntrySprite(sprite, entry, options);
 
   art.appendChild(sprite);
 
@@ -1297,9 +2296,11 @@ function createCollectionItem(entry, note, tags = []) {
     button.appendChild(tagRow);
   }
 
-  button.addEventListener("click", () => {
-    openPokemonEntry(entry.name);
-  });
+  if (interactive) {
+    button.addEventListener("click", () => {
+      openPokemonEntry(entry.name);
+    });
+  }
 
   return button;
 }
@@ -1365,12 +2366,51 @@ function getFilledBoxCount(box) {
   return box?.entries?.reduce((sum, entry) => sum + Number(isBoxedInHome(entry.name)), 0) ?? 0;
 }
 
+function getHomeBoxCompatibilityMeta(entry) {
+  if (!entry.isForm || entry.syntheticKind === "appearance") {
+    return {
+      homeBoxCompatible: true,
+      homeBoxTag: "Boxable",
+      homeBoxReason: "",
+      parkedOnly: false
+    };
+  }
+
+  const matchedRule = HOME_BOX_COMPATIBILITY_RULES.find((rule) => rule.matches(entry));
+  if (!matchedRule) {
+    return {
+      homeBoxCompatible: true,
+      homeBoxTag: "Boxable",
+      homeBoxReason: "",
+      parkedOnly: false
+    };
+  }
+
+  return {
+    homeBoxCompatible: false,
+    homeBoxTag: matchedRule.tag,
+    homeBoxReason: matchedRule.reason,
+    parkedOnly: !matchedRule.archiveVisible
+  };
+}
+
+function getHomeBoxEntries() {
+  return state.entries.filter((entry) => entry.homeBoxCompatible !== false);
+}
+
+function getHomeExcludedEntries() {
+  return [...state.entries, ...state.parkedEntries]
+    .filter((entry) => entry.homeBoxCompatible === false)
+    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
+}
+
 function getHomeTemplateBoxes() {
-  const boxCount = Math.max(1, Math.ceil(state.entries.length / 30));
+  const homeEntries = getHomeBoxEntries();
+  const boxCount = Math.max(1, Math.ceil(homeEntries.length / 30));
 
   return Array.from({ length: boxCount }, (_, boxIndex) => {
     const start = boxIndex * 30;
-    const slots = Array.from({ length: 30 }, (_, slotIndex) => state.entries[start + slotIndex] ?? null);
+    const slots = Array.from({ length: 30 }, (_, slotIndex) => homeEntries[start + slotIndex] ?? null);
     const entries = slots.filter(Boolean);
 
     return {
@@ -1440,8 +2480,99 @@ function titleCase(value) {
     .join(" ");
 }
 
-function buildSpriteUrl(id) {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+function buildSpriteUrl(id, shiny = false) {
+  const shinySegment = shiny ? "/shiny" : "";
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon${shinySegment}/${id}.png`;
+}
+
+function buildFormSpriteUrl(baseNumber, formSlug, shiny = false) {
+  if (!formSlug) {
+    return buildSpriteUrl(baseNumber, shiny);
+  }
+
+  const shinySegment = shiny ? "/shiny" : "";
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon${shinySegment}/${baseNumber}-${formSlug}.png`;
+}
+
+function buildGenderSpriteUrl(id, shiny = false, gender = "female") {
+  const shinySegment = shiny ? "/shiny" : "";
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon${shinySegment}/${gender}/${id}.png`;
+}
+
+function uniqUrls(urls) {
+  return [...new Set(urls.filter(Boolean))];
+}
+
+function getEntrySpriteUrls(entry, { forceShiny = false } = {}) {
+  const wantsShiny = forceShiny || isShiny(entry.name);
+  if (wantsShiny) {
+    return uniqUrls([
+      entry.shinyListSprite,
+      buildSpriteUrl(entry.id, true),
+      buildSpriteUrl(entry.baseNumber, true),
+      entry.listSprite,
+      buildSpriteUrl(entry.baseNumber)
+    ]);
+  }
+
+  return uniqUrls([entry.listSprite, buildSpriteUrl(entry.baseNumber)]);
+}
+
+function getPokemonVisualUrls(pokemon, { forceShiny = false, preferArtwork = false } = {}) {
+  const wantsShiny = forceShiny || isShiny(pokemon.name);
+  const shinyPrimary = preferArtwork
+    ? [pokemon.artworkShiny, pokemon.spriteShiny, pokemon.artwork, pokemon.sprite]
+    : [pokemon.spriteShiny, pokemon.artworkShiny, pokemon.sprite, pokemon.artwork];
+  const regularPrimary = preferArtwork
+    ? [pokemon.artwork, pokemon.sprite, pokemon.artworkShiny, pokemon.spriteShiny]
+    : [pokemon.sprite, pokemon.artwork, pokemon.spriteShiny, pokemon.artworkShiny];
+
+  return uniqUrls(wantsShiny ? shinyPrimary : regularPrimary);
+}
+
+function applyImageSources(image, sources, alt = "") {
+  const queue = uniqUrls(sources);
+  image.alt = alt;
+  image.classList.remove("is-missing", "is-hidden");
+
+  if (!queue.length) {
+    image.classList.add("is-missing");
+    image.removeAttribute("src");
+    image.onerror = null;
+    return;
+  }
+
+  let index = 0;
+  image.onerror = () => {
+    index += 1;
+    if (index < queue.length) {
+      image.src = queue[index];
+      return;
+    }
+
+    image.classList.add("is-missing");
+    image.removeAttribute("src");
+    image.onerror = null;
+  };
+  image.src = queue[index];
+}
+
+function applyEntrySprite(image, entry, options = {}) {
+  applyImageSources(
+    image,
+    getEntrySpriteUrls(entry, options),
+    `${entry.displayName}${options.forceShiny || isShiny(entry.name) ? " shiny" : ""} sprite`
+  );
+}
+
+function applyPokemonVisual(image, pokemon, options = {}) {
+  applyImageSources(
+    image,
+    getPokemonVisualUrls(pokemon, options),
+    `${pokemon.displayName}${options.forceShiny || isShiny(pokemon.name) ? " shiny" : ""} ${
+      options.preferArtwork ? "artwork" : "sprite"
+    }`
+  );
 }
 
 function formatNumber(value) {
@@ -1611,9 +2742,14 @@ function createAppearanceEntry({
   baseNumber,
   basePokemonName,
   variantLabel,
-  detailNote
+  detailNote,
+  spriteSlug = "",
+  listSprite,
+  shinyListSprite,
+  formFlags = ["form", "special"],
+  syntheticKind = "appearance",
+  extraSearchTerms = ["appearance", "cosmetic"]
 }) {
-  const formFlags = ["form", "special"];
   const entry = {
     id,
     name,
@@ -1626,17 +2762,19 @@ function createAppearanceEntry({
     formFlags,
     variantLabel,
     detailNote,
-    syntheticKind: "appearance",
-    listSprite: buildSpriteUrl(baseNumber)
+    syntheticKind,
+    listSprite: listSprite ?? buildFormSpriteUrl(baseNumber, spriteSlug),
+    shinyListSprite: shinyListSprite ?? buildFormSpriteUrl(baseNumber, spriteSlug, true)
   };
 
-  entry.searchBlob = buildEntrySearchBlob(entry, ["appearance", "cosmetic"]);
+  entry.searchBlob = buildEntrySearchBlob(entry, extraSearchTerms);
   return entry;
 }
 
-function buildAppearanceFormEntries(startId, existingNames = new Set()) {
+function buildAppearanceFormEntries(startId, existingNames = new Set(), sourceEntries = []) {
   const entries = [];
   let nextId = startId;
+  const sourceEntriesById = new Map(sourceEntries.map((entry) => [entry.id, entry]));
 
   ALCREMIE_CREAMS.forEach((cream) => {
     ALCREMIE_SWEETS.forEach((sweet) => {
@@ -1657,7 +2795,8 @@ function buildAppearanceFormEntries(startId, existingNames = new Set()) {
           baseNumber: 869,
           basePokemonName: "alcremie",
           variantLabel: `${cream.label} ${sweet.label}`,
-          detailNote: `${cream.label} with ${sweet.label.toLowerCase()} is tracked as a cosmetic Alcremie appearance form.`
+          detailNote: `${cream.label} with ${sweet.label.toLowerCase()} is tracked as a cosmetic Alcremie appearance form.`,
+          spriteSlug: `${cream.slug}-${sweet.slug}`
         })
       );
     });
@@ -1681,7 +2820,63 @@ function buildAppearanceFormEntries(startId, existingNames = new Set()) {
         baseNumber: 666,
         basePokemonName: "vivillon",
         variantLabel: pattern.label,
-        detailNote: `${pattern.label} is tracked as a cosmetic Vivillon appearance form.`
+        detailNote: `${pattern.label} is tracked as a cosmetic Vivillon appearance form.`,
+        spriteSlug: pattern.slug.replace(/-pattern$/, "")
+      })
+    );
+  });
+
+  FURFROU_TRIMS.forEach((trim) => {
+    if (trim.slug === "natural") {
+      return;
+    }
+
+    const name = `furfrou-${trim.slug}`;
+    if (existingNames.has(name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name,
+        displayName: `Furfrou ${trim.label}`,
+        baseNumber: 676,
+        basePokemonName: "furfrou",
+        variantLabel: trim.label,
+        detailNote: `${trim.label} is tracked as a cosmetic Furfrou appearance form.`,
+        spriteSlug: trim.slug
+      })
+    );
+  });
+
+  FEMALE_SPRITE_DIFFERENCE_IDS.forEach((id) => {
+    const sourceEntry = sourceEntriesById.get(id);
+    if (!sourceEntry) {
+      return;
+    }
+
+    const rootName = sourceEntry.name.replace(/-(male|female)$/, "");
+    const name = `${rootName}-female`;
+    if (existingNames.has(name)) {
+      return;
+    }
+
+    const baseLabel = titleCase(rootName);
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name,
+        displayName: `${baseLabel} Female`,
+        baseNumber: sourceEntry.baseNumber,
+        basePokemonName: sourceEntry.basePokemonName ?? sourceEntry.name,
+        variantLabel: "Female",
+        detailNote: `Female ${baseLabel} is tracked here because it has an official visual gender difference.`,
+        listSprite: buildGenderSpriteUrl(sourceEntry.id),
+        shinyListSprite: buildGenderSpriteUrl(sourceEntry.id, true),
+        formFlags: ["form", "gender"],
+        syntheticKind: "gender",
+        extraSearchTerms: ["gender", "female", "difference", "visual"]
       })
     );
   });
@@ -1693,7 +2888,7 @@ function labelSort(sort) {
   const labels = {
     "id-asc": "Sort: ID Numeric",
     alpha: "Sort: Alphabetical",
-    caught: "Sort: Caught First",
+    caught: isArchiveShinyMode() ? "Sort: Logged First" : "Sort: Caught First",
     forms: "Sort: Form Priority"
   };
 
@@ -1764,6 +2959,7 @@ async function repairUnresolvedFormEntries(entries) {
     entry.baseNumber = speciesId;
     entry.generation = determineGeneration(speciesId);
     entry.listSprite = buildSpriteUrl(entry.id);
+    entry.shinyListSprite = buildSpriteUrl(entry.id, true);
     entry.searchBlob = buildEntrySearchBlob(entry);
   });
 }
@@ -2259,6 +3455,9 @@ function describeEvolutionCondition(detail) {
   if (detail.location?.name) {
     parts.push(titleCase(detail.location.name));
   }
+  if (detail.region?.name) {
+    parts.push(titleCase(detail.region.name));
+  }
   if (detail.time_of_day) {
     parts.push(titleCase(detail.time_of_day));
   }
@@ -2280,6 +3479,11 @@ function describeEvolutionCondition(detail) {
   return parts.join(" · ");
 }
 
+function summarizeEvolutionConditions(details) {
+  const labels = [...new Set((details ?? []).map((detail) => describeEvolutionCondition(detail)).filter(Boolean))];
+  return labels.length ? labels.join(" or ") : "Base stage";
+}
+
 async function loadEvolutionChain(url) {
   if (!url) {
     return null;
@@ -2294,24 +3498,32 @@ async function loadEvolutionChain(url) {
   return payload;
 }
 
-function flattenEvolutionChain(node, stages = [], depth = 0, detail = null) {
-  stages.push({
-    speciesName: node.species.name,
-    displayName: titleCase(node.species.name),
-    depth,
-    detail,
-    condition: describeEvolutionCondition(detail)
-  });
+function flattenEvolutionChain(node, stages = [], depth = 0, details = [null]) {
+  const normalizedDetails = Array.isArray(details) ? details : [details];
+  const existing = stages.find(
+    (stage) => stage.speciesName === node.species.name && stage.depth === depth
+  );
+  const nextConditions = [
+    ...new Set(normalizedDetails.map((detail) => describeEvolutionCondition(detail)).filter(Boolean))
+  ];
+
+  if (existing) {
+    existing.conditions = [...new Set([...(existing.conditions ?? []), ...nextConditions])];
+    existing.condition = existing.conditions.join(" or ");
+  } else {
+    stages.push({
+      speciesName: node.species.name,
+      displayName: titleCase(node.species.name),
+      depth,
+      details: normalizedDetails,
+      conditions: nextConditions,
+      condition: nextConditions.join(" or ") || "Base stage"
+    });
+  }
 
   node.evolves_to.forEach((nextNode) => {
-    if (!nextNode.evolution_details.length) {
-      flattenEvolutionChain(nextNode, stages, depth + 1, null);
-      return;
-    }
-
-    nextNode.evolution_details.forEach((nextDetail) => {
-      flattenEvolutionChain(nextNode, stages, depth + 1, nextDetail);
-    });
+    const nextDetails = nextNode.evolution_details.length ? nextNode.evolution_details : [null];
+    flattenEvolutionChain(nextNode, stages, depth + 1, nextDetails);
   });
 
   return stages;
@@ -2342,10 +3554,9 @@ function buildEvolutionTargets(node, currentLevel) {
   }
 
   return node.evolves_to
-    .flatMap((nextNode) => {
+    .map((nextNode) => {
       const details = nextNode.evolution_details.length ? nextNode.evolution_details : [null];
-
-      return details.map((detail) => {
+      const variants = details.map((detail) => {
         const trigger = detail?.trigger?.name ?? "";
         const minLevel = detail?.min_level ?? null;
         const isLevelTrigger = trigger === "level-up" || (trigger === "" && minLevel !== null);
@@ -2372,6 +3583,25 @@ function buildEvolutionTargets(node, currentLevel) {
           requiresLevelUp: isLevelTrigger
         };
       });
+
+      const availableTargetLevels = variants
+        .map((variant) => variant.targetLevel)
+        .filter((value) => value !== null);
+      const availableMinLevels = variants
+        .map((variant) => variant.minLevel)
+        .filter((value) => value !== null);
+
+      return {
+        speciesName: nextNode.species.name,
+        displayName: titleCase(nextNode.species.name),
+        details,
+        detail: variants[0]?.detail ?? null,
+        condition: summarizeEvolutionConditions(details),
+        trigger: variants[0]?.trigger ?? "",
+        minLevel: availableMinLevels.length ? Math.min(...availableMinLevels) : null,
+        targetLevel: availableTargetLevels.length ? Math.min(...availableTargetLevels) : null,
+        requiresLevelUp: variants.some((variant) => variant.requiresLevelUp)
+      };
     })
     .sort(
       (left, right) =>
@@ -2573,7 +3803,7 @@ function renderCollections() {
   const profile = getActiveProfile();
   const baseEntries = getBaseEntries();
   const caughtBaseCount = baseEntries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
-  const shinyBaseCount = baseEntries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
+  const shinyEntryCount = state.entries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
   const ownedGames = getOwnedGameIds();
   const obtainableEntries =
     ownedGames.length && state.gameAvailabilityReady
@@ -2607,17 +3837,19 @@ function renderCollections() {
     refreshRandomTargets();
   }
 
-  elements.collectionFocus.textContent = `${profile.name} · ${formatCount(totalCaughtEntries)} logged`;
+  elements.collectionFocus.textContent = `${profile.name} · ${formatCount(totalCaughtEntries)} living · ${formatCount(
+    shinyEntryCount
+  )} shiny`;
 
   const mainRatio = baseEntries.length ? caughtBaseCount / baseEntries.length : 0;
-  const shinyRatio = baseEntries.length ? shinyBaseCount / baseEntries.length : 0;
+  const shinyRatio = state.entries.length ? shinyEntryCount / state.entries.length : 0;
   const ownedRatio = obtainableEntries.length ? obtainableCaughtCount / obtainableEntries.length : 0;
 
   elements.mainProgressText.textContent = baseEntries.length
     ? `${formatPercent(mainRatio)} · ${formatCount(caughtBaseCount)}/${formatCount(baseEntries.length)}`
     : "0%";
-  elements.shinyProgressText.textContent = baseEntries.length
-    ? `${formatPercent(shinyRatio)} · ${formatCount(shinyBaseCount)}/${formatCount(baseEntries.length)}`
+  elements.shinyProgressText.textContent = state.entries.length
+    ? `${formatPercent(shinyRatio)} · ${formatCount(shinyEntryCount)}/${formatCount(state.entries.length)}`
     : "0%";
   elements.ownedProgressText.textContent = obtainableEntries.length
     ? `${formatPercent(ownedRatio)} · ${formatCount(obtainableCaughtCount)}/${formatCount(obtainableEntries.length)}`
@@ -2633,7 +3865,14 @@ function renderCollections() {
     ? `${state.randomTargets.length} living dex targets and ${state.shinyTargets.length} bonus shiny calls are ready for ${profile.name}.`
     : "Everything in the base archive is already logged for this profile. Flip to a fresh profile or start a shiny push.";
 
-  const renderEntryList = (container, entries, emptyText, noteBuilder, tagBuilder = () => []) => {
+  const renderEntryList = (
+    container,
+    entries,
+    emptyText,
+    noteBuilder,
+    tagBuilder = () => [],
+    optionsBuilder = () => ({})
+  ) => {
     container.replaceChildren();
 
     if (!entries.length) {
@@ -2642,7 +3881,9 @@ function renderCollections() {
     }
 
     entries.forEach((entry) => {
-      container.appendChild(createCollectionItem(entry, noteBuilder(entry), tagBuilder(entry)));
+      container.appendChild(
+        createCollectionItem(entry, noteBuilder(entry), tagBuilder(entry), optionsBuilder(entry))
+      );
     });
   };
 
@@ -2671,42 +3912,68 @@ function renderCollections() {
   );
 
   elements.toggleShinyChecklistButton.textContent = state.shinyChecklistVisible
-    ? "Hide Shiny Checklist"
-    : "Show Shiny Checklist";
+    ? "Hide Shiny Dex"
+    : "Open Shiny Dex";
   elements.shinyChecklist.classList.toggle("hidden", !state.shinyChecklistVisible);
   elements.shinyChecklist.replaceChildren();
 
   if (state.shinyChecklistVisible) {
-    const shinyEntries = baseEntries
-      .filter((entry) => isShiny(entry.name))
-      .sort((left, right) => left.baseNumber - right.baseNumber);
+    const shinySummary = document.createElement("p");
+    shinySummary.className = "results-summary shiny-check-summary";
+    shinySummary.textContent = `${formatCount(shinyEntryCount)}/${formatCount(
+      state.entries.length
+    )} shiny slots logged. This checklist is separate from the living dex and uses shiny sprite art for every entry.`;
+    elements.shinyChecklist.appendChild(shinySummary);
 
-    if (!shinyEntries.length) {
-      elements.shinyChecklist.appendChild(
-        createCollectionEmptyState("No shiny targets are logged yet. Open an entry and use Log Shiny to start the list.")
-      );
-    } else {
-      shinyEntries.forEach((entry) => {
-        const row = document.createElement("div");
-        row.className = "shiny-check-row";
+    const shinyEntries = [...state.entries].sort(
+      (left, right) =>
+        Number(isShiny(right.name)) - Number(isShiny(left.name)) ||
+        left.baseNumber - right.baseNumber ||
+        compareEntriesWithinGroup(left, right)
+    );
 
-        const toggle = document.createElement("input");
-        toggle.type = "checkbox";
-        toggle.checked = true;
-        toggle.addEventListener("change", () => {
-          setShinyState(entry.name, toggle.checked);
-          if (state.currentPokemon?.name === entry.name) {
-            renderCurrentPokemon(state.currentPokemon);
-          }
-          renderCollections();
-          refreshResults();
-          setStatus(`${entry.displayName} ${toggle.checked ? "logged as shiny." : "removed from the shiny checklist."}`);
-        });
+    shinyEntries.forEach((entry) => {
+      const row = document.createElement("div");
+      row.className = "shiny-check-row";
 
-        row.append(toggle, createCollectionItem(entry, isCaught(entry.name) ? "Caught and shiny logged" : "Still missing, shiny planned", ["Shiny"]));
-        elements.shinyChecklist.appendChild(row);
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = isShiny(entry.name);
+      toggle.addEventListener("change", () => {
+        setShinyState(entry.name, toggle.checked);
+        if (state.currentPokemon?.name === entry.name) {
+          renderCurrentPokemon(state.currentPokemon);
+        } else if (state.currentPokemon) {
+          renderCurrentScanRibbon();
+        }
+        renderCollections();
+        renderHomeOrganizer();
+        refreshResults();
+        setStatus(`${entry.displayName} ${toggle.checked ? "logged in the shiny dex." : "removed from the shiny dex."}`);
       });
-    }
+
+      row.append(
+        toggle,
+        createCollectionItem(
+          entry,
+          `#${formatNumber(entry.baseNumber)} · ${getEntryVariantLabel(entry)} · ${
+            isShiny(entry.name) ? "Logged" : "Missing"
+          }`,
+          [
+            entry.isForm
+              ? entry.syntheticKind === "gender"
+                ? "Gender"
+                : entry.syntheticKind === "appearance"
+                  ? "Appearance"
+                  : "Form"
+              : "Base",
+            "Shiny"
+          ],
+          { forceShiny: true }
+        )
+      );
+      elements.shinyChecklist.appendChild(row);
+    });
   }
 
   elements.favoritesCount.textContent = formatCount(favoriteEntries.length);
@@ -2769,6 +4036,7 @@ function renderTrainerVault() {
   const profileCount = state.profileMeta.profiles.length;
 
   elements.profilePill.textContent = profile.name;
+  elements.sessionButton.textContent = getSessionButtonLabel();
   elements.profileCount.textContent = `${profileCount} profile${profileCount === 1 ? "" : "s"}`;
   elements.profileSelect.replaceChildren();
 
@@ -2793,6 +4061,8 @@ function renderTrainerVault() {
   elements.companionAnswer.textContent =
     state.companionReply ||
     "Ask a question and Dexter will answer from your current archive, trackers, and Pokémon data.";
+
+  renderCloudAccountCard();
 }
 
 function findEvolutionTrail(node, speciesName, trail = []) {
@@ -2988,6 +4258,8 @@ async function answerCompanionQuestion(question) {
 }
 
 function renderHomeOrganizer() {
+  const homeBoxEntries = getHomeBoxEntries();
+  const homeExcludedEntries = getHomeExcludedEntries();
   const templateBoxes = getHomeTemplateBoxes();
   const selectedBoxIndex = getSelectedHomeBoxIndex(templateBoxes);
   if (selectedBoxIndex !== state.homeBoxes.selectedBox) {
@@ -3012,20 +4284,57 @@ function renderHomeOrganizer() {
 
   if (!state.entries.length) {
     elements.homeBoxSummary.textContent = "Syncing the HOME living-form template from the archive.";
+  } else if (!homeBoxEntries.length) {
+    elements.homeBoxSummary.textContent =
+      "No HOME-boxable entries are available in the current archive, so the organizer is on standby.";
   } else if (!currentBox || !targetCount) {
     elements.homeBoxSummary.textContent = "This HOME box is waiting for living-dex targets to load.";
   } else {
     const spareText = spareCount
       ? ` ${spareCount} spare slot${spareCount === 1 ? "" : "s"} remain open in this box.`
       : "";
+    const excludedText = homeExcludedEntries.length
+      ? ` ${formatCount(homeExcludedEntries.length)} non-boxable or unsupported forms are parked below.`
+      : "";
     elements.homeBoxSummary.textContent =
       `${currentBox.name} covers ${getHomeBoxRangeLabel(currentBox)} (${getHomeBoxSpanLabel(currentBox)}). ` +
       `${filledCount}/${targetCount} marked boxed in HOME, ${caughtCount}/${targetCount} caught in your dex.` +
-      `${spareText} Click a slot to mark or unmark that target as boxed in HOME. Use Archive or Scan when you want the full Pokemon page while organizing.`;
+      `${spareText}${excludedText} Click a slot to mark or unmark that target as boxed in HOME. Use Archive or Scan when you want the full Pokemon page while organizing.`;
   }
 
   elements.clearBoxButton.disabled = !currentBox || filledCount === 0;
   elements.gameChecklistSummary.textContent = `${linkedCount}/${GAME_CATALOG.length} linked to main dex`;
+  elements.homeExcludedCount.textContent = !state.entries.length
+    ? "Syncing"
+    : `${formatCount(homeExcludedEntries.length)} parked`;
+  elements.homeExcludedToggleButton.disabled = !state.entries.length;
+  elements.homeExcludedToggleButton.textContent = state.ui.homeExcludedVisible
+    ? "Hide Section"
+    : "Show Section";
+  elements.homeExcludedToggleButton.setAttribute("aria-expanded", String(state.ui.homeExcludedVisible));
+  elements.homeExcludedSummary.textContent = !state.entries.length
+    ? "HOME compatibility data is syncing with the archive."
+    : homeExcludedEntries.length
+      ? "These forms stay outside the HOME box template because HOME auto-registers them in the dex, strips the form on deposit, or does not treat them as separate stored forms."
+      : "Every current entry can live directly inside the HOME organizer.";
+  elements.homeExcludedList.classList.toggle("hidden", !state.ui.homeExcludedVisible);
+  elements.homeExcludedList.replaceChildren();
+  if (homeExcludedEntries.length) {
+    homeExcludedEntries.forEach((entry) => {
+      elements.homeExcludedList.appendChild(
+        createCollectionItem(
+          entry,
+          entry.homeBoxReason,
+          [entry.homeBoxTag, ...(entry.parkedOnly ? ["Parked"] : [])],
+          { interactive: !entry.parkedOnly }
+        )
+      );
+    });
+  } else {
+    elements.homeExcludedList.appendChild(
+      createCollectionEmptyState("No excluded forms are parked outside the HOME organizer right now.")
+    );
+  }
 
   elements.homeBoxTabs.replaceChildren();
   templateBoxes.forEach((box, index) => {
@@ -3068,20 +4377,9 @@ function renderHomeOrganizer() {
 
         const sprite = document.createElement("img");
         sprite.className = "home-slot-sprite";
-        sprite.src = entry.listSprite || buildSpriteUrl(entry.id);
-        sprite.alt = "";
         sprite.loading = "lazy";
         sprite.decoding = "async";
-        sprite.addEventListener("error", () => {
-          if (sprite.dataset.fallback !== "base" && entry.baseNumber !== entry.id) {
-            sprite.dataset.fallback = "base";
-            sprite.src = buildSpriteUrl(entry.baseNumber);
-            return;
-          }
-
-          sprite.classList.add("is-missing");
-          sprite.removeAttribute("src");
-        });
+        applyEntrySprite(sprite, entry);
 
         const label = document.createElement("span");
         label.className = "home-slot-label";
@@ -3926,9 +5224,33 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
     baseDisplayName,
     sprite:
       knownEntry?.listSprite ||
+      apiPokemon.sprites.front_default ||
+      apiPokemon.sprites.other.home.front_default ||
+      apiPokemon.sprites.other["official-artwork"].front_default ||
+      "",
+    spriteShiny:
+      knownEntry?.shinyListSprite ||
+      apiPokemon.sprites.front_shiny ||
+      apiPokemon.sprites.other.home.front_shiny ||
+      apiPokemon.sprites.other["official-artwork"].front_shiny ||
+      knownEntry?.listSprite ||
+      apiPokemon.sprites.front_default ||
+      "",
+    artwork:
+      knownEntry?.listSprite ||
       apiPokemon.sprites.other["official-artwork"].front_default ||
       apiPokemon.sprites.other.home.front_default ||
       apiPokemon.sprites.front_default ||
+      knownEntry?.shinyListSprite ||
+      apiPokemon.sprites.front_shiny ||
+      "",
+    artworkShiny:
+      knownEntry?.shinyListSprite ||
+      apiPokemon.sprites.other["official-artwork"].front_shiny ||
+      apiPokemon.sprites.other.home.front_shiny ||
+      apiPokemon.sprites.front_shiny ||
+      knownEntry?.listSprite ||
+      apiPokemon.sprites.other["official-artwork"].front_default ||
       "",
     growthRateName: species.growth_rate?.name ?? "unknown",
     growthRateUrl: species.growth_rate?.url ?? "",
@@ -4090,9 +5412,7 @@ function renderCurrentScanRibbon() {
   elements.currentScanRibbon.classList.remove("is-empty");
   elements.currentScanName.textContent = pokemon.displayName;
   elements.currentScanMeta.textContent = `${statusBits} · Tap to jump back into the Scan console.`;
-  elements.currentScanSprite.src = pokemon.sprite;
-  elements.currentScanSprite.alt = `${pokemon.displayName} sprite`;
-  elements.currentScanSprite.classList.remove("is-hidden");
+  applyPokemonVisual(elements.currentScanSprite, pokemon);
 
   renderTypeChips(
     elements.currentScanTypes,
@@ -4111,8 +5431,7 @@ function renderCurrentPokemon(pokemon) {
   const favoritedForAllTypes = pokemon.types.every((typeName) => state.favoriteTypes[typeName] === pokemon.name);
 
   elements.pokemonName.textContent = pokemon.displayName;
-  elements.pokemonArt.src = pokemon.sprite;
-  elements.pokemonArt.alt = `${pokemon.displayName} official artwork`;
+  applyPokemonVisual(elements.pokemonArt, pokemon, { preferArtwork: true });
   elements.pokemonDex.textContent = `Dex #${formatNumber(pokemon.dexNumber)}`;
   elements.pokemonFlavor.textContent = pokemon.flavorText;
   elements.pokemonGenus.textContent = pokemon.genus;
@@ -4189,8 +5508,8 @@ function renderCurrentPokemon(pokemon) {
 
 function getFilteredEntries() {
   const query = normalizeSearch(state.query);
-  const groupCaughtMap = state.entries.reduce((map, entry) => {
-    if (isCaught(entry.name)) {
+  const groupTrackedMap = state.entries.reduce((map, entry) => {
+    if (isArchiveTracked(entry.name)) {
       map.set(entry.baseNumber, true);
     }
     return map;
@@ -4201,15 +5520,15 @@ function getFilteredEntries() {
   }, new Map());
 
   const filtered = state.entries.filter((entry) => {
-    const caught = isCaught(entry.name);
+    const tracked = isArchiveTracked(entry.name);
     const scopeMatches =
       state.filters.scope === "all" ||
       (state.filters.scope === "base" && !entry.isForm) ||
       (state.filters.scope === "forms" && entry.isForm);
     const statusMatches =
       state.filters.status === "all" ||
-      (state.filters.status === "caught" && caught) ||
-      (state.filters.status === "missing" && !caught);
+      (state.filters.status === "caught" && tracked) ||
+      (state.filters.status === "missing" && !tracked);
     const generationMatches =
       state.filters.generation === "all" || entry.generation === state.filters.generation;
     const gameMatches =
@@ -4240,8 +5559,8 @@ function getFilteredEntries() {
         );
       case "caught":
         return (
-          Number(Boolean(groupCaughtMap.get(right.baseNumber))) -
-            Number(Boolean(groupCaughtMap.get(left.baseNumber))) ||
+          Number(Boolean(groupTrackedMap.get(right.baseNumber))) -
+            Number(Boolean(groupTrackedMap.get(left.baseNumber))) ||
           left.baseNumber - right.baseNumber ||
           compareEntriesWithinGroup(left, right)
         );
@@ -4262,44 +5581,60 @@ function getFilteredEntries() {
 }
 
 function renderFilterButtons() {
+  elements.archiveModeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.archiveMode === state.ui.archiveMode);
+  });
   elements.scopeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.scope === state.filters.scope);
   });
   elements.statusButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.status === state.filters.status);
+    if (button.dataset.status === "caught") {
+      button.textContent = getArchiveTrackedLabel();
+    } else if (button.dataset.status === "missing") {
+      button.textContent = getArchiveMissingLabel();
+    } else {
+      button.textContent = "All";
+    }
   });
   elements.signatureButtons.forEach((button) => {
     button.classList.toggle("active", state.filters.signatures.has(button.dataset.signature));
   });
+  elements.sortCaughtOption.textContent = labelSort("caught");
   elements.sortSelect.value = state.filters.sort;
   elements.generationSelect.value = state.filters.generation;
   elements.gameFilterSelect.value = state.filters.game;
   elements.gameFilterSelect.disabled = state.gameAvailabilityLoading && !state.gameAvailabilityReady;
   elements.sortIndicator.textContent = labelSort(state.filters.sort);
+  elements.archiveModeIndicator.textContent = `Mode ${getArchiveModeLabel()} - Public Access`;
+  elements.archiveRegistryLabel.textContent = isArchiveShinyMode() ? "Shiny Registry" : "Registry";
+  elements.statTrackedLabel.textContent = isArchiveShinyMode() ? "Shiny Logged" : "Caught";
+  elements.statMissingLabel.textContent = getArchiveMissingLabel();
 }
 
 function renderResultsSummary(filteredEntries) {
   const total = state.entries.length;
   const baseCount = state.entries.reduce((sum, entry) => sum + Number(!entry.isForm), 0);
   const formCount = total - baseCount;
-  const caughtCount = state.entries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
-  const missingCount = total - caughtCount;
+  const trackedCount = state.entries.reduce((sum, entry) => sum + Number(isArchiveTracked(entry.name)), 0);
+  const missingCount = total - trackedCount;
+  const modeLabel = getArchiveModeLabel();
 
   elements.archiveBaseCount.textContent = formatCount(baseCount);
   elements.archiveFormCount.textContent = formatCount(formCount);
-  elements.archiveCaughtCount.textContent = formatCount(caughtCount);
+  elements.archiveCaughtCount.textContent = formatCount(trackedCount);
   elements.resultsCount.textContent = formatCount(filteredEntries.length);
   const activeGameFilter = state.filters.game === "all" ? null : getGameMeta(state.filters.game);
   if (activeGameFilter && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
     elements.resultsSummary.textContent = `Syncing ${activeGameFilter.shortName} game coverage now.`;
   } else if (filteredEntries.length === total && state.filters.game === "all") {
-    elements.resultsSummary.textContent = "Guest mode active. Full archive signal online.";
+    elements.resultsSummary.textContent = `Guest mode active. Full ${modeLabel.toLowerCase()} archive signal online.`;
   } else if (activeGameFilter) {
-    elements.resultsSummary.textContent = `${formatCount(filteredEntries.length)} archive entities match the ${activeGameFilter.shortName} game filter.`;
+    elements.resultsSummary.textContent = `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities match the ${activeGameFilter.shortName} game filter.`;
   } else {
-    elements.resultsSummary.textContent = `${formatCount(filteredEntries.length)} archive entities match the active filter stack.`;
+    elements.resultsSummary.textContent = `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities match the active filter stack.`;
   }
-  elements.statCaught.textContent = formatCount(caughtCount);
+  elements.statCaught.textContent = formatCount(trackedCount);
   elements.statMissing.textContent = formatCount(missingCount);
   elements.statVisible.textContent = formatCount(filteredEntries.length);
   elements.statSelected.textContent = state.currentPokemon?.displayName ?? "None";
@@ -4339,14 +5674,19 @@ function renderDexList(filteredEntries) {
     const entryTags = instance.querySelector(".entry-tags");
     const caught = isCaught(entry.name);
     const shiny = isShiny(entry.name);
+    const tracked = isArchiveTracked(entry.name);
 
     card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
-    card.classList.toggle("caught", caught);
+    card.classList.toggle("caught", tracked);
     card.classList.toggle("is-form", entry.isForm);
 
-    checkbox.checked = caught;
+    checkbox.checked = tracked;
     checkbox.addEventListener("change", () => {
-      setCaughtState(entry.name, checkbox.checked);
+      if (isArchiveShinyMode()) {
+        setShinyState(entry.name, checkbox.checked);
+      } else {
+        setCaughtState(entry.name, checkbox.checked);
+      }
       refreshResults();
       renderCollections();
       renderHomeOrganizer();
@@ -4356,32 +5696,38 @@ function renderDexList(filteredEntries) {
       }
 
       setStatus(
-        `${entry.displayName} ${checkbox.checked ? "registered as caught." : "marked missing."}`
+        `${entry.displayName} ${
+          isArchiveShinyMode()
+            ? checkbox.checked
+              ? "logged in the shiny dex."
+              : "removed from the shiny dex."
+            : checkbox.checked
+              ? "registered as caught."
+              : "marked missing."
+        }`
       );
     });
 
-    entrySprite.src = entry.listSprite;
-    entrySprite.addEventListener("error", () => {
-      if (entry.baseNumber !== entry.id && entrySprite.dataset.fallback !== "base") {
-        entrySprite.dataset.fallback = "base";
-        entrySprite.src = buildSpriteUrl(entry.baseNumber);
-        return;
-      }
-
-      entrySprite.classList.add("is-missing");
-      entrySprite.removeAttribute("src");
-    });
+    applyEntrySprite(entrySprite, entry, { forceShiny: isArchiveShinyMode() });
     entryNumber.textContent = `#${formatNumber(entry.baseNumber)}`;
     entryName.textContent = entry.displayName;
-    entryStatus.textContent = `${caught ? "Caught" : "Missing"} · ${getEntryVariantLabel(entry)} · Generation ${
-      entry.generation === "unknown" ? "?" : entry.generation
-    }`;
+    entryStatus.textContent = `${
+      isArchiveShinyMode()
+        ? tracked
+          ? "Shiny logged"
+          : "Shiny missing"
+        : caught
+          ? "Caught"
+          : "Missing"
+    } · ${getEntryVariantLabel(entry)} · Generation ${entry.generation === "unknown" ? "?" : entry.generation}`;
 
     const tags = [];
     if (shiny) {
       tags.push("Shiny");
     }
-    if (entry.syntheticKind === "appearance") {
+    if (entry.syntheticKind === "gender") {
+      tags.push("Gender");
+    } else if (entry.syntheticKind === "appearance") {
       tags.push("Appearance");
     } else if (entry.isForm) {
       tags.push(...entry.formFlags.filter((flag) => flag !== "form").map(titleCase));
@@ -4528,7 +5874,8 @@ async function fetchDexIndex() {
           baseDisplayName,
           generation,
           formFlags,
-          listSprite: buildSpriteUrl(id)
+          listSprite: buildSpriteUrl(id),
+          shinyListSprite: buildSpriteUrl(id, true)
         };
 
         normalizedEntry.searchBlob = buildEntrySearchBlob(normalizedEntry);
@@ -4536,12 +5883,15 @@ async function fetchDexIndex() {
       })
       .sort((left, right) => left.id - right.id);
 
-    const appearanceEntries = buildAppearanceFormEntries(maxExistingId + 1, existingNames);
+    const appearanceEntries = buildAppearanceFormEntries(maxExistingId + 1, existingNames, apiEntries);
     await repairUnresolvedFormEntries(apiEntries);
 
-    state.entries = [...apiEntries, ...appearanceEntries].sort(
-      (left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right)
-    );
+    const allEntries = [...apiEntries, ...appearanceEntries]
+      .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right))
+      .map((entry) => Object.assign(entry, getHomeBoxCompatibilityMeta(entry)));
+
+    state.parkedEntries = allEntries.filter((entry) => entry.parkedOnly);
+    state.entries = allEntries.filter((entry) => !entry.parkedOnly);
 
     state.entriesByName = new Map(state.entries.map((entry) => [entry.name, entry]));
     refreshRandomTargets();
@@ -4627,10 +5977,11 @@ function toggleCurrentShiny() {
   setShinyState(state.currentPokemon.name, nextValue);
   renderCurrentPokemon(state.currentPokemon);
   renderCollections();
+  renderHomeOrganizer();
   refreshResults();
   setStatus(
     `${state.currentPokemon.displayName} ${
-      nextValue ? "logged as a shiny project." : "removed from the shiny log."
+      nextValue ? "logged in the shiny dex." : "removed from the shiny dex."
     }`
   );
 }
@@ -4785,6 +6136,33 @@ elements.profileNameInput.addEventListener("keydown", (event) => {
     elements.createProfileButton.click();
   }
 });
+elements.accountSignInButton.addEventListener("click", () => {
+  void signInCloudAccount();
+});
+elements.accountSignUpButton.addEventListener("click", () => {
+  void signUpCloudAccount();
+});
+elements.accountGoogleSignInButton.addEventListener("click", () => {
+  void signInCloudAccountWithGoogle();
+});
+elements.accountSignOutButton.addEventListener("click", () => {
+  void signOutCloudAccount();
+});
+elements.cloudPullButton.addEventListener("click", () => {
+  void pullCloudSnapshotToDevice();
+});
+elements.cloudPushButton.addEventListener("click", () => {
+  void pushLocalSnapshotToCloud();
+});
+elements.cloudSyncButton.addEventListener("click", () => {
+  void syncCloudNow();
+});
+elements.accountPasswordInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void signInCloudAccount();
+  }
+});
 elements.trainerNotebook.addEventListener("input", () => {
   state.notebook = elements.trainerNotebook.value;
   saveNotebookState();
@@ -4812,11 +6190,21 @@ elements.clearBoxButton.addEventListener("click", () => {
   renderHomeOrganizer();
   setStatus(`${currentBox.name} HOME marks cleared.`);
 });
+elements.homeExcludedToggleButton.addEventListener("click", () => {
+  state.ui.homeExcludedVisible = !state.ui.homeExcludedVisible;
+  renderHomeOrganizer();
+});
 
 elements.scopeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     state.filters.scope = button.dataset.scope;
     refreshResults();
+  });
+});
+
+elements.archiveModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setArchiveMode(button.dataset.archiveMode);
   });
 });
 
@@ -4894,4 +6282,7 @@ renderShinyHelper();
 renderSuggestors();
 void renderExpPlanner();
 registerOfflineSupport();
+void ensureCloudClient().then(() => {
+  renderTrainerVault();
+});
 fetchDexIndex();

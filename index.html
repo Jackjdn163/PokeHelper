@@ -50,12 +50,12 @@
           <span class="system-chip">Form Scan Ready</span>
         </div>
 
-        <button type="button" class="ghost-button">Guest Session</button>
+        <button type="button" class="ghost-button" id="session-button">Guest Session</button>
       </header>
 
       <div class="current-scan-shell">
         <button type="button" class="current-scan-ribbon is-empty" id="current-scan-ribbon">
-          <img class="current-scan-sprite" id="current-scan-sprite" alt="" src="" />
+          <img class="current-scan-sprite is-hidden" id="current-scan-sprite" alt="" />
           <div class="current-scan-copy">
             <span class="section-label">Current Scan</span>
             <strong id="current-scan-name">No active scan</strong>
@@ -148,6 +148,18 @@
           </section>
 
           <section class="panel-section">
+            <p class="section-label">Archive Mode</p>
+            <div class="button-bank">
+              <button type="button" class="bank-button active" data-archive-mode="living">
+                Living Dex
+              </button>
+              <button type="button" class="bank-button" data-archive-mode="shiny">
+                Shiny Dex
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section">
             <p class="section-label">Checklist Status</p>
             <div class="button-bank">
               <button type="button" class="bank-button active" data-status="all">
@@ -192,7 +204,7 @@
                 <strong id="archive-form-count">0</strong>
               </article>
               <article class="signal-card">
-                <span>Registry</span>
+                <span id="archive-registry-label">Registry</span>
                 <strong id="archive-caught-count">0</strong>
               </article>
             </div>
@@ -216,11 +228,11 @@
 
               <div class="metric-grid">
                 <article class="metric-card">
-                  <span>Caught</span>
+                  <span id="stat-tracked-label">Caught</span>
                   <strong id="stat-caught">0</strong>
                 </article>
                 <article class="metric-card">
-                  <span>Missing</span>
+                  <span id="stat-missing-label">Missing</span>
                   <strong id="stat-missing">0</strong>
                 </article>
                 <article class="metric-card">
@@ -235,7 +247,7 @@
             </div>
 
             <div class="toolbar-row">
-              <span class="toolbar-pill">Mode Guest - Public Access</span>
+              <span class="toolbar-pill" id="archive-mode-indicator">Mode Living Dex - Public Access</span>
               <span class="toolbar-pill" id="sort-indicator">Sort: ID Numeric</span>
             </div>
 
@@ -506,7 +518,7 @@
                   <div class="subcard-heading compact-heading">
                     <p class="matchup-label">2 random shiny targets</p>
                     <button type="button" class="ghost-button detail-link-button" id="toggle-shiny-checklist-btn">
-                      Show Shiny Checklist
+                      Open Shiny Dex
                     </button>
                   </div>
                   <div class="collection-list" id="shiny-target-list"></div>
@@ -691,6 +703,55 @@
             </div>
 
             <div class="vault-grid">
+              <article class="subcard collection-card vault-wide">
+                <div class="subcard-heading">
+                  <h3>Cloud Accounts</h3>
+                  <span id="account-badge">Offline Only</span>
+                </div>
+                <p class="results-summary" id="account-summary">
+                  Sign in to link this device and sync your living dex, notes, trackers, and HOME plan across devices.
+                </p>
+                <div class="account-auth-grid">
+                  <input id="account-email-input" type="email" placeholder="Trainer email" autocomplete="email" />
+                  <input
+                    id="account-password-input"
+                    type="password"
+                    placeholder="Password"
+                    autocomplete="current-password"
+                  />
+                </div>
+                <div class="account-button-bank">
+                  <button type="button" class="primary-action compact" id="account-sign-in-btn">
+                    Sign In
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="account-sign-up-btn">
+                    Create Account
+                  </button>
+                  <button
+                    type="button"
+                    class="ghost-button detail-link-button provider-button provider-button-google"
+                    id="account-google-sign-in-btn"
+                  >
+                    Continue with Google
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="account-sign-out-btn">
+                    Sign Out
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="cloud-pull-btn">
+                    Pull Cloud
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="cloud-push-btn">
+                    Push Local
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="cloud-sync-btn">
+                    Sync Now
+                  </button>
+                </div>
+                <p class="results-summary account-detail" id="account-detail">
+                  Cloud sync is not configured yet on this build.
+                </p>
+              </article>
+
               <article class="subcard collection-card">
                 <div class="subcard-heading">
                   <h3>Trainer Accounts</h3>
@@ -776,6 +837,27 @@
                 </div>
                 <div class="game-checklist-grid" id="game-checklist-grid"></div>
               </article>
+
+              <article class="subcard collection-card home-wide">
+                <div class="subcard-heading">
+                  <h3>Non-HOME-Compatible / Dex-Only Forms</h3>
+                  <div class="home-excluded-head">
+                    <span id="home-excluded-count">0 parked</span>
+                    <button
+                      type="button"
+                      class="ghost-button detail-link-button"
+                      id="home-excluded-toggle-btn"
+                      aria-expanded="false"
+                    >
+                      Show Section
+                    </button>
+                  </div>
+                </div>
+                <p class="results-summary" id="home-excluded-summary">
+                  Forms that HOME will not keep as separate boxed targets will be parked here instead of in the organizer.
+                </p>
+                <div class="collection-list hidden" id="home-excluded-list"></div>
+              </article>
             </div>
           </article>
 
@@ -857,6 +939,8 @@
       </article>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

@@ -1,9 +1,10 @@
-const CACHE_NAME = "dexteros-shell-v1";
+const CACHE_NAME = "dexteros-shell-v10";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./supabase-config.js",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
@@ -11,6 +12,7 @@ const CORE_ASSETS = [
 function shouldRuntimeCache(url) {
   return (
     url.origin === self.location.origin ||
+    url.origin === "https://cdn.jsdelivr.net" ||
     url.origin === "https://pokeapi.co" ||
     url.origin === "https://raw.githubusercontent.com" ||
     url.origin === "https://fonts.googleapis.com" ||

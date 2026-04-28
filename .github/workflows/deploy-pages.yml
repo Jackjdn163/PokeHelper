@@ -36,6 +36,7 @@ jobs:
           cp styles.css dist/styles.css
           cp app.js dist/app.js
           cp sw.js dist/sw.js
+          cp supabase-config.js dist/supabase-config.js
           cp manifest.webmanifest dist/manifest.webmanifest
           cp icon.svg dist/icon.svg
           cp .nojekyll dist/.nojekyll
