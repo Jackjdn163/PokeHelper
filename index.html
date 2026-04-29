@@ -143,6 +143,7 @@
                 <option value="bdsp">BDSP</option>
                 <option value="pla">PLA</option>
                 <option value="sv">SV</option>
+                <option value="lza">LZA</option>
               </select>
             </label>
           </section>
@@ -345,7 +346,7 @@
                   id="detail-tab-field"
                   data-detail-tab="field"
                 >
-                  Field
+                  Field + Maps
                 </button>
               </div>
 
@@ -452,7 +453,7 @@
 
                   <article class="subcard">
                     <div class="subcard-heading">
-                      <h3>Location Intel</h3>
+                      <h3>Location Maps</h3>
                       <span id="location-summary">Syncing</span>
                     </div>
                     <div class="location-list" id="location-list"></div>
@@ -515,16 +516,10 @@
                   <div class="collection-list" id="target-list"></div>
                 </div>
                 <div>
-                  <div class="subcard-heading compact-heading">
-                    <p class="matchup-label">2 random shiny targets</p>
-                    <button type="button" class="ghost-button detail-link-button" id="toggle-shiny-checklist-btn">
-                      Open Shiny Dex
-                    </button>
-                  </div>
+                  <p class="matchup-label">2 random shiny targets</p>
                   <div class="collection-list" id="shiny-target-list"></div>
                 </div>
               </div>
-              <div class="shiny-checklist hidden" id="shiny-checklist"></div>
             </article>
 
             <div class="collection-grid">

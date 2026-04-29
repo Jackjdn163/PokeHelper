@@ -2,7 +2,7 @@ const STORAGE_KEY = "dexter-living-form-dex-v1";
 const SHINY_STORAGE_KEY = "dexter-shiny-dex-v1";
 const TRACKER_STORAGE_KEY = "dexter-playthrough-tracker-v1";
 const EXP_STORAGE_KEY = "dexter-exp-planner-v1";
-const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v1";
+const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v3";
 const PROFILE_META_STORAGE_KEY = "dexter-profile-meta-v1";
 const NOTEBOOK_STORAGE_KEY = "dexter-notebook-v1";
 const FAVORITES_STORAGE_KEY = "dexter-favorites-v1";
@@ -17,6 +17,56 @@ const DEFAULT_PROFILE_ID = "guest-trainer";
 const CLOUD_SAVE_TABLE = "cloud_saves";
 const CLOUD_SAVE_VERSION = 1;
 const CLOUD_SYNC_DEBOUNCE_MS = 1200;
+const ARCHIVE_INITIAL_RENDER_COUNT = 120;
+const ARCHIVE_RENDER_BATCH_COUNT = 120;
+const ARCHIVE_ENTRY_HEIGHT_ESTIMATE = 92;
+const SEARCH_INPUT_DEBOUNCE_MS = 120;
+function mergeUniqueNumbers(...lists) {
+  return [...new Set(lists.flat())].sort((left, right) => left - right);
+}
+
+// Source: Derived from pokepc/dataset regional dex splits for Legends: Z-A.
+const LZA_LUMIOSE_SPECIES = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 18, 23,
+  24, 25, 26, 35, 36, 63, 64, 65, 66, 67, 68, 69, 70, 71, 79, 80,
+  92, 93, 94, 95, 115, 120, 121, 123, 127, 129, 130, 133, 134, 135, 136, 142,
+  147, 148, 149, 150, 152, 153, 154, 158, 159, 160, 167, 168, 172, 173, 179, 180,
+  181, 196, 197, 199, 208, 212, 214, 225, 227, 228, 229, 246, 247, 248, 280, 281,
+  282, 302, 303, 304, 305, 306, 307, 308, 309, 310, 315, 318, 319, 322, 323, 333,
+  334, 353, 354, 359, 361, 362, 371, 372, 373, 374, 375, 376, 406, 407, 427, 428,
+  443, 444, 445, 447, 448, 449, 450, 459, 460, 470, 471, 475, 478, 498, 499, 500,
+  504, 505, 511, 512, 513, 514, 515, 516, 529, 530, 531, 543, 544, 545, 551, 552,
+  553, 559, 560, 568, 569, 582, 583, 584, 587, 602, 603, 604, 607, 608, 609, 618,
+  650, 651, 652, 653, 654, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665,
+  666, 667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681,
+  682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695, 696, 697,
+  698, 699, 700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713,
+  714, 715, 716, 717, 718, 719, 780, 870
+];
+
+const LZA_HYPERSPACE_SPECIES = [
+  39, 40, 41, 42, 52, 53, 56, 57, 83, 104, 105, 122, 137, 169, 174, 211,
+  233, 252, 253, 254, 255, 256, 257, 258, 259, 260, 316, 317, 325, 326, 335, 336,
+  349, 350, 352, 358, 380, 381, 382, 383, 384, 396, 397, 398, 433, 439, 474, 479,
+  485, 491, 509, 510, 517, 518, 538, 539, 562, 563, 590, 591, 615, 622, 623, 638,
+  639, 640, 647, 648, 649, 720, 721, 739, 740, 767, 768, 769, 770, 778, 801, 802,
+  807, 808, 809, 821, 822, 823, 827, 828, 848, 849, 852, 853, 863, 865, 866, 867,
+  876, 877, 900, 904, 926, 927, 931, 932, 933, 934, 935, 936, 937, 942, 943, 944,
+  945, 951, 952, 957, 958, 959, 967, 969, 970, 971, 972, 973, 977, 978, 979, 996,
+  997, 998, 999, 1000
+];
+
+const LZA_MEGA_DIMENSION_SPECIES = [
+  3, 6, 9, 15, 18, 26, 36, 65, 71, 80, 94, 115, 121, 127, 130, 142,
+  149, 150, 154, 160, 181, 208, 212, 214, 227, 229, 248, 254, 257, 260, 282, 302,
+  303, 306, 308, 310, 319, 323, 334, 354, 358, 359, 362, 373, 376, 380, 381, 384,
+  398, 428, 445, 448, 460, 475, 478, 485, 491, 500, 530, 531, 545, 560, 604, 609,
+  623, 652, 655, 658, 668, 670, 678, 687, 689, 691, 701, 718, 719, 740, 768, 780,
+  801, 807, 870, 952, 970, 978, 998
+];
+
+const LZA_MAIN_SPECIES = mergeUniqueNumbers(LZA_LUMIOSE_SPECIES, LZA_HYPERSPACE_SPECIES);
+const LZA_AVAILABLE_SPECIES = mergeUniqueNumbers(LZA_MAIN_SPECIES, LZA_MEGA_DIMENSION_SPECIES);
 
 const GAME_CATALOG = [
   {
@@ -58,6 +108,14 @@ const GAME_CATALOG = [
     progressLabel: "Paths Cleared",
     progressMax: 18,
     milestones: ["Academy Start", "Three Paths", "Area Zero", "Raid / Postgame"]
+  },
+  {
+    id: "lza",
+    shortName: "LZA",
+    name: "Legends: Z-A",
+    progressLabel: "Royale Rank",
+    progressMax: 26,
+    milestones: ["Hotel Z Start", "Wild Zone Patrol", "Z-A Royale", "Postgame / DLC"]
   }
 ];
 
@@ -69,7 +127,30 @@ const SWITCH_GAME_AVAILABILITY = {
   },
   swsh: {
     label: "Galar + Isle of Armor + Crown Tundra",
-    pokedexes: ["galar", "isle-of-armor", "crown-tundra"]
+    pokedexes: ["galar", "isle-of-armor", "crown-tundra"],
+    segments: [
+      {
+        id: "main",
+        kind: "main",
+        label: "Main Game",
+        sourceLabel: "Galar Dex",
+        pokedexes: ["galar"]
+      },
+      {
+        id: "isle-of-armor",
+        kind: "dlc",
+        label: "Isle of Armor DLC",
+        sourceLabel: "Isle of Armor Dex",
+        pokedexes: ["isle-of-armor"]
+      },
+      {
+        id: "crown-tundra",
+        kind: "dlc",
+        label: "Crown Tundra DLC",
+        sourceLabel: "Crown Tundra Dex",
+        pokedexes: ["crown-tundra"]
+      }
+    ]
   },
   bdsp: {
     label: "BDSP National coverage up to #0493",
@@ -81,12 +162,55 @@ const SWITCH_GAME_AVAILABILITY = {
   },
   sv: {
     label: "Paldea + Kitakami + Blueberry",
-    pokedexes: ["paldea", "kitakami", "blueberry"]
+    pokedexes: ["paldea", "kitakami", "blueberry"],
+    segments: [
+      {
+        id: "main",
+        kind: "main",
+        label: "Main Game",
+        sourceLabel: "Paldea Dex",
+        pokedexes: ["paldea"]
+      },
+      {
+        id: "kitakami",
+        kind: "dlc",
+        label: "Teal Mask DLC",
+        sourceLabel: "Kitakami Dex",
+        pokedexes: ["kitakami"]
+      },
+      {
+        id: "blueberry",
+        kind: "dlc",
+        label: "Indigo Disk DLC",
+        sourceLabel: "Blueberry Dex",
+        pokedexes: ["blueberry"]
+      }
+    ]
+  },
+  lza: {
+    label: "Lumiose + Hyperspace + Mega coverage",
+    speciesNumbers: LZA_AVAILABLE_SPECIES,
+    segments: [
+      {
+        id: "main",
+        kind: "main",
+        label: "Main Game",
+        sourceLabel: "Lumiose + Hyperspace Dex",
+        speciesNumbers: LZA_MAIN_SPECIES
+      },
+      {
+        id: "mega-dimension",
+        kind: "dlc",
+        label: "Mega Dimension DLC",
+        sourceLabel: "Mega Dex",
+        speciesNumbers: LZA_MEGA_DIMENSION_SPECIES
+      }
+    ]
   }
 };
 
 const SWITCH_GAME_AVAILABILITY_NOTE =
-  "Species-level coverage is based on each Switch title's tracked regional or in-game dex support. Special forms, gifts, and event-only variants can still vary by version.";
+  "Species-level coverage is based on each Switch title's tracked regional or in-game dex support. Legends: Z-A uses the public PokePC dataset so Lumiose, Hyperspace, and Mega Dimension coverage can stay split even though PokeAPI and Pokemon HOME do not expose a machine-readable Z-A regional dex yet.";
 
 const FLAVOR_VERSION_ORDER = [
   { name: "scarlet", label: "Scarlet", gameId: "sv", priority: 0 },
@@ -144,6 +268,14 @@ const SHINY_HUNT_METHODS = {
     note:
       "Scarlet and Violet is strongest when you pair outbreak thinning with type-targeted sandwiches and long spawn cycles.",
     prep: ["60 KOs", "Sparkling Lv.3", "Shiny Charm"]
+  },
+  lza: {
+    title: "Wild Zone Patrol / Alpha Route",
+    detail:
+      "Patrol Lumiose's wild zones during the day, chain quick battle checks, and revisit alpha-heavy sectors for repeatable scans.",
+    note:
+      "Z-A shines when you treat Lumiose like a circuit: scout the city ring, clear a zone, then loop back through active wild sectors instead of standing still.",
+    prep: ["Wild Zone Loop", "Alpha Checks", "Item Stock"]
   }
 };
 
@@ -599,8 +731,6 @@ const elements = {
   randomTargetSummary: document.querySelector("#random-target-summary"),
   targetList: document.querySelector("#target-list"),
   shinyTargetList: document.querySelector("#shiny-target-list"),
-  toggleShinyChecklistButton: document.querySelector("#toggle-shiny-checklist-btn"),
-  shinyChecklist: document.querySelector("#shiny-checklist"),
   favoritesCount: document.querySelector("#favorites-count"),
   favoritesList: document.querySelector("#favorites-list"),
   bookmarksCount: document.querySelector("#bookmarks-count"),
@@ -697,7 +827,9 @@ const state = {
     activeView: "archive",
     activeDetailTab: "overview",
     archiveMode: "living",
-    homeExcludedVisible: false
+    homeExcludedVisible: false,
+    locationSurfaceTabs: {},
+    locationMapZoom: {}
   },
   filters: {
     scope: "all",
@@ -720,7 +852,6 @@ const state = {
   homeBoxes: loadHomeBoxesState(),
   randomTargets: [],
   shinyTargets: [],
-  shinyChecklistVisible: false,
   companionReply: "",
   growthRateCache: new Map(),
   speciesCache: new Map(),
@@ -728,11 +859,23 @@ const state = {
   evolutionChainCache: new Map(),
   locationCache: new Map(),
   gameAvailabilityByGame: cachedGameAvailability.map,
+  gameAvailabilityDetailsByGame: cachedGameAvailability.details,
   gameAvailabilityReady: cachedGameAvailability.ready,
+  gameAvailabilityBreakdownReady: cachedGameAvailability.breakdownReady,
   gameAvailabilityLoading: false,
   gameAvailabilityError: false,
   currentPokemon: null,
   activeRequestId: 0,
+  archiveStats: {
+    baseCount: 0,
+    formCount: 0
+  },
+  archiveRender: {
+    filteredEntries: [],
+    renderedCount: 0
+  },
+  queryInputTimer: null,
+  gameAvailabilityScheduled: false,
   accountSync: loadAccountSyncState(),
   cloud: {
     config: cloudConfigSeed,
@@ -1191,32 +1334,155 @@ function createEmptyGameAvailabilityMap() {
   return new Map(GAME_CATALOG.map((game) => [game.id, new Set()]));
 }
 
+function getAvailabilitySegmentSpecs(gameId) {
+  return (SWITCH_GAME_AVAILABILITY[gameId]?.segments ?? []).map((segment) => ({ ...segment }));
+}
+
+function createGameAvailabilityDetail(gameId) {
+  return {
+    all: new Set(),
+    segments: getAvailabilitySegmentSpecs(gameId).map((segment) => ({
+      ...segment,
+      speciesSet: new Set()
+    }))
+  };
+}
+
+function createEmptyGameAvailabilityDetailsMap() {
+  return new Map(GAME_CATALOG.map((game) => [game.id, createGameAvailabilityDetail(game.id)]));
+}
+
+function cloneGameAvailabilityDetail(detail, gameId) {
+  const clone = createGameAvailabilityDetail(gameId);
+  if (!detail) {
+    return clone;
+  }
+
+  clone.all = new Set(detail.all ?? []);
+
+  if (!clone.segments.length) {
+    return clone;
+  }
+
+  const sourceSegments = new Map((detail.segments ?? []).map((segment) => [segment.id, segment]));
+  clone.segments = clone.segments.map((segment) => ({
+    ...segment,
+    speciesSet: new Set(sourceSegments.get(segment.id)?.speciesSet ?? [])
+  }));
+
+  return clone;
+}
+
+function hasCompleteGameAvailabilityBreakdown(detailsMap) {
+  return GAME_CATALOG.every((game) => {
+    const expectedSegments = getAvailabilitySegmentSpecs(game.id);
+    if (!expectedSegments.length) {
+      return true;
+    }
+
+    const detail = detailsMap.get(game.id);
+    if (!detail?.segments?.length) {
+      return false;
+    }
+
+    const segmentIds = new Set(
+      detail.segments
+        .filter((segment) => segment.speciesSet instanceof Set)
+        .map((segment) => segment.id)
+    );
+
+    return expectedSegments.every((segment) => segmentIds.has(segment.id));
+  });
+}
+
 function loadGameAvailabilityCache() {
   const cached = loadStoredObject(GAME_AVAILABILITY_STORAGE_KEY, {});
   const map = createEmptyGameAvailabilityMap();
+  const details = createEmptyGameAvailabilityDetailsMap();
   let ready = false;
+  let breakdownReady = true;
 
   GAME_CATALOG.forEach((game) => {
-    const numbers = Array.isArray(cached[game.id])
-      ? cached[game.id].map(Number).filter(Number.isFinite)
-      : [];
+    const cacheEntry = cached[game.id];
+    const detail = createGameAvailabilityDetail(game.id);
+    const expectsSegments = detail.segments.length > 0;
+    let numbers = [];
+
+    if (Array.isArray(cacheEntry)) {
+      numbers = cacheEntry.map(Number).filter(Number.isFinite);
+      if (expectsSegments) {
+        breakdownReady = false;
+      }
+    } else if (cacheEntry && typeof cacheEntry === "object") {
+      numbers = Array.isArray(cacheEntry.all)
+        ? cacheEntry.all.map(Number).filter(Number.isFinite)
+        : [];
+
+      if (expectsSegments) {
+        const cachedSegments =
+          cacheEntry.segments && typeof cacheEntry.segments === "object" ? cacheEntry.segments : null;
+
+        detail.segments = detail.segments.map((segment) => {
+          const segmentNumbers = Array.isArray(cachedSegments?.[segment.id])
+            ? cachedSegments[segment.id].map(Number).filter(Number.isFinite)
+            : [];
+
+          if (!cachedSegments || !Array.isArray(cachedSegments[segment.id])) {
+            breakdownReady = false;
+          }
+
+          return {
+            ...segment,
+            speciesSet: new Set(segmentNumbers)
+          };
+        });
+      }
+    } else if (expectsSegments) {
+      breakdownReady = false;
+    }
 
     if (numbers.length) {
       ready = true;
     }
 
+    detail.all = new Set(numbers);
     map.set(game.id, new Set(numbers));
+    details.set(game.id, detail);
   });
 
-  return { map, ready };
+  if (ready) {
+    breakdownReady = breakdownReady && hasCompleteGameAvailabilityBreakdown(details);
+  }
+
+  return { map, details, ready, breakdownReady };
 }
 
 function saveGameAvailabilityCache() {
   const serializable = Object.fromEntries(
-    GAME_CATALOG.map((game) => [
-      game.id,
-      [...(state.gameAvailabilityByGame.get(game.id) ?? new Set())].sort((left, right) => left - right)
-    ])
+    GAME_CATALOG.map((game) => {
+      const detail = state.gameAvailabilityDetailsByGame.get(game.id) ?? createGameAvailabilityDetail(game.id);
+      const allNumbers = [...(detail.all ?? state.gameAvailabilityByGame.get(game.id) ?? new Set())].sort(
+        (left, right) => left - right
+      );
+      const segments = Object.fromEntries(
+        (detail.segments ?? []).map((segment) => [
+          segment.id,
+          [...(segment.speciesSet ?? new Set())].sort((left, right) => left - right)
+        ])
+      );
+
+      return [
+        game.id,
+        Object.keys(segments).length
+          ? {
+              all: allNumbers,
+              segments
+            }
+          : {
+              all: allNumbers
+            }
+      ];
+    })
   );
 
   saveStoredObject(GAME_AVAILABILITY_STORAGE_KEY, serializable);
@@ -1680,6 +1946,30 @@ function scheduleCloudAutoSync() {
     state.cloud.autoSyncTimer = null;
     void pushLocalSnapshotToCloud({ quiet: true, source: "auto" });
   }, CLOUD_SYNC_DEBOUNCE_MS);
+}
+
+function scheduleSwitchGameAvailabilityLoad() {
+  if (
+    (state.gameAvailabilityReady && state.gameAvailabilityBreakdownReady) ||
+    state.gameAvailabilityLoading ||
+    state.gameAvailabilityScheduled
+  ) {
+    return;
+  }
+
+  state.gameAvailabilityScheduled = true;
+
+  const run = () => {
+    state.gameAvailabilityScheduled = false;
+    void loadSwitchGameAvailability();
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 1500 });
+    return;
+  }
+
+  window.setTimeout(run, 250);
 }
 
 async function ensureCloudClient() {
@@ -2908,6 +3198,40 @@ function getEntryVariantLabel(entry) {
   return labeledFlag ? `${titleCase(labeledFlag)} Form` : "Form Variant";
 }
 
+function getEntryAccentKey(entry) {
+  if (!entry?.isForm) {
+    return "base";
+  }
+
+  if (entry.syntheticKind === "gender") {
+    return "gender";
+  }
+
+  if (entry.syntheticKind === "appearance") {
+    return "appearance";
+  }
+
+  const flags = new Set(entry.formFlags ?? []);
+
+  if (flags.has("gmax")) {
+    return "gmax";
+  }
+
+  if (flags.has("mega")) {
+    return "mega";
+  }
+
+  if (flags.has("regional")) {
+    return "regional";
+  }
+
+  if (flags.has("special")) {
+    return "special";
+  }
+
+  return "form";
+}
+
 function compareEntriesWithinGroup(left, right) {
   return (
     Number(left.isForm) - Number(right.isForm) ||
@@ -2971,8 +3295,7 @@ async function fetchPokedexSpeciesSet(pokedexName) {
   return new Set(payload.pokemon_entries.map((entry) => extractIdFromUrl(entry.pokemon_species.url)));
 }
 
-async function buildGameAvailabilitySet(gameId) {
-  const config = SWITCH_GAME_AVAILABILITY[gameId];
+async function buildAvailabilitySpeciesSet(config) {
   const speciesSet = new Set();
 
   config?.baseRanges?.forEach((range) => {
@@ -2994,7 +3317,33 @@ async function buildGameAvailabilitySet(gameId) {
     speciesSet.add(number);
   });
 
+  config?.speciesNumbers?.forEach((number) => {
+    speciesSet.add(number);
+  });
+
   return speciesSet;
+}
+
+async function buildGameAvailabilityDetail(gameId) {
+  const config = SWITCH_GAME_AVAILABILITY[gameId];
+  const detail = createGameAvailabilityDetail(gameId);
+
+  if (!config) {
+    return detail;
+  }
+
+  detail.all = await buildAvailabilitySpeciesSet(config);
+
+  if (detail.segments.length) {
+    detail.segments = await Promise.all(
+      detail.segments.map(async (segment) => ({
+        ...segment,
+        speciesSet: await buildAvailabilitySpeciesSet(segment)
+      }))
+    );
+  }
+
+  return detail;
 }
 
 function isAvailableInGame(baseNumber, gameId) {
@@ -3002,13 +3351,25 @@ function isAvailableInGame(baseNumber, gameId) {
 }
 
 function getGameAvailabilityRecords(baseNumber) {
-  return GAME_CATALOG.map((game) => ({
-    ...game,
-    available: isAvailableInGame(baseNumber, game.id),
-    owned: Boolean(state.tracker.games[game.id]?.owned),
-    active: state.tracker.activeGame === game.id,
-    sourceLabel: SWITCH_GAME_AVAILABILITY[game.id]?.label ?? "Tracked switch coverage"
-  }));
+  return GAME_CATALOG.map((game) => {
+    const detail =
+      state.gameAvailabilityDetailsByGame.get(game.id) ?? createGameAvailabilityDetail(game.id);
+
+    return {
+      ...game,
+      available: isAvailableInGame(baseNumber, game.id),
+      owned: Boolean(state.tracker.games[game.id]?.owned),
+      active: state.tracker.activeGame === game.id,
+      sourceLabel: SWITCH_GAME_AVAILABILITY[game.id]?.label ?? "Tracked switch coverage",
+      segmentRecords: detail.segments.map((segment) => ({
+        id: segment.id,
+        kind: segment.kind ?? "segment",
+        label: segment.label,
+        sourceLabel: segment.sourceLabel ?? segment.label,
+        available: segment.speciesSet.has(baseNumber)
+      }))
+    };
+  });
 }
 
 function renderGameAvailability(baseNumber) {
@@ -3025,6 +3386,10 @@ function renderGameAvailability(baseNumber) {
     elements.gameAvailabilityCount.textContent = "Unavailable";
     elements.gameAvailabilityNote.textContent =
       "Switch game availability could not be loaded right now. Refresh the archive and try again.";
+  } else if (!state.gameAvailabilityBreakdownReady && state.gameAvailabilityLoading) {
+    elements.gameAvailabilityCount.textContent = `${availableCount}/${GAME_CATALOG.length} games`;
+    elements.gameAvailabilityNote.textContent =
+      "Refreshing the split between each main game and its DLC dex coverage now.";
   } else {
     elements.gameAvailabilityCount.textContent = `${availableCount}/${GAME_CATALOG.length} games`;
     elements.gameAvailabilityNote.textContent = SWITCH_GAME_AVAILABILITY_NOTE;
@@ -3051,6 +3416,28 @@ function renderGameAvailability(baseNumber) {
     } else if (!state.gameAvailabilityReady) {
       badge.classList.add("unavailable");
       badge.textContent = "Unknown";
+    } else if (record.segmentRecords.length) {
+      const mainSegment =
+        record.segmentRecords.find((segment) => segment.kind === "main") ?? record.segmentRecords[0];
+      const mainAvailable = Boolean(mainSegment?.available);
+      const hasDlc = record.segmentRecords.some((segment) => segment.kind === "dlc");
+      const dlcAvailable = record.segmentRecords.some(
+        (segment) => segment.kind === "dlc" && segment.available
+      );
+
+      if (mainAvailable && hasDlc && dlcAvailable) {
+        badge.classList.add("available");
+        badge.textContent = "Main + DLC";
+      } else if (mainAvailable) {
+        badge.classList.add("available");
+        badge.textContent = "Main Game";
+      } else if (dlcAvailable) {
+        badge.classList.add("owned");
+        badge.textContent = "DLC Only";
+      } else {
+        badge.classList.add("unavailable");
+        badge.textContent = "Not in Dex";
+      }
     } else if (record.available) {
       badge.classList.add("available");
       badge.textContent = "Available";
@@ -3070,6 +3457,55 @@ function renderGameAvailability(baseNumber) {
     note.textContent = record.sourceLabel;
 
     card.append(head, name, note);
+
+    if (record.segmentRecords.length) {
+      const segmentRow = document.createElement("div");
+      segmentRow.className = "availability-segment-row";
+
+      record.segmentRecords.forEach((segment) => {
+        const segmentCard = document.createElement("div");
+        segmentCard.className = `availability-segment ${segment.kind ?? "segment"}`;
+
+        if (!state.gameAvailabilityReady && state.gameAvailabilityLoading) {
+          segmentCard.classList.add("syncing");
+        } else if (!state.gameAvailabilityReady) {
+          segmentCard.classList.add("unavailable");
+        } else if (segment.available) {
+          segmentCard.classList.add("available");
+        } else {
+          segmentCard.classList.add("unavailable");
+        }
+
+        const copy = document.createElement("div");
+        copy.className = "availability-segment-copy";
+
+        const label = document.createElement("strong");
+        label.textContent = segment.label;
+
+        const source = document.createElement("span");
+        source.textContent = segment.sourceLabel;
+
+        copy.append(label, source);
+
+        const status = document.createElement("span");
+        status.className = "availability-segment-state";
+
+        if (!state.gameAvailabilityReady && state.gameAvailabilityLoading) {
+          status.textContent = "Syncing";
+        } else if (!state.gameAvailabilityReady) {
+          status.textContent = "Unknown";
+        } else if (segment.available) {
+          status.textContent = "In Dex";
+        } else {
+          status.textContent = "Missing";
+        }
+
+        segmentCard.append(copy, status);
+        segmentRow.appendChild(segmentCard);
+      });
+
+      card.appendChild(segmentRow);
+    }
 
     if (record.owned || record.active) {
       const flags = document.createElement("div");
@@ -3110,11 +3546,13 @@ async function loadSwitchGameAvailability() {
   }
 
   const nextMap = createEmptyGameAvailabilityMap();
+  const nextDetails = createEmptyGameAvailabilityDetailsMap();
   const priorMap = state.gameAvailabilityByGame;
+  const priorDetails = state.gameAvailabilityDetailsByGame;
   const results = await Promise.allSettled(
     GAME_CATALOG.map(async (game) => ({
       gameId: game.id,
-      speciesSet: await buildGameAvailabilitySet(game.id)
+      detail: await buildGameAvailabilityDetail(game.id)
     }))
   );
 
@@ -3125,17 +3563,25 @@ async function loadSwitchGameAvailability() {
 
     if (result.status === "fulfilled") {
       successCount += 1;
-      nextMap.set(gameId, result.value.speciesSet);
+      nextMap.set(gameId, new Set(result.value.detail.all));
+      nextDetails.set(gameId, result.value.detail);
       return;
     }
 
     const fallbackSet = priorMap.get(gameId);
-    nextMap.set(gameId, fallbackSet ? new Set(fallbackSet) : new Set());
+    const fallbackDetail = cloneGameAvailabilityDetail(priorDetails.get(gameId), gameId);
+    if (!fallbackDetail.all.size && fallbackSet?.size) {
+      fallbackDetail.all = new Set(fallbackSet);
+    }
+    nextMap.set(gameId, fallbackSet ? new Set(fallbackSet) : new Set(fallbackDetail.all));
+    nextDetails.set(gameId, fallbackDetail);
   });
 
   if (successCount > 0) {
     state.gameAvailabilityByGame = nextMap;
+    state.gameAvailabilityDetailsByGame = nextDetails;
     state.gameAvailabilityReady = true;
+    state.gameAvailabilityBreakdownReady = hasCompleteGameAvailabilityBreakdown(nextDetails);
     saveGameAvailabilityCache();
   }
 
@@ -3613,15 +4059,279 @@ function buildEvolutionTargets(node, currentLevel) {
 }
 
 const VERSION_TO_GAME = {
+  red: "lgpe",
+  blue: "lgpe",
+  yellow: "lgpe",
+  "red-japan": "lgpe",
+  "green-japan": "lgpe",
+  firered: "lgpe",
+  leafgreen: "lgpe",
+  heartgold: "lgpe",
+  soulsilver: "lgpe",
   "lets-go-pikachu": "lgpe",
   "lets-go-eevee": "lgpe",
   sword: "swsh",
   shield: "swsh",
+  diamond: "bdsp",
+  pearl: "bdsp",
+  platinum: "bdsp",
   "brilliant-diamond": "bdsp",
   "shining-pearl": "bdsp",
   "legends-arceus": "pla",
   scarlet: "sv",
   violet: "sv"
+};
+
+const GAME_LOCATION_MAPS = {
+  lgpe: {
+    cardLabel: "Pokemon: Let's Go",
+    surfaces: [
+      {
+        id: "kanto",
+        label: "Kanto",
+        badgeLabel: "Kanto Field Map",
+        mapKey: "lgpe-kanto",
+        aspectRatio: "16 / 11",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "pallet", label: "Pallet / Viridian", short: "PV", x: 6, y: 64, w: 20, h: 18, patterns: ["pallet town", "viridian city", "viridian forest", "route 1", "route 2", "route 22"] },
+          { id: "pewter", label: "Pewter / Mt. Moon", short: "PM", x: 18, y: 40, w: 20, h: 18, patterns: ["pewter city", "mt moon", "route 3", "route 4"] },
+          { id: "cerulean", label: "Cerulean", short: "CE", x: 36, y: 26, w: 18, h: 18, patterns: ["cerulean city", "route 24", "route 25", "route 5"] },
+          { id: "vermilion", label: "Vermilion", short: "VE", x: 48, y: 56, w: 18, h: 16, patterns: ["vermilion city", "route 6", "route 11", "diglett", "ss anne"] },
+          { id: "lavender", label: "Lavender / Rock", short: "LA", x: 62, y: 38, w: 18, h: 18, patterns: ["lavender town", "rock tunnel", "pokemon tower", "route 8", "route 9", "route 10"] },
+          { id: "metro", label: "Celadon / Saffron", short: "CS", x: 34, y: 50, w: 18, h: 16, patterns: ["celadon city", "saffron city", "route 7", "game corner"] },
+          { id: "fuchsia", label: "Fuchsia / Safari", short: "FU", x: 46, y: 76, w: 22, h: 14, patterns: ["fuchsia city", "safari zone", "route 12", "route 13", "route 14", "route 15", "route 16", "route 17", "route 18"] },
+          { id: "seafoam", label: "Seafoam / Cinnabar", short: "SC", x: 66, y: 82, w: 24, h: 12, patterns: ["cinnabar island", "pokemon mansion", "seafoam islands", "sea route 19", "sea route 20", "sea route 21"] },
+          { id: "indigo", label: "Indigo Plateau", short: "IP", x: 0, y: 16, w: 16, h: 16, patterns: ["route 23", "victory road", "indigo plateau", "power plant", "cerulean cave"] }
+        ]
+      }
+    ]
+  },
+  swsh: {
+    cardLabel: "Pokemon Sword & Shield",
+    surfaces: [
+      {
+        id: "main",
+        label: "Galar",
+        badgeLabel: "Main Game",
+        kind: "main",
+        segmentId: "main",
+        mapKey: "swsh-galar",
+        aspectRatio: "10 / 16",
+        viewBox: "0 0 100 180",
+        regions: [
+          { id: "south-galar", label: "South Galar", short: "SG", x: 28, y: 122, w: 30, h: 22, patterns: ["slumbering weald", "wedgehurst", "route 1", "route 2", "route 3", "route 4", "motostoke outskirts", "galar mine"] },
+          { id: "wild-area", label: "Wild Area", short: "WA", x: 24, y: 86, w: 38, h: 28, patterns: ["rolling fields", "dappled grove", "watchtower ruins", "east lake axewell", "west lake axewell", "axews eye", "south lake miloch", "north lake miloch", "motostoke riverbank", "bridge field", "stony wilderness", "dusty bowl", "giants mirror", "hammerlocke hills", "giants seat", "lake of outrage"] },
+          { id: "mid-galar", label: "Central Galar", short: "CG", x: 36, y: 52, w: 28, h: 22, patterns: ["route 5", "route 6", "galar mine no 2", "stow on side", "glimwood tangle", "ballonlea"] },
+          { id: "north-galar", label: "North Galar", short: "NG", x: 42, y: 20, w: 28, h: 18, patterns: ["route 7", "route 8", "route 9", "route 10", "circhester", "spikemuth", "wyndon"] }
+        ]
+      },
+      {
+        id: "isle-of-armor",
+        label: "Isle of Armor",
+        badgeLabel: "Isle of Armor DLC",
+        kind: "dlc",
+        segmentId: "isle-of-armor",
+        mapKey: "swsh-isle-armor",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "fields", label: "Fields of Honor", short: "FH", x: 8, y: 18, w: 26, h: 18, patterns: ["fields of honor", "challenge road"] },
+          { id: "wetlands", label: "Wetlands / Forest", short: "WF", x: 38, y: 18, w: 24, h: 22, patterns: ["soothing wetlands", "forest of focus", "training lowlands"] },
+          { id: "coast", label: "Beach / Sea", short: "BS", x: 58, y: 44, w: 26, h: 18, patterns: ["challenge beach", "loop lagoon", "insular sea", "stepping stone sea"] },
+          { id: "caverns", label: "Caves", short: "CV", x: 26, y: 54, w: 24, h: 18, patterns: ["brawlers cave", "warm up tunnel", "courageous cavern"] },
+          { id: "desert", label: "Desert / Honeycalm", short: "DH", x: 18, y: 74, w: 28, h: 16, patterns: ["potbottom desert", "honeycalm"] }
+        ]
+      },
+      {
+        id: "crown-tundra",
+        label: "Crown Tundra",
+        badgeLabel: "Crown Tundra DLC",
+        kind: "dlc",
+        segmentId: "crown-tundra",
+        mapKey: "swsh-crown-tundra",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "freezington", label: "Freezington", short: "FR", x: 16, y: 16, w: 24, h: 16, patterns: ["freezington", "slippery slope"] },
+          { id: "giants-bed", label: "Giant's Bed", short: "GB", x: 32, y: 36, w: 28, h: 18, patterns: ["giants bed", "frostpoint field"] },
+          { id: "snowslide", label: "Snowslide", short: "SS", x: 62, y: 22, w: 18, h: 18, patterns: ["snowslide slope", "crown shrine"] },
+          { id: "seas", label: "Foot / Sea Caves", short: "SC", x: 58, y: 52, w: 24, h: 18, patterns: ["giants foot", "roaring sea caves", "three point pass"] },
+          { id: "lake", label: "Ballimere / Dyna Tree", short: "DL", x: 18, y: 64, w: 26, h: 18, patterns: ["ballimere lake", "dyna tree hill", "old cemetery"] }
+        ]
+      }
+    ]
+  },
+  bdsp: {
+    cardLabel: "Brilliant Diamond / Shining Pearl",
+    surfaces: [
+      {
+        id: "sinnoh",
+        label: "Sinnoh",
+        badgeLabel: "Sinnoh Route Map",
+        mapKey: "bdsp-sinnoh",
+        aspectRatio: "16 / 11",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "twinleaf", label: "Twinleaf / Sandgem", short: "TS", x: 8, y: 76, w: 20, h: 14, patterns: ["twinleaf town", "sandgem town", "route 201", "route 202", "lake verity"] },
+          { id: "oreburgh", label: "Jubilife / Oreburgh", short: "JO", x: 22, y: 58, w: 22, h: 18, patterns: ["jubilife city", "oreburgh city", "oreburgh gate", "oreburgh mine", "route 203", "route 204", "ravaged path"] },
+          { id: "eterna", label: "Floaroma / Eterna", short: "FE", x: 24, y: 28, w: 22, h: 20, patterns: ["floaroma town", "eterna city", "eterna forest", "valley windworks", "route 205", "old chateau"] },
+          { id: "coronet", label: "Mt. Coronet", short: "MC", x: 44, y: 32, w: 14, h: 32, patterns: ["mt coronet", "spear pillar", "route 206", "route 207", "route 211", "route 216", "wayward cave"] },
+          { id: "hearthome", label: "Hearthome / Solaceon", short: "HS", x: 42, y: 56, w: 22, h: 18, patterns: ["hearthome city", "solaceon town", "route 208", "route 209", "route 210", "lost tower"] },
+          { id: "veilstone", label: "Veilstone / Pastoria", short: "VP", x: 62, y: 58, w: 26, h: 20, patterns: ["veilstone city", "pastoria city", "great marsh", "route 212", "route 213", "route 214", "route 215", "valor lakefront", "lake valor"] },
+          { id: "canalave", label: "Canalave / Iron", short: "CI", x: 0, y: 44, w: 16, h: 18, patterns: ["canalave city", "iron island", "route 218", "route 219", "route 220", "route 221"] },
+          { id: "snowpoint", label: "Snowpoint", short: "SN", x: 62, y: 8, w: 18, h: 16, patterns: ["snowpoint city", "route 217", "lake acuity", "acuity"] },
+          { id: "league", label: "League / Postgame", short: "LP", x: 82, y: 12, w: 16, h: 30, patterns: ["pokemon league", "victory road", "route 223", "route 224", "route 225", "route 226", "route 227", "route 228", "route 229", "resort area", "survival area", "stark mountain", "fight area"] }
+        ]
+      }
+    ]
+  },
+  pla: {
+    cardLabel: "Pokemon Legends: Arceus",
+    surfaces: [
+      {
+        id: "hisui",
+        label: "Hisui",
+        badgeLabel: "Hisui Survey Map",
+        mapKey: "pla-hisui",
+        aspectRatio: "16 / 11",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "obsidian", label: "Obsidian Fieldlands", short: "OF", x: 10, y: 18, w: 28, h: 24, patterns: ["obsidian fieldlands", "aspiration hill", "horseshoe plains", "deertrack heights", "natures pantry", "obsidian falls"] },
+          { id: "mirelands", label: "Crimson Mirelands", short: "CM", x: 24, y: 54, w: 28, h: 22, patterns: ["crimson mirelands", "golden lowlands", "gapejaw bog", "scarlet bog", "sludge mound", "holm of trials"] },
+          { id: "highlands", label: "Coronet Highlands", short: "CH", x: 46, y: 28, w: 22, h: 26, patterns: ["coronet highlands", "heavensward lookout", "celestica trail", "fabled spring", "sacred plaza", "primeval grotto"] },
+          { id: "coastlands", label: "Cobalt Coastlands", short: "CC", x: 64, y: 56, w: 24, h: 22, patterns: ["cobalt coastlands", "ginkgo landing", "tranquility cove", "deadwood haunt", "veilstone cape", "castaway shore"] },
+          { id: "icelands", label: "Alabaster Icelands", short: "AI", x: 68, y: 8, w: 24, h: 20, patterns: ["alabaster icelands", "avalanche slopes", "avalanche slops", "bonechill wastes", "icepeak arena", "arena s approach", "whiteout valley"] }
+        ]
+      }
+    ]
+  },
+  sv: {
+    cardLabel: "Pokemon Scarlet & Violet",
+    surfaces: [
+      {
+        id: "main",
+        label: "Paldea",
+        badgeLabel: "Main Game",
+        kind: "main",
+        segmentId: "main",
+        mapKey: "sv-paldea",
+        aspectRatio: "14 / 11",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "north-1", label: "North One", short: "N1", x: 34, y: 4, w: 14, h: 10, patterns: ["north province area one"] },
+          { id: "north-2", label: "North Two", short: "N2", x: 50, y: 4, w: 14, h: 10, patterns: ["north province area two"] },
+          { id: "north-3", label: "North Three", short: "N3", x: 66, y: 4, w: 14, h: 10, patterns: ["north province area three"] },
+          { id: "west-3", label: "West Three", short: "W3", x: 16, y: 18, w: 14, h: 10, patterns: ["west province area three"] },
+          { id: "west-2", label: "West Two", short: "W2", x: 16, y: 34, w: 14, h: 10, patterns: ["west province area two"] },
+          { id: "west-1", label: "West One", short: "W1", x: 16, y: 50, w: 14, h: 10, patterns: ["west province area one"] },
+          { id: "east-1", label: "East One", short: "E1", x: 66, y: 22, w: 14, h: 10, patterns: ["east province area one"] },
+          { id: "east-2", label: "East Two", short: "E2", x: 70, y: 38, w: 14, h: 10, patterns: ["east province area two"] },
+          { id: "east-3", label: "East Three", short: "E3", x: 74, y: 54, w: 14, h: 10, patterns: ["east province area three"] },
+          { id: "south-1", label: "South One", short: "S1", x: 38, y: 74, w: 14, h: 10, patterns: ["south province area one"] },
+          { id: "south-2", label: "South Two", short: "S2", x: 54, y: 74, w: 14, h: 10, patterns: ["south province area two"] },
+          { id: "south-3", label: "South Three", short: "S3", x: 26, y: 74, w: 14, h: 10, patterns: ["south province area three"] },
+          { id: "south-4", label: "South Four", short: "S4", x: 34, y: 58, w: 14, h: 10, patterns: ["south province area four"] },
+          { id: "south-5", label: "South Five", short: "S5", x: 18, y: 58, w: 14, h: 10, patterns: ["south province area five"] },
+          { id: "south-6", label: "South Six", short: "S6", x: 50, y: 58, w: 14, h: 10, patterns: ["south province area six"] },
+          { id: "area-zero", label: "Area Zero", short: "AZ", x: 42, y: 28, w: 18, h: 18, patterns: ["area zero", "great crater"] }
+        ]
+      },
+      {
+        id: "kitakami",
+        label: "Kitakami",
+        badgeLabel: "Teal Mask DLC",
+        kind: "dlc",
+        segmentId: "kitakami",
+        mapKey: "sv-kitakami",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "mossui", label: "Mossui / Apple Hills", short: "MS", x: 16, y: 60, w: 22, h: 18, patterns: ["mossui", "apple hills", "kitakami road"] },
+          { id: "timeless", label: "Timeless Woods", short: "TW", x: 28, y: 24, w: 22, h: 18, patterns: ["timeless woods"] },
+          { id: "oni", label: "Oni Mountain", short: "OM", x: 54, y: 22, w: 20, h: 18, patterns: ["oni mountain", "infernal pass", "crystal pool"] },
+          { id: "barrens", label: "Paradise Barrens", short: "PB", x: 58, y: 56, w: 18, h: 14, patterns: ["paradise barrens"] },
+          { id: "gorge", label: "Fellhorn Gorge", short: "FG", x: 28, y: 78, w: 24, h: 12, patterns: ["fellhorn gorge", "kitakami"] }
+        ]
+      },
+      {
+        id: "blueberry",
+        label: "Blueberry Academy",
+        badgeLabel: "Indigo Disk DLC",
+        kind: "dlc",
+        segmentId: "blueberry",
+        mapKey: "sv-blueberry",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "coastal", label: "Coastal Biome", short: "CB", x: 12, y: 12, w: 28, h: 28, patterns: ["coastal biome"] },
+          { id: "savanna", label: "Savanna Biome", short: "SB", x: 58, y: 12, w: 28, h: 28, patterns: ["savanna biome"] },
+          { id: "canyon", label: "Canyon Biome", short: "CY", x: 12, y: 58, w: 28, h: 28, patterns: ["canyon biome"] },
+          { id: "polar", label: "Polar Biome", short: "PB", x: 58, y: 58, w: 28, h: 28, patterns: ["polar biome"] }
+        ]
+      }
+    ]
+  },
+  lza: {
+    cardLabel: "Pokemon Legends: Z-A",
+    surfaces: [
+      {
+        id: "lumiose",
+        label: "Lumiose",
+        badgeLabel: "Main Game",
+        kind: "main",
+        speciesNumbers: LZA_LUMIOSE_SPECIES,
+        mapKey: "lza-lumiose",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "north-boulevard", label: "North Boulevard", short: "NB", x: 36, y: 12, w: 28, h: 12, patterns: ["north boulevard", "north lumiose"] },
+          { id: "west-boulevard", label: "West Boulevard", short: "WB", x: 12, y: 36, w: 16, h: 24, patterns: ["west boulevard", "west lumiose"] },
+          { id: "central", label: "Central Lumiose", short: "CL", type: "circle", cx: 50, cy: 50, r: 13, patterns: ["central lumiose", "prism tower"] },
+          { id: "east-boulevard", label: "East Boulevard", short: "EB", x: 72, y: 36, w: 16, h: 24, patterns: ["east boulevard", "east lumiose"] },
+          { id: "hotel-z", label: "Hotel Z / South Hub", short: "HZ", x: 38, y: 72, w: 24, h: 14, patterns: ["hotel z", "city core", "south lumiose"] }
+        ]
+      },
+      {
+        id: "hyperspace",
+        label: "Hyperspace",
+        badgeLabel: "Wild Zones",
+        kind: "main",
+        speciesNumbers: LZA_HYPERSPACE_SPECIES,
+        mapKey: "lza-hyperspace",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "northwest", label: "Northwest Wild Zone", short: "NW", x: 18, y: 16, w: 18, h: 18, patterns: ["wild zone north west", "northwest wild zone"] },
+          { id: "north", label: "North Wild Zone", short: "N", x: 41, y: 10, w: 18, h: 14, patterns: ["wild zone north", "north wild zone"] },
+          { id: "northeast", label: "Northeast Wild Zone", short: "NE", x: 64, y: 16, w: 18, h: 18, patterns: ["wild zone north east", "northeast wild zone"] },
+          { id: "west", label: "West Wild Zone", short: "W", x: 10, y: 41, w: 14, h: 18, patterns: ["wild zone west", "west wild zone"] },
+          { id: "east", label: "East Wild Zone", short: "E", x: 76, y: 41, w: 14, h: 18, patterns: ["wild zone east", "east wild zone"] },
+          { id: "southwest", label: "Southwest Wild Zone", short: "SW", x: 18, y: 66, w: 18, h: 18, patterns: ["wild zone south west", "southwest wild zone"] },
+          { id: "south", label: "South Wild Zone", short: "S", x: 41, y: 76, w: 18, h: 14, patterns: ["wild zone south", "south wild zone"] },
+          { id: "southeast", label: "Southeast Wild Zone", short: "SE", x: 64, y: 66, w: 18, h: 18, patterns: ["wild zone south east", "southeast wild zone"] },
+          { id: "prism", label: "Prism Tower Link", short: "PT", type: "circle", cx: 50, cy: 50, r: 9, patterns: ["prism tower"] }
+        ]
+      },
+      {
+        id: "mega-dimension",
+        label: "Mega Dimension",
+        badgeLabel: "Mega Dimension DLC",
+        kind: "dlc",
+        speciesNumbers: LZA_MEGA_DIMENSION_SPECIES,
+        mapKey: "lza-mega-dimension",
+        aspectRatio: "1 / 1",
+        viewBox: "0 0 100 100",
+        regions: [
+          { id: "mega-core", label: "Mega Core", short: "MC", type: "circle", cx: 50, cy: 50, r: 12, patterns: ["mega core", "mega dimension"] },
+          { id: "aura-north", label: "Aura North", short: "AN", x: 38, y: 14, w: 22, h: 12, patterns: ["aura north", "rift north"] },
+          { id: "fracture-west", label: "Fracture West", short: "FW", x: 14, y: 38, w: 20, h: 16, patterns: ["fracture west", "rift west"] },
+          { id: "fracture-east", label: "Fracture East", short: "FE", x: 66, y: 38, w: 20, h: 16, patterns: ["fracture east", "rift east"] },
+          { id: "rift-south", label: "Rift South", short: "RS", x: 36, y: 72, w: 28, h: 12, patterns: ["rift south", "mega basin"] }
+        ]
+      }
+    ]
+  }
 };
 
 async function loadLocationEntries(url) {
@@ -3655,17 +4365,245 @@ function summarizeLocationGroups(entries) {
   return grouped;
 }
 
+function normalizeMapToken(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getGameLocationMap(gameId) {
+  return GAME_LOCATION_MAPS[gameId] ?? null;
+}
+
+function getGameLocationSurfaces(gameId) {
+  return getGameLocationMap(gameId)?.surfaces ?? [];
+}
+
+function matchesLocationPattern(area, pattern) {
+  const normalizedArea = normalizeMapToken(area);
+  const normalizedPattern = normalizeMapToken(pattern);
+
+  if (!normalizedArea || !normalizedPattern) {
+    return false;
+  }
+
+  return normalizedArea.includes(normalizedPattern) || normalizedPattern.includes(normalizedArea);
+}
+
+function getMatchedLocationAreas(surface, areas) {
+  if (!surface?.regions?.length || !areas.length) {
+    return [];
+  }
+
+  return areas.filter((area) =>
+    surface.regions.some((region) => region.patterns.some((pattern) => matchesLocationPattern(area, pattern)))
+  );
+}
+
+function getHighlightedLocationRegions(record, surface) {
+  if (!surface?.regions?.length) {
+    return [];
+  }
+
+  if (!record.areas.length) {
+    const fallbackRegionIds =
+      Array.isArray(surface.fallbackRegionIds) && surface.fallbackRegionIds.length
+        ? surface.fallbackRegionIds
+        : surface.regions.map((region) => region.id);
+    if (record.available && fallbackRegionIds.length) {
+      return surface.regions.filter((region) => fallbackRegionIds.includes(region.id));
+    }
+    return [];
+  }
+
+  const normalizedAreas = record.areas.map((area) => normalizeMapToken(area));
+  return surface.regions.filter((region) =>
+    region.patterns.some((pattern) => {
+      const normalizedPattern = normalizeMapToken(pattern);
+      return normalizedAreas.some(
+        (area) => area.includes(normalizedPattern) || normalizedPattern.includes(area)
+      );
+    })
+  );
+}
+
+function isLocationSurfaceAvailable(gameId, baseNumber, surface) {
+  if (Array.isArray(surface.speciesNumbers) && surface.speciesNumbers.length) {
+    return surface.speciesNumbers.includes(baseNumber);
+  }
+
+  if (!surface.segmentId) {
+    return false;
+  }
+
+  const detail = state.gameAvailabilityDetailsByGame.get(gameId);
+  const segment = detail?.segments.find((candidate) => candidate.id === surface.segmentId);
+  return Boolean(segment?.speciesSet.has(baseNumber));
+}
+
+function buildLocationSurfaceRecords(gameId, baseNumber, areas = [], gameAvailable = false) {
+  const surfaces = getGameLocationSurfaces(gameId);
+
+  return surfaces
+    .map((surface) => {
+      const matchedAreas = getMatchedLocationAreas(surface, areas);
+      const fallbackAvailable =
+        matchedAreas.length > 0 ||
+        isLocationSurfaceAvailable(gameId, baseNumber, surface) ||
+        (gameAvailable && surfaces.length === 1);
+      const available = fallbackAvailable;
+      const highlightedRegions = getHighlightedLocationRegions(
+        { id: gameId, areas: matchedAreas, available: available || gameAvailable },
+        surface
+      );
+
+      return {
+        ...surface,
+        matchedAreas,
+        highlightedRegions,
+        available
+      };
+    })
+    .filter((surface) => surface.available);
+}
+
+function getLocationMapZoomKey(gameId, surfaceId) {
+  return `${gameId}:${surfaceId}`;
+}
+
+function getLocationMapZoom(gameId, surfaceId) {
+  const zoom = Number(state.ui.locationMapZoom[getLocationMapZoomKey(gameId, surfaceId)] ?? 1);
+  return Math.min(1.9, Math.max(1, zoom));
+}
+
+function setLocationMapZoom(gameId, surfaceId, zoom) {
+  state.ui.locationMapZoom[getLocationMapZoomKey(gameId, surfaceId)] = Math.min(
+    1.9,
+    Math.max(1, Number(zoom) || 1)
+  );
+}
+
+function getActiveLocationSurfaceRecord(record) {
+  const surfaces = record.surfaceRecords ?? [];
+  if (!surfaces.length) {
+    return null;
+  }
+
+  const storedSurfaceId = state.ui.locationSurfaceTabs[record.id];
+  return (
+    surfaces.find((surface) => surface.id === storedSurfaceId) ??
+    surfaces.find((surface) => surface.matchedAreas.length) ??
+    surfaces.find((surface) => surface.highlightedRegions.length) ??
+    surfaces[0]
+  );
+}
+
+function createLocationMapSvg(surfaceRecord, gameRecord) {
+  const highlightedRegionIds = new Set(surfaceRecord.highlightedRegions.map((region) => region.id));
+  const zoom = getLocationMapZoom(gameRecord.id, surfaceRecord.id);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", surfaceRecord.viewBox ?? "0 0 100 100");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    `${gameRecord.name} ${surfaceRecord.label} map with ${
+      surfaceRecord.highlightedRegions.length
+        ? `${surfaceRecord.highlightedRegions.length} highlighted zone${
+            surfaceRecord.highlightedRegions.length === 1 ? "" : "s"
+          }`
+        : "coverage markers only"
+    }`
+  );
+  svg.classList.add("location-map-canvas");
+  svg.style.transform = `scale(${zoom})`;
+
+  surfaceRecord.regions.forEach((region) => {
+    const zone = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    zone.classList.add("location-map-zone");
+    if (highlightedRegionIds.has(region.id)) {
+      zone.classList.add("is-active");
+    }
+
+    if (region.type === "circle") {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", String(region.cx));
+      circle.setAttribute("cy", String(region.cy));
+      circle.setAttribute("r", String(region.r));
+      zone.appendChild(circle);
+    } else {
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("x", String(region.x));
+      rect.setAttribute("y", String(region.y));
+      rect.setAttribute("width", String(region.w));
+      rect.setAttribute("height", String(region.h));
+      rect.setAttribute("rx", String(region.rx ?? 4));
+      rect.setAttribute("ry", String(region.ry ?? region.rx ?? 4));
+      zone.appendChild(rect);
+    }
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const textX = region.type === "circle" ? region.cx : region.x + region.w / 2;
+    const textY = region.type === "circle" ? region.cy + 1.5 : region.y + region.h / 2 + 1.5;
+    label.setAttribute("x", String(textX));
+    label.setAttribute("y", String(textY));
+    label.setAttribute("text-anchor", "middle");
+    label.textContent = region.short;
+
+    zone.appendChild(label);
+    svg.appendChild(zone);
+  });
+
+  return svg;
+}
+
+function buildLocationSurfaceStatus(surfaceRecord) {
+  if (surfaceRecord.matchedAreas.length) {
+    return `${surfaceRecord.matchedAreas.length} archived area${
+      surfaceRecord.matchedAreas.length === 1 ? "" : "s"
+    } matched`;
+  }
+
+  if (surfaceRecord.highlightedRegions.length) {
+    return `${surfaceRecord.highlightedRegions.length} highlighted zone${
+      surfaceRecord.highlightedRegions.length === 1 ? "" : "s"
+    }`;
+  }
+
+  return "Coverage only";
+}
+
+function buildLocationSurfaceNote(surfaceRecord) {
+  if (surfaceRecord.matchedAreas.length) {
+    const preview = surfaceRecord.matchedAreas.slice(0, 4).join(" · ");
+    return surfaceRecord.matchedAreas.length > 4
+      ? `${preview} · +${surfaceRecord.matchedAreas.length - 4} more`
+      : preview;
+  }
+
+  if (surfaceRecord.highlightedRegions.length) {
+    return "This surface is confirmed for the current entry, but the archive only has broad map coverage for it right now.";
+  }
+
+  return "Exact route pins are not attached to this surface in the current archive yet.";
+}
+
 function buildLocationGameRecords(pokemon, locations = []) {
   const grouped = summarizeLocationGroups(locations);
 
   return GAME_CATALOG.map((game) => {
     const areas = [...(grouped.get(game.id) ?? [])];
-    const available = areas.length > 0 || (state.gameAvailabilityReady && isAvailableInGame(pokemon.baseNumber, game.id));
+    const overallAvailable =
+      areas.length > 0 || (state.gameAvailabilityReady && isAvailableInGame(pokemon.baseNumber, game.id));
+    const surfaceRecords = buildLocationSurfaceRecords(game.id, pokemon.baseNumber, areas, overallAvailable);
+    const available = overallAvailable || surfaceRecords.length > 0;
 
     return {
       ...game,
       available,
-      areas
+      areas,
+      baseNumber: pokemon.baseNumber,
+      surfaceRecords
     };
   }).filter((record) => record.available);
 }
@@ -3673,10 +4611,193 @@ function buildLocationGameRecords(pokemon, locations = []) {
 function describeLocationRecord(record) {
   if (record.areas.length) {
     const preview = record.areas.slice(0, 4).join(" · ");
-    return record.areas.length > 4 ? `${preview} · +${record.areas.length - 4} more` : preview;
+    const suffix =
+      record.surfaceRecords?.length > 1
+        ? ` Use the map tabs to compare ${record.shortName}'s main-game and DLC surfaces.`
+        : "";
+    return record.areas.length > 4
+      ? `${preview} · +${record.areas.length - 4} more.${suffix}`
+      : `${preview}.${suffix}`;
+  }
+
+  if (record.id === "lza") {
+    return "Legends: Z-A now splits Lumiose, Hyperspace, and Mega Dimension surfaces separately. Exact route pins are still sparse, so these maps lean on the PokePC regional dex split when the archive has no direct area names.";
+  }
+
+  if (record.surfaceRecords?.length > 1) {
+    return `Switch between ${record.surfaceRecords
+      .map((surface) => surface.label)
+      .join(" · ")} to compare this title's main-game and DLC map coverage.`;
   }
 
   return "Tracked in this Switch title, but route-level area names are not attached in the current archive yet.";
+}
+
+function buildLocationRecordCard(record, noteText = describeLocationRecord(record)) {
+  const card = document.createElement("article");
+  card.className = "location-card";
+
+  const head = document.createElement("div");
+  head.className = "location-card-head";
+
+  const title = document.createElement("strong");
+  title.textContent = `${record.shortName} · ${record.name}`;
+
+  const status = document.createElement("span");
+  status.className = "location-card-status";
+  if (record.surfaceRecords.length > 1) {
+    status.textContent = `${record.surfaceRecords.length} map views`;
+  } else if (record.areas.length) {
+    status.textContent = `${record.areas.length} area${record.areas.length === 1 ? "" : "s"}`;
+  } else {
+    status.textContent = "Coverage";
+  }
+
+  head.append(title, status);
+
+  const shell = document.createElement("section");
+  shell.className = `location-map-shell location-map-shell--${record.id}`;
+
+  const renderMapPanel = () => {
+    shell.replaceChildren();
+
+    const activeSurface = getActiveLocationSurfaceRecord(record);
+    if (!activeSurface) {
+      return;
+    }
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "location-map-toolbar";
+
+    const toolbarTitle = document.createElement("strong");
+    toolbarTitle.textContent = "Map";
+
+    const badge = document.createElement("span");
+    badge.className = "location-map-badge";
+    badge.textContent = `${record.shortName} · ${activeSurface.badgeLabel ?? activeSurface.label}`;
+
+    toolbar.append(toolbarTitle, badge);
+    shell.appendChild(toolbar);
+
+    if (record.surfaceRecords.length > 1) {
+      const tabs = document.createElement("div");
+      tabs.className = "location-surface-tabs";
+
+      record.surfaceRecords.forEach((surface) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "location-surface-tab";
+        button.classList.toggle("active", surface.id === activeSurface.id);
+        button.textContent = surface.label;
+
+        const count = document.createElement("span");
+        count.className = "location-surface-count";
+        count.textContent = surface.matchedAreas.length
+          ? String(surface.matchedAreas.length)
+          : surface.kind === "dlc"
+            ? "DLC"
+            : "Main";
+        button.appendChild(count);
+        button.addEventListener("click", () => {
+          state.ui.locationSurfaceTabs[record.id] = surface.id;
+          renderMapPanel();
+        });
+        tabs.appendChild(button);
+      });
+
+      shell.appendChild(tabs);
+    }
+
+    const stageWrap = document.createElement("div");
+    stageWrap.className = "location-map-stage-wrap";
+
+    const stage = document.createElement("div");
+    stage.className = `location-map-stage location-map-stage--${activeSurface.mapKey}`;
+    stage.style.setProperty("--map-aspect", activeSurface.aspectRatio ?? "5 / 4");
+    stage.appendChild(createLocationMapSvg(activeSurface, record));
+
+    const controls = document.createElement("div");
+    controls.className = "location-map-controls";
+
+    const zoomIn = document.createElement("button");
+    zoomIn.type = "button";
+    zoomIn.className = "location-map-control";
+    zoomIn.textContent = "+";
+    zoomIn.addEventListener("click", () => {
+      setLocationMapZoom(record.id, activeSurface.id, getLocationMapZoom(record.id, activeSurface.id) + 0.15);
+      renderMapPanel();
+    });
+
+    const zoomOut = document.createElement("button");
+    zoomOut.type = "button";
+    zoomOut.className = "location-map-control";
+    zoomOut.textContent = "−";
+    zoomOut.addEventListener("click", () => {
+      setLocationMapZoom(record.id, activeSurface.id, getLocationMapZoom(record.id, activeSurface.id) - 0.15);
+      renderMapPanel();
+    });
+
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "location-map-control location-map-control--reset";
+    reset.textContent = "↺";
+    reset.addEventListener("click", () => {
+      setLocationMapZoom(record.id, activeSurface.id, 1);
+      renderMapPanel();
+    });
+
+    controls.append(zoomIn, zoomOut, reset);
+    stageWrap.append(stage, controls);
+    shell.appendChild(stageWrap);
+
+    const meta = document.createElement("div");
+    meta.className = "location-map-meta";
+
+    const surfaceName = document.createElement("strong");
+    surfaceName.textContent = activeSurface.label;
+
+    const surfaceStatus = document.createElement("span");
+    surfaceStatus.className = "location-map-status";
+    surfaceStatus.textContent = buildLocationSurfaceStatus(activeSurface);
+
+    meta.append(surfaceName, surfaceStatus);
+    shell.appendChild(meta);
+
+    const surfaceNote = document.createElement("p");
+    surfaceNote.className = "location-map-surface-note";
+    surfaceNote.textContent = buildLocationSurfaceNote(activeSurface);
+    shell.appendChild(surfaceNote);
+
+    const legend = document.createElement("div");
+    legend.className = "location-map-legend";
+    if (activeSurface.highlightedRegions.length) {
+      activeSurface.highlightedRegions.forEach((region) => {
+        const chip = document.createElement("span");
+        chip.className = "location-map-chip";
+        chip.textContent = region.label;
+        legend.appendChild(chip);
+      });
+    } else {
+      const chip = document.createElement("span");
+      chip.className = "location-map-chip location-map-chip--muted";
+      chip.textContent = activeSurface.matchedAreas.length
+        ? "Area names are attached here, but the map is still using broad schematic zones."
+        : "This surface is tracked, but exact route pins are not attached in the current archive yet.";
+      legend.appendChild(chip);
+    }
+    shell.appendChild(legend);
+  };
+
+  renderMapPanel();
+
+  const note = document.createElement("p");
+  note.className = "results-summary";
+  note.textContent = noteText;
+
+  card.append(head);
+  card.appendChild(shell);
+  card.appendChild(note);
+  return card;
 }
 
 async function renderEvolutionIntel(pokemon) {
@@ -3756,18 +4877,7 @@ async function renderLocationIntel(pokemon) {
     }
 
     records.forEach((record) => {
-      const card = document.createElement("article");
-      card.className = "location-card";
-
-      const title = document.createElement("strong");
-      title.textContent = `${record.shortName} · ${record.name}`;
-
-      const note = document.createElement("p");
-      note.className = "results-summary";
-      note.textContent = describeLocationRecord(record);
-
-      card.append(title, note);
-      elements.locationList.appendChild(card);
+      elements.locationList.appendChild(buildLocationRecordCard(record));
     });
   } catch {
     const records = state.gameAvailabilityReady ? buildLocationGameRecords(pokemon, []) : [];
@@ -3775,19 +4885,12 @@ async function renderLocationIntel(pokemon) {
 
     if (records.length) {
       records.forEach((record) => {
-        const card = document.createElement("article");
-        card.className = "location-card";
-
-        const title = document.createElement("strong");
-        title.textContent = `${record.shortName} · ${record.name}`;
-
-        const note = document.createElement("p");
-        note.className = "results-summary";
-        note.textContent =
-          "Tracked in this Switch title, but route-level area names could not be loaded right now.";
-
-        card.append(title, note);
-        elements.locationList.appendChild(card);
+        elements.locationList.appendChild(
+          buildLocationRecordCard(
+            record,
+            "Tracked in this Switch title, but route-level area names could not be loaded right now."
+          )
+        );
       });
       return;
     }
@@ -3910,71 +5013,6 @@ function renderCollections() {
     },
     () => ["Shiny"]
   );
-
-  elements.toggleShinyChecklistButton.textContent = state.shinyChecklistVisible
-    ? "Hide Shiny Dex"
-    : "Open Shiny Dex";
-  elements.shinyChecklist.classList.toggle("hidden", !state.shinyChecklistVisible);
-  elements.shinyChecklist.replaceChildren();
-
-  if (state.shinyChecklistVisible) {
-    const shinySummary = document.createElement("p");
-    shinySummary.className = "results-summary shiny-check-summary";
-    shinySummary.textContent = `${formatCount(shinyEntryCount)}/${formatCount(
-      state.entries.length
-    )} shiny slots logged. This checklist is separate from the living dex and uses shiny sprite art for every entry.`;
-    elements.shinyChecklist.appendChild(shinySummary);
-
-    const shinyEntries = [...state.entries].sort(
-      (left, right) =>
-        Number(isShiny(right.name)) - Number(isShiny(left.name)) ||
-        left.baseNumber - right.baseNumber ||
-        compareEntriesWithinGroup(left, right)
-    );
-
-    shinyEntries.forEach((entry) => {
-      const row = document.createElement("div");
-      row.className = "shiny-check-row";
-
-      const toggle = document.createElement("input");
-      toggle.type = "checkbox";
-      toggle.checked = isShiny(entry.name);
-      toggle.addEventListener("change", () => {
-        setShinyState(entry.name, toggle.checked);
-        if (state.currentPokemon?.name === entry.name) {
-          renderCurrentPokemon(state.currentPokemon);
-        } else if (state.currentPokemon) {
-          renderCurrentScanRibbon();
-        }
-        renderCollections();
-        renderHomeOrganizer();
-        refreshResults();
-        setStatus(`${entry.displayName} ${toggle.checked ? "logged in the shiny dex." : "removed from the shiny dex."}`);
-      });
-
-      row.append(
-        toggle,
-        createCollectionItem(
-          entry,
-          `#${formatNumber(entry.baseNumber)} · ${getEntryVariantLabel(entry)} · ${
-            isShiny(entry.name) ? "Logged" : "Missing"
-          }`,
-          [
-            entry.isForm
-              ? entry.syntheticKind === "gender"
-                ? "Gender"
-                : entry.syntheticKind === "appearance"
-                  ? "Appearance"
-                  : "Form"
-              : "Base",
-            "Shiny"
-          ],
-          { forceShiny: true }
-        )
-      );
-      elements.shinyChecklist.appendChild(row);
-    });
-  }
 
   elements.favoritesCount.textContent = formatCount(favoriteEntries.length);
   renderEntryList(
@@ -4119,12 +5157,24 @@ async function buildLocationAnswer(pokemon) {
   const records = buildLocationGameRecords(pokemon, locations);
   const activeGameId = getActiveGameId();
   const activeRecord = activeGameId !== "none" ? records.find((record) => record.id === activeGameId) ?? null : null;
+  const activeSurface = activeRecord ? getActiveLocationSurfaceRecord(activeRecord) : null;
 
   if (activeRecord?.areas.length) {
-    return `${pokemon.displayName} has ${activeRecord.areas.length} tracked ${activeRecord.shortName} locations. First hits: ${activeRecord.areas.slice(0, 4).join(" · ")}.`;
+    const highlightedRegions = activeSurface?.highlightedRegions ?? [];
+    const mapNote = highlightedRegions.length
+      ? ` Map zones lit: ${highlightedRegions.map((region) => region.label).join(" · ")}.`
+      : "";
+    return `${pokemon.displayName} has ${activeRecord.areas.length} tracked ${activeRecord.shortName} locations. First hits: ${activeRecord.areas.slice(0, 4).join(" · ")}.${mapNote}`;
   }
 
   if (activeRecord) {
+    const highlightedRegions = activeSurface?.highlightedRegions ?? [];
+    if (highlightedRegions.length) {
+      const surfaceLabel = activeSurface?.label ? ` on the ${activeSurface.label} surface` : "";
+      return `${pokemon.displayName} is confirmed in ${activeRecord.shortName}${surfaceLabel}. Exact route pins are not attached yet, so the schematic map lights up ${highlightedRegions
+        .map((region) => region.label)
+        .join(" · ")}.`;
+    }
     return `${pokemon.displayName} is tracked in ${activeRecord.shortName}, but route-level area names are not attached for that title in the current archive yet.`;
   }
 
@@ -4137,7 +5187,14 @@ async function buildLocationAnswer(pokemon) {
   const routedRecord = records.find((record) => record.areas.length);
   if (routedRecord) {
     const gameList = records.map((record) => record.shortName).join(", ");
-    return `${pokemon.displayName} is tracked in ${gameList}. Route intel is attached for ${routedRecord.shortName}; first hits: ${routedRecord.areas.slice(0, 4).join(" · ")}.`;
+    const routedSurface = getActiveLocationSurfaceRecord(routedRecord);
+    const highlightedRegions = routedSurface?.highlightedRegions ?? [];
+    const mapNote = highlightedRegions.length
+      ? ` The ${routedRecord.shortName} map lights up ${highlightedRegions
+          .map((region) => region.label)
+          .join(" · ")}.`
+      : "";
+    return `${pokemon.displayName} is tracked in ${gameList}. Route intel is attached for ${routedRecord.shortName}; first hits: ${routedRecord.areas.slice(0, 4).join(" · ")}.${mapNote}`;
   }
 
   return `${pokemon.displayName} is tracked in these Switch games: ${records.map((record) => record.shortName).join(", ")}. The current archive does not have route-level area names attached yet.`;
@@ -5614,9 +6671,13 @@ function renderFilterButtons() {
 
 function renderResultsSummary(filteredEntries) {
   const total = state.entries.length;
-  const baseCount = state.entries.reduce((sum, entry) => sum + Number(!entry.isForm), 0);
-  const formCount = total - baseCount;
-  const trackedCount = state.entries.reduce((sum, entry) => sum + Number(isArchiveTracked(entry.name)), 0);
+  const { baseCount, formCount } = state.archiveStats;
+  let trackedCount = 0;
+
+  for (const entry of state.entries) {
+    trackedCount += Number(isArchiveTracked(entry.name));
+  }
+
   const missingCount = total - trackedCount;
   const modeLabel = getArchiveModeLabel();
 
@@ -5640,16 +6701,130 @@ function renderResultsSummary(filteredEntries) {
   elements.statSelected.textContent = state.currentPokemon?.displayName ?? "None";
 }
 
-function makeTag(label) {
+function makeTag(label, accentKey = null) {
   const chip = document.createElement("span");
-  chip.className = "tag-chip";
+  chip.className = `tag-chip${accentKey ? ` tag-chip--${accentKey}` : ""}`;
   chip.textContent = label;
   return chip;
+}
+
+function buildDexEntryNode(entry) {
+  const instance = elements.dexEntryTemplate.content.cloneNode(true);
+  const card = instance.querySelector(".dex-entry");
+  const checkbox = instance.querySelector(".entry-checkbox");
+  const entryButton = instance.querySelector(".dex-entry-button");
+  const entrySprite = instance.querySelector(".entry-sprite");
+  const entryNumber = instance.querySelector(".entry-number");
+  const entryName = instance.querySelector(".entry-name");
+  const entryStatus = instance.querySelector(".entry-status");
+  const entryTags = instance.querySelector(".entry-tags");
+  const caught = isCaught(entry.name);
+  const shiny = isShiny(entry.name);
+  const tracked = isArchiveTracked(entry.name);
+  const accentKey = getEntryAccentKey(entry);
+
+  card.dataset.entryName = entry.name;
+  card.dataset.accent = accentKey;
+  checkbox.dataset.entryName = entry.name;
+  entryButton.dataset.entryName = entry.name;
+  card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
+  card.classList.toggle("caught", tracked);
+  card.classList.toggle("is-form", entry.isForm);
+
+  checkbox.checked = tracked;
+  checkbox.setAttribute(
+    "aria-label",
+    `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
+  );
+
+  applyEntrySprite(entrySprite, entry, { forceShiny: isArchiveShinyMode() });
+  entryNumber.textContent = `#${formatNumber(entry.baseNumber)}`;
+  entryName.textContent = entry.displayName;
+  entryStatus.textContent = `${
+    isArchiveShinyMode()
+      ? tracked
+        ? "Shiny logged"
+        : "Shiny missing"
+      : caught
+        ? "Caught"
+        : "Missing"
+  } · ${getEntryVariantLabel(entry)} · Generation ${entry.generation === "unknown" ? "?" : entry.generation}`;
+
+  const tags = [];
+  if (shiny) {
+    tags.push("Shiny");
+  }
+  if (entry.syntheticKind === "gender") {
+    tags.push("Gender");
+  } else if (entry.syntheticKind === "appearance") {
+    tags.push("Appearance");
+  } else if (entry.isForm) {
+    tags.push(...entry.formFlags.filter((flag) => flag !== "form").map(titleCase));
+    if (!tags.length) {
+      tags.push("Form");
+    }
+  } else {
+    tags.push("Base");
+  }
+
+  tags.slice(0, 2).forEach((label) => {
+    entryTags.appendChild(makeTag(label, label === "Shiny" ? null : accentKey));
+  });
+
+  return instance;
+}
+
+function renderDexListTail() {
+  elements.dexList.querySelector("[data-result-tail]")?.remove();
+
+  if (state.archiveRender.renderedCount >= state.archiveRender.filteredEntries.length) {
+    return;
+  }
+
+  const tail = document.createElement("div");
+  tail.className = "result-tail";
+  tail.dataset.resultTail = "true";
+  tail.textContent = `Showing ${formatCount(state.archiveRender.renderedCount)} of ${formatCount(
+    state.archiveRender.filteredEntries.length
+  )} entries. Scroll for more.`;
+  elements.dexList.appendChild(tail);
+}
+
+function appendDexEntries(targetCount = state.archiveRender.renderedCount + ARCHIVE_RENDER_BATCH_COUNT) {
+  const entries = state.archiveRender.filteredEntries;
+  if (!entries.length || state.archiveRender.renderedCount >= entries.length) {
+    return;
+  }
+
+  const nextCount = Math.min(entries.length, targetCount);
+  const fragment = document.createDocumentFragment();
+
+  for (let index = state.archiveRender.renderedCount; index < nextCount; index += 1) {
+    fragment.appendChild(buildDexEntryNode(entries[index]));
+  }
+
+  state.archiveRender.renderedCount = nextCount;
+  elements.dexList.appendChild(fragment);
+  renderDexListTail();
+}
+
+function getTargetRenderedCount(previousScrollTop = 0) {
+  const viewportHeight = elements.dexList.clientHeight || 0;
+  const estimatedVisibleCount = Math.ceil(
+    (previousScrollTop + viewportHeight + ARCHIVE_ENTRY_HEIGHT_ESTIMATE * 2) / ARCHIVE_ENTRY_HEIGHT_ESTIMATE
+  );
+
+  return Math.max(
+    ARCHIVE_INITIAL_RENDER_COUNT,
+    Math.ceil(estimatedVisibleCount / ARCHIVE_RENDER_BATCH_COUNT) * ARCHIVE_RENDER_BATCH_COUNT
+  );
 }
 
 function renderDexList(filteredEntries) {
   const previousScrollTop = elements.dexList.scrollTop;
   elements.dexList.replaceChildren();
+  state.archiveRender.filteredEntries = filteredEntries;
+  state.archiveRender.renderedCount = 0;
 
   if (!filteredEntries.length) {
     const empty = document.createElement("div");
@@ -5659,98 +6834,22 @@ function renderDexList(filteredEntries) {
     elements.dexList.appendChild(empty);
     return;
   }
-
-  const fragment = document.createDocumentFragment();
-
-  filteredEntries.forEach((entry) => {
-    const instance = elements.dexEntryTemplate.content.cloneNode(true);
-    const card = instance.querySelector(".dex-entry");
-    const checkbox = instance.querySelector(".entry-checkbox");
-    const entryButton = instance.querySelector(".dex-entry-button");
-    const entrySprite = instance.querySelector(".entry-sprite");
-    const entryNumber = instance.querySelector(".entry-number");
-    const entryName = instance.querySelector(".entry-name");
-    const entryStatus = instance.querySelector(".entry-status");
-    const entryTags = instance.querySelector(".entry-tags");
-    const caught = isCaught(entry.name);
-    const shiny = isShiny(entry.name);
-    const tracked = isArchiveTracked(entry.name);
-
-    card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
-    card.classList.toggle("caught", tracked);
-    card.classList.toggle("is-form", entry.isForm);
-
-    checkbox.checked = tracked;
-    checkbox.addEventListener("change", () => {
-      if (isArchiveShinyMode()) {
-        setShinyState(entry.name, checkbox.checked);
-      } else {
-        setCaughtState(entry.name, checkbox.checked);
-      }
-      refreshResults();
-      renderCollections();
-      renderHomeOrganizer();
-
-      if (state.currentPokemon) {
-        renderCurrentPokemon(state.currentPokemon);
-      }
-
-      setStatus(
-        `${entry.displayName} ${
-          isArchiveShinyMode()
-            ? checkbox.checked
-              ? "logged in the shiny dex."
-              : "removed from the shiny dex."
-            : checkbox.checked
-              ? "registered as caught."
-              : "marked missing."
-        }`
-      );
-    });
-
-    applyEntrySprite(entrySprite, entry, { forceShiny: isArchiveShinyMode() });
-    entryNumber.textContent = `#${formatNumber(entry.baseNumber)}`;
-    entryName.textContent = entry.displayName;
-    entryStatus.textContent = `${
-      isArchiveShinyMode()
-        ? tracked
-          ? "Shiny logged"
-          : "Shiny missing"
-        : caught
-          ? "Caught"
-          : "Missing"
-    } · ${getEntryVariantLabel(entry)} · Generation ${entry.generation === "unknown" ? "?" : entry.generation}`;
-
-    const tags = [];
-    if (shiny) {
-      tags.push("Shiny");
-    }
-    if (entry.syntheticKind === "gender") {
-      tags.push("Gender");
-    } else if (entry.syntheticKind === "appearance") {
-      tags.push("Appearance");
-    } else if (entry.isForm) {
-      tags.push(...entry.formFlags.filter((flag) => flag !== "form").map(titleCase));
-      if (!tags.length) {
-        tags.push("Form");
-      }
-    } else {
-      tags.push("Base");
-    }
-
-    tags.slice(0, 2).forEach((label) => {
-      entryTags.appendChild(makeTag(label));
-    });
-
-    entryButton.addEventListener("click", () => {
-      openPokemonEntry(entry.name);
-    });
-
-    fragment.appendChild(instance);
-  });
-
-  elements.dexList.appendChild(fragment);
+  appendDexEntries(getTargetRenderedCount(previousScrollTop));
   elements.dexList.scrollTop = previousScrollTop;
+}
+
+function maybeRenderMoreDexEntries() {
+  if (state.archiveRender.renderedCount >= state.archiveRender.filteredEntries.length) {
+    return;
+  }
+
+  const threshold = 360;
+  const remaining =
+    elements.dexList.scrollHeight - elements.dexList.scrollTop - elements.dexList.clientHeight;
+
+  if (remaining <= threshold) {
+    appendDexEntries();
+  }
 }
 
 function refreshResults() {
@@ -5822,6 +6921,11 @@ function maybeAutoOpenFromQuery() {
 }
 
 function openBestMatch() {
+  if (state.queryInputTimer) {
+    window.clearTimeout(state.queryInputTimer);
+    state.queryInputTimer = null;
+  }
+
   state.query = normalizeSearch(elements.searchInput.value);
   refreshResults();
 
@@ -5892,6 +6996,8 @@ async function fetchDexIndex() {
 
     state.parkedEntries = allEntries.filter((entry) => entry.parkedOnly);
     state.entries = allEntries.filter((entry) => !entry.parkedOnly);
+    state.archiveStats.baseCount = state.entries.reduce((sum, entry) => sum + Number(!entry.isForm), 0);
+    state.archiveStats.formCount = state.entries.length - state.archiveStats.baseCount;
 
     state.entriesByName = new Map(state.entries.map((entry) => [entry.name, entry]));
     refreshRandomTargets();
@@ -5900,8 +7006,7 @@ async function fetchDexIndex() {
     renderTrainerVault();
     renderHomeOrganizer();
     setStatus(`${formatCount(state.entries.length)} entities connected. Launch a scan.`);
-    fetchPokemonDetail("pikachu");
-    void loadSwitchGameAvailability();
+    scheduleSwitchGameAvailabilityLoad();
   } catch (error) {
     setStatus("The archive could not reach PokeAPI. Refresh the interface and try again.");
   }
@@ -6036,9 +7141,16 @@ elements.detailTabButtons.forEach((button) => {
 });
 
 elements.searchInput.addEventListener("input", () => {
-  state.query = normalizeSearch(elements.searchInput.value);
-  refreshResults();
-  maybeAutoOpenFromQuery();
+  if (state.queryInputTimer) {
+    window.clearTimeout(state.queryInputTimer);
+  }
+
+  state.queryInputTimer = window.setTimeout(() => {
+    state.queryInputTimer = null;
+    state.query = normalizeSearch(elements.searchInput.value);
+    refreshResults();
+    maybeAutoOpenFromQuery();
+  }, SEARCH_INPUT_DEBOUNCE_MS);
 });
 
 elements.searchForm.addEventListener("submit", (event) => {
@@ -6101,10 +7213,6 @@ elements.refreshTargetsButton.addEventListener("click", () => {
   refreshRandomTargets();
   renderCollections();
   setStatus("Random hunt board refreshed.");
-});
-elements.toggleShinyChecklistButton.addEventListener("click", () => {
-  state.shinyChecklistVisible = !state.shinyChecklistVisible;
-  renderCollections();
 });
 elements.profileSelect.addEventListener("change", () => {
   switchProfile(elements.profileSelect.value);
@@ -6193,6 +7301,54 @@ elements.clearBoxButton.addEventListener("click", () => {
 elements.homeExcludedToggleButton.addEventListener("click", () => {
   state.ui.homeExcludedVisible = !state.ui.homeExcludedVisible;
   renderHomeOrganizer();
+});
+elements.dexList.addEventListener("scroll", () => {
+  maybeRenderMoreDexEntries();
+});
+elements.dexList.addEventListener("change", (event) => {
+  const checkbox = event.target.closest(".entry-checkbox");
+  if (!checkbox) {
+    return;
+  }
+
+  const entry = state.entriesByName.get(checkbox.dataset.entryName);
+  if (!entry) {
+    return;
+  }
+
+  if (isArchiveShinyMode()) {
+    setShinyState(entry.name, checkbox.checked);
+  } else {
+    setCaughtState(entry.name, checkbox.checked);
+  }
+
+  refreshResults();
+  renderCollections();
+  renderHomeOrganizer();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  setStatus(
+    `${entry.displayName} ${
+      isArchiveShinyMode()
+        ? checkbox.checked
+          ? "logged in the shiny dex."
+          : "removed from the shiny dex."
+        : checkbox.checked
+          ? "registered as caught."
+          : "marked missing."
+    }`
+  );
+});
+elements.dexList.addEventListener("click", (event) => {
+  const entryButton = event.target.closest(".dex-entry-button");
+  if (!entryButton) {
+    return;
+  }
+
+  openPokemonEntry(entryButton.dataset.entryName);
 });
 
 elements.scopeButtons.forEach((button) => {
