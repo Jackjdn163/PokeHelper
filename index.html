@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DexterOS | Living Form Dex</title>
+    <title>PokéPilot | Living Form Dex</title>
     <meta name="theme-color" content="#071122" />
     <meta
       name="description"
@@ -30,16 +30,17 @@
           </div>
 
           <div class="brand-block">
-            <h1>DEXTER<span>OS</span></h1>
+            <h1>POKÉ<span>PILOT</span></h1>
             <p>System V6.0 // Living Form Dex</p>
           </div>
         </div>
 
         <nav class="nav-tabs" aria-label="Dex navigation">
-          <button type="button" class="nav-tab active" data-view="archive">Archive</button>
+          <button type="button" class="nav-tab active" data-view="landing">Home</button>
+          <button type="button" class="nav-tab" data-view="archive">Archive</button>
           <button type="button" class="nav-tab" data-view="scan">Scan</button>
           <button type="button" class="nav-tab" data-view="collection">Collection</button>
-          <button type="button" class="nav-tab" data-view="home">Home</button>
+          <button type="button" class="nav-tab" data-view="home">HOME</button>
           <button type="button" class="nav-tab" data-view="journey">Journey</button>
           <button type="button" class="nav-tab" data-view="lab">Lab</button>
           <button type="button" class="nav-tab" data-view="vault">Vault</button>
@@ -47,27 +48,120 @@
 
         <div class="system-strip" aria-label="System status">
           <span class="system-chip online">Archive Net Online</span>
-          <span class="system-chip">Form Scan Ready</span>
         </div>
 
         <button type="button" class="ghost-button" id="session-button">Guest Session</button>
       </header>
 
       <div class="current-scan-shell">
-        <button type="button" class="current-scan-ribbon is-empty" id="current-scan-ribbon">
-          <img class="current-scan-sprite is-hidden" id="current-scan-sprite" alt="" />
-          <div class="current-scan-copy">
-            <span class="section-label">Current Scan</span>
-            <strong id="current-scan-name">No active scan</strong>
-            <span class="current-scan-meta" id="current-scan-meta">
-              Open a Pokémon and it will stay pinned here while you move around the app.
-            </span>
-          </div>
-          <div class="type-row current-scan-types" id="current-scan-types"></div>
-        </button>
+        <div class="current-scan-ribbon is-empty" id="current-scan-ribbon">
+          <button type="button" class="current-scan-main" id="current-scan-open-btn">
+            <img class="current-scan-sprite is-hidden" id="current-scan-sprite" alt="" />
+            <div class="current-scan-copy">
+              <span class="section-label">Current Scan</span>
+              <strong id="current-scan-name">No active scan</strong>
+              <span class="current-scan-meta" id="current-scan-meta">
+                Open a Pokémon and it will stay pinned here while you move around the app.
+              </span>
+            </div>
+            <div class="type-row current-scan-types" id="current-scan-types"></div>
+          </button>
+          <button type="button" class="current-scan-clear hidden" id="current-scan-clear-btn" aria-label="Clear current scan">
+            Clear
+          </button>
+        </div>
       </div>
 
-      <main class="workspace-shell app-view active" data-view-panel="archive">
+      <main class="workspace-shell landing-shell app-view active" data-view-panel="landing">
+        <section class="landing-grid">
+          <article class="panel landing-hero-panel">
+            <p class="section-label">Trainer Dashboard</p>
+            <h2 class="landing-welcome" id="landing-welcome">Welcome back, Trainer</h2>
+            <p class="landing-summary" id="landing-summary">
+              Your living form archive is online. Pick up where you left off with your next suggested hunts.
+            </p>
+
+            <div class="metric-grid landing-metric-grid">
+              <article class="metric-card">
+                <span>Active Profile</span>
+                <strong id="landing-profile-metric">Guest Trainer</strong>
+              </article>
+              <article class="metric-card">
+                <span>Living Dex</span>
+                <strong id="landing-living-metric">0 / 0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Shiny Dex</span>
+                <strong id="landing-shiny-metric">0 / 0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Owned Coverage</span>
+                <strong id="landing-owned-metric">No games</strong>
+              </article>
+            </div>
+          </article>
+
+          <article class="panel landing-hunt-panel">
+            <div class="subcard-heading">
+              <h3>Suggested Hunt Board</h3>
+            </div>
+            <p class="results-summary" id="random-target-summary">
+              Eight uncaught targets and two bonus shiny ideas will appear here.
+            </p>
+            <div class="landing-hunt-stack">
+              <section class="suggested-board suggested-board--living">
+                <div class="suggested-board-head">
+                  <div>
+                    <p class="matchup-label">Suggested Catches</p>
+                    <span class="suggested-board-note">8 uncaught targets ready to scan</span>
+                  </div>
+                </div>
+                <div class="suggested-board-grid" id="target-list"></div>
+                <div class="suggested-board-actions">
+                  <div class="suggested-board-selection">
+                    <span>Selected Target</span>
+                    <strong id="landing-target-selected">Choose a target</strong>
+                  </div>
+                  <div class="suggested-board-button-bank">
+                    <button type="button" class="primary-action compact" id="landing-target-catch-btn">
+                      Catch
+                    </button>
+                    <button type="button" class="ghost-button detail-link-button" id="landing-target-reroll-btn">
+                      Reroll
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="suggested-board suggested-board--shiny">
+                <div class="suggested-board-head">
+                  <div>
+                    <p class="matchup-label">Suggested Shiny Hunts</p>
+                    <span class="suggested-board-note">Shiny sprite previews for your next bonus hunts</span>
+                  </div>
+                </div>
+                <div class="suggested-board-grid suggested-board-grid--shiny" id="shiny-target-list"></div>
+                <div class="suggested-board-actions">
+                  <div class="suggested-board-selection">
+                    <span>Selected Shiny Target</span>
+                    <strong id="landing-shiny-target-selected">Choose a shiny target</strong>
+                  </div>
+                  <div class="suggested-board-button-bank">
+                    <button type="button" class="primary-action compact" id="landing-shiny-log-btn">
+                      Log Shiny
+                    </button>
+                    <button type="button" class="ghost-button detail-link-button" id="landing-shiny-reroll-btn">
+                      Reroll
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <main class="workspace-shell app-view" data-view-panel="archive">
         <div class="archive-workspace">
         <aside class="panel control-panel">
           <section class="panel-section">
@@ -178,9 +272,6 @@
           <section class="panel-section">
             <p class="section-label">Form Signatures</p>
             <div class="button-bank compact">
-              <button type="button" class="bank-button" data-signature="mega">
-                Mega
-              </button>
               <button type="button" class="bank-button" data-signature="gmax">
                 GMAX
               </button>
@@ -212,7 +303,7 @@
           </section>
 
           <footer class="panel-footer">
-            <p>DEXTER OS V6.0</p>
+            <p>POKÉPILOT V6.0</p>
             <p>Connected to Global Database</p>
           </footer>
         </aside>
@@ -243,6 +334,23 @@
                 <article class="metric-card">
                   <span>Open Entry</span>
                   <strong id="stat-selected">None</strong>
+                </article>
+              </div>
+
+              <div class="archive-progress-grid">
+                <article class="progress-card archive-progress-card">
+                  <div class="progress-head">
+                    <strong>Living Dex Completion</strong>
+                    <span id="archive-living-progress-text">0%</span>
+                  </div>
+                  <div class="progress-bar"><span id="archive-living-progress-bar"></span></div>
+                </article>
+                <article class="progress-card archive-progress-card">
+                  <div class="progress-head">
+                    <strong>Shiny Dex Completion</strong>
+                    <span id="archive-shiny-progress-text">0%</span>
+                  </div>
+                  <div class="progress-bar"><span id="archive-shiny-progress-bar"></span></div>
                 </article>
               </div>
             </div>
@@ -276,6 +384,14 @@
                 <button type="button" class="ghost-button detail-ghost" id="toggle-shiny-btn" disabled>
                   Log Shiny
                 </button>
+                <button
+                  type="button"
+                  class="ghost-button detail-ghost detail-clear-button hidden"
+                  id="clear-scan-btn"
+                  disabled
+                >
+                  Clear Scan
+                </button>
               </div>
             </div>
 
@@ -294,14 +410,8 @@
               </div>
 
               <div class="detail-link-bank">
-                <button type="button" class="ghost-button detail-link-button" id="favorite-btn">
-                  Favorite
-                </button>
                 <button type="button" class="ghost-button detail-link-button" id="bookmark-btn">
                   Bookmark
-                </button>
-                <button type="button" class="ghost-button detail-link-button" id="favorite-types-btn">
-                  Fav Of Its Types
                 </button>
                 <a
                   class="ghost-button detail-link-button detail-link-anchor"
@@ -346,7 +456,7 @@
                   id="detail-tab-field"
                   data-detail-tab="field"
                 >
-                  Field + Maps
+                  Field
                 </button>
               </div>
 
@@ -453,7 +563,7 @@
 
                   <article class="subcard">
                     <div class="subcard-heading">
-                      <h3>Location Maps</h3>
+                      <h3>Location Intel</h3>
                       <span id="location-summary">Syncing</span>
                     </div>
                     <div class="location-list" id="location-list"></div>
@@ -469,13 +579,13 @@
             <div class="system-head">
               <div>
                 <p class="section-label">Collection Board</p>
-                <h2 class="system-title">Progress & Targets</h2>
+                <h2 class="system-title">Progress</h2>
               </div>
               <span class="toolbar-pill" id="collection-focus">Living Dex</span>
             </div>
 
             <div class="progress-stack">
-              <article class="progress-card">
+              <article class="progress-card progress-card--main-dex">
                 <div class="progress-head">
                   <strong>Main Dex</strong>
                   <span id="main-progress-text">0%</span>
@@ -483,7 +593,7 @@
                 <div class="progress-bar"><span id="main-progress-bar"></span></div>
               </article>
 
-              <article class="progress-card">
+              <article class="progress-card progress-card--shiny-dex">
                 <div class="progress-head">
                   <strong>Shiny Dex</strong>
                   <span id="shiny-progress-text">0%</span>
@@ -491,7 +601,7 @@
                 <div class="progress-bar"><span id="shiny-progress-bar"></span></div>
               </article>
 
-              <article class="progress-card">
+              <article class="progress-card progress-card--owned-coverage">
                 <div class="progress-head">
                   <strong>Owned Game Coverage</strong>
                   <span id="owned-progress-text">0%</span>
@@ -500,37 +610,26 @@
               </article>
             </div>
 
-            <article class="subcard collection-card">
+            <article class="subcard collection-card collection-card--generation-board generation-breakdown-card">
               <div class="subcard-heading">
-                <h3>Random Hunt Board</h3>
-                <button type="button" class="ghost-button detail-link-button" id="refresh-targets-btn">
-                  Refresh
-                </button>
+                <h3>Generation Breakdown</h3>
+                <span id="generation-breakdown-summary">0 gens</span>
               </div>
-              <p class="results-summary" id="random-target-summary">
-                Eight uncaught targets and two bonus shiny ideas will appear here.
+              <p class="results-summary" id="generation-breakdown-note">
+                Base-species progress by generation. Shiny totals exclude shiny-locked species.
               </p>
-              <div class="target-board">
-                <div>
-                  <p class="matchup-label">8 random uncaught</p>
-                  <div class="collection-list" id="target-list"></div>
-                </div>
-                <div>
-                  <p class="matchup-label">2 random shiny targets</p>
-                  <div class="collection-list" id="shiny-target-list"></div>
-                </div>
+              <div class="generation-breakdown-grid" id="generation-breakdown-grid"></div>
+            </article>
+
+            <article class="subcard collection-card collection-card--game-checklists">
+              <div class="subcard-heading">
+                <h3>Game-By-Game Checklists</h3>
+                <span id="game-checklist-summary">Linked to main dex</span>
               </div>
+              <div class="game-checklist-grid" id="game-checklist-grid"></div>
             </article>
 
             <div class="collection-grid">
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Favorites</h3>
-                  <span id="favorites-count">0</span>
-                </div>
-                <div class="collection-list" id="favorites-list"></div>
-              </article>
-
               <article class="subcard collection-card">
                 <div class="subcard-heading">
                   <h3>Bookmarks</h3>
@@ -541,23 +640,26 @@
 
               <article class="subcard collection-card">
                 <div class="subcard-heading">
-                  <h3>Fav Of Each Type</h3>
-                  <span id="favorite-types-count">0/18</span>
-                </div>
-                <div class="collection-list" id="favorite-types-list"></div>
-              </article>
-
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
                   <h3>Unobtainable</h3>
                   <span id="unobtainable-count">0</span>
                 </div>
                 <p class="results-summary" id="unobtainable-summary">
-                  Based on the Switch games you currently marked as owned.
+                  Based on the game versions you currently marked as owned.
                 </p>
                 <div class="collection-list" id="unobtainable-list"></div>
               </article>
             </div>
+
+            <article class="subcard collection-card">
+              <div class="subcard-heading">
+                <h3>Shiny-Locked Entries</h3>
+                <span id="shiny-locked-count">0</span>
+              </div>
+              <p class="results-summary" id="shiny-locked-summary">
+                Entries with no legitimate shiny release will appear here.
+              </p>
+              <div class="collection-list" id="shiny-locked-list"></div>
+            </article>
           </article>
 
           <article class="panel system-panel tracker-panel-shell" data-module-view="journey">
@@ -672,7 +774,7 @@
             </p>
           </article>
 
-          <article class="panel system-panel hunt-panel-shell" data-module-view="journey">
+          <article class="panel system-panel hunt-panel-shell" data-module-view="lab">
             <div class="system-head">
               <div>
                 <p class="section-label">Shiny Hunt Helper</p>
@@ -732,14 +834,11 @@
                   <button type="button" class="ghost-button detail-link-button" id="account-sign-out-btn">
                     Sign Out
                   </button>
-                  <button type="button" class="ghost-button detail-link-button" id="cloud-pull-btn">
-                    Pull Cloud
-                  </button>
                   <button type="button" class="ghost-button detail-link-button" id="cloud-push-btn">
-                    Push Local
+                    Push to Cloud
                   </button>
                   <button type="button" class="ghost-button detail-link-button" id="cloud-sync-btn">
-                    Sync Now
+                    Sync with Cloud
                   </button>
                 </div>
                 <p class="results-summary account-detail" id="account-detail">
@@ -769,6 +868,33 @@
 
               <article class="subcard collection-card">
                 <div class="subcard-heading">
+                  <h3>Favorite Pokemon</h3>
+                  <span id="favorites-count">0</span>
+                </div>
+                <div class="vault-inline vault-inline--single-action">
+                  <button type="button" class="primary-action compact" id="favorite-picker-open-btn">
+                    Add New Favorite
+                  </button>
+                </div>
+                <p class="results-summary" id="favorites-summary">
+                  Build a cosmetic showcase of your favorite Pokémon here in the Vault.
+                </p>
+                <div class="collection-list" id="favorites-list"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
+                  <h3>Favorite Pokemon by Type</h3>
+                  <span id="favorite-types-count">0/18</span>
+                </div>
+                <p class="results-summary" id="favorite-types-summary">
+                  Pick one showcase favorite for each type. Choose or change them from this Vault screen.
+                </p>
+                <div class="collection-list" id="favorite-types-list"></div>
+              </article>
+
+              <article class="subcard collection-card">
+                <div class="subcard-heading">
                   <h3>Notebook</h3>
                   <span id="notebook-status">Autosaved</span>
                 </div>
@@ -781,7 +907,7 @@
 
               <article class="subcard collection-card vault-wide">
                 <div class="subcard-heading">
-                  <h3>Dexter Companion</h3>
+                  <h3>PokéPilot Companion</h3>
                   <span id="companion-status">Offline Helper</span>
                 </div>
                 <div class="vault-inline">
@@ -795,7 +921,7 @@
                   </button>
                 </div>
                 <div class="companion-answer" id="companion-answer">
-                  Ask a question and Dexter will answer from your current archive, trackers, and Pokémon data.
+                  Ask a question and PokéPilot will answer from your current archive, trackers, and Pokémon data.
                 </div>
               </article>
             </div>
@@ -805,13 +931,13 @@
             <div class="system-head">
               <div>
                 <p class="section-label">Pokemon Home</p>
-                <h2 class="system-title">Boxes & Game Checklists</h2>
+                <h2 class="system-title">Living Form Template</h2>
               </div>
               <span class="toolbar-pill" id="home-focus">Box 1</span>
             </div>
 
             <div class="home-grid">
-              <article class="subcard collection-card">
+              <article class="subcard collection-card home-wide home-template-card">
                 <div class="subcard-heading">
                   <h3>Home Living Form Template</h3>
                   <button type="button" class="ghost-button detail-link-button" id="clear-box-btn">
@@ -823,14 +949,6 @@
                   Follow the fixed HOME template: click a slot to mark or unmark that target as boxed in HOME.
                 </p>
                 <div class="home-box-grid" id="home-box-grid"></div>
-              </article>
-
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Game-By-Game Checklists</h3>
-                  <span id="game-checklist-summary">Linked to main dex</span>
-                </div>
-                <div class="game-checklist-grid" id="game-checklist-grid"></div>
               </article>
 
               <article class="subcard collection-card home-wide">
@@ -911,11 +1029,45 @@
       </section>
     </div>
 
+    <div class="vault-picker-overlay hidden" id="favorite-picker-overlay">
+      <article class="vault-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="favorite-picker-title">
+        <div class="subcard-heading">
+          <h3 id="favorite-picker-title">Add New Favorite</h3>
+          <button type="button" class="ghost-button detail-link-button" id="favorite-picker-close-btn">
+            Close
+          </button>
+        </div>
+        <p class="results-summary" id="favorite-picker-note">
+          Search the archive, then pick the Pokémon you want to save to your Vault showcase.
+        </p>
+        <label class="select-shell compact-field">
+          <span>Search Archive</span>
+          <input
+            id="favorite-picker-search"
+            type="text"
+            placeholder="Search by name, form, or Dex number"
+            autocomplete="off"
+          />
+        </label>
+        <div class="vault-picker-action-row">
+          <button type="button" class="ghost-button detail-link-button hidden" id="favorite-picker-clear-btn">
+            Clear Current Selection
+          </button>
+        </div>
+        <p class="results-summary" id="favorite-picker-results-summary">
+          Start typing to filter the list below.
+        </p>
+        <div class="collection-list vault-picker-list" id="favorite-picker-list"></div>
+      </article>
+    </div>
+
     <template id="dex-entry-template">
       <article class="dex-entry">
         <label class="entry-toggle" aria-label="Toggle caught state">
           <input class="entry-checkbox" type="checkbox" />
-          <span class="check-core"></span>
+          <span class="entry-toggle-bar">
+            <span class="check-core"></span>
+          </span>
         </label>
 
         <button type="button" class="dex-entry-button">

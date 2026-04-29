@@ -2,7 +2,7 @@ const STORAGE_KEY = "dexter-living-form-dex-v1";
 const SHINY_STORAGE_KEY = "dexter-shiny-dex-v1";
 const TRACKER_STORAGE_KEY = "dexter-playthrough-tracker-v1";
 const EXP_STORAGE_KEY = "dexter-exp-planner-v1";
-const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v3";
+const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v6";
 const PROFILE_META_STORAGE_KEY = "dexter-profile-meta-v1";
 const NOTEBOOK_STORAGE_KEY = "dexter-notebook-v1";
 const FAVORITES_STORAGE_KEY = "dexter-favorites-v1";
@@ -11,7 +11,24 @@ const FAVORITE_TYPES_STORAGE_KEY = "dexter-favorite-types-v1";
 const GAME_CHECKLIST_STORAGE_KEY = "dexter-game-checklists-v1";
 const HOME_BOX_STORAGE_KEY = "dexter-home-boxes-v1";
 const API_CACHE_STORAGE_KEY = "dexter-api-cache-v1";
+const DEX_INDEX_CACHE_STORAGE_KEY = "dexter-dex-index-cache-v1";
+const UI_SESSION_STORAGE_KEY = "dexter-ui-session-v1";
 const ACCOUNT_SYNC_STORAGE_KEY = "dexter-account-sync-v1";
+const POKEARTH_BASE_URL = "https://www.serebii.net";
+const POKEARTH_MAP_VIEWBOXES = {
+  "lgpe-kanto": "0 0 200 618",
+  "swsh-galar": "0 0 728 1420",
+  "swsh-isle-armor": "0 0 640 360",
+  "swsh-crown-tundra": "0 0 640 360",
+  "bdsp-sinnoh": "0 0 640 344",
+  "pla-hisui": "0 0 640 360",
+  "sv-paldea": "0 0 1024 1024",
+  "sv-kitakami": "0 0 1000 1000",
+  "sv-blueberry": "0 0 800 800",
+  "lza-lumiose": "0 0 800 800",
+  "lza-hyperspace": "0 0 640 360",
+  "lza-mega-dimension": "0 0 640 360"
+};
 const BASE_POKEMON_COUNT = 1025;
 const DEFAULT_PROFILE_ID = "guest-trainer";
 const CLOUD_SAVE_TABLE = "cloud_saves";
@@ -21,9 +38,108 @@ const ARCHIVE_INITIAL_RENDER_COUNT = 120;
 const ARCHIVE_RENDER_BATCH_COUNT = 120;
 const ARCHIVE_ENTRY_HEIGHT_ESTIMATE = 92;
 const SEARCH_INPUT_DEBOUNCE_MS = 120;
+const VALID_VIEW_IDS = new Set(["landing", "archive", "scan", "collection", "home", "journey", "lab", "vault"]);
+const VALID_DETAIL_TAB_IDS = new Set(["overview", "battle", "field"]);
+const EXCLUDED_API_ENTRY_NAMES = new Set([
+  "minior-red-meteor",
+  "minior-orange-meteor",
+  "minior-yellow-meteor",
+  "minior-green-meteor",
+  "minior-blue-meteor",
+  "minior-indigo-meteor",
+  "minior-violet-meteor"
+]);
+const SHINY_DEX_LOCKED_ENTRY_NAMES = new Set([
+  "victini",
+  "vivillon-poke-ball-pattern",
+  "floette-eternal",
+  "hoopa",
+  "hoopa-unbound",
+  "cosmog",
+  "cosmoem",
+  "magearna",
+  "magearna-original",
+  "magearna-mega",
+  "magearna-original-mega",
+  "marshadow",
+  "kubfu",
+  "urshifu-single-strike",
+  "urshifu-rapid-strike",
+  "urshifu-single-strike-gmax",
+  "urshifu-rapid-strike-gmax",
+  "zarude",
+  "zarude-dada",
+  "glastrier",
+  "spectrier",
+  "calyrex",
+  "calyrex-ice",
+  "calyrex-shadow",
+  "ursaluna-bloodmoon",
+  "melmetal-gmax",
+  "walking-wake",
+  "iron-leaves",
+  "okidogi",
+  "munkidori",
+  "fezandipiti",
+  "ogerpon",
+  "ogerpon-wellspring-mask",
+  "ogerpon-hearthflame-mask",
+  "ogerpon-cornerstone-mask",
+  "gouging-fire",
+  "raging-bolt",
+  "iron-boulder",
+  "iron-crown",
+  "terapagos",
+  "terapagos-terastal",
+  "terapagos-stellar",
+  "pecharunt"
+]);
+
 function mergeUniqueNumbers(...lists) {
   return [...new Set(lists.flat())].sort((left, right) => left - right);
 }
+
+function mergeUniqueValuesInOrder(...lists) {
+  const seen = new Set();
+  const ordered = [];
+
+  lists.flat().forEach((value) => {
+    if (seen.has(value)) {
+      return;
+    }
+
+    seen.add(value);
+    ordered.push(value);
+  });
+
+  return ordered;
+}
+
+// Source: Serebii Dynamax Adventures rental & opposing Pokemon list.
+const SWSH_DYNAMAX_ADVENTURE_SPECIES = [
+  460, 359, 617, 869, 334, 591, 752, 348, 144, 531, 699, 482, 184, 689, 847, 550,
+  614, 606, 182, 760, 625, 806, 257, 525, 836, 626, 437, 12, 794, 838, 797, 851,
+  113, 737, 5, 421, 573, 344, 36, 35, 839, 563, 256, 764, 879, 346, 845, 342,
+  488, 558, 615, 702, 483, 660, 132, 680, 148, 886, 452, 834, 426, 621, 832, 51,
+  206, 884, 632, 356, 830, 125, 587, 244, 589, 103, 295, 870, 136, 330, 611, 478,
+  873, 596, 569, 423, 487, 362, 44, 55, 623, 711, 853, 820, 861, 383, 253, 533,
+  799, 858, 93, 701, 631, 485, 695, 107, 106, 237, 250, 876, 2, 593, 39, 135,
+  124, 64, 115, 798, 99, 600, 707, 601, 553, 382, 646, 305, 608, 645, 171, 380,
+  381, 108, 510, 549, 264, 428, 249, 792, 754, 405, 745, 67, 126, 82, 687, 310,
+  226, 556, 105, 259, 481, 375, 150, 620, 241, 778, 146, 877, 750, 446, 518, 800,
+  34, 31, 793, 291, 164, 862, 224, 765, 826, 484, 770, 536, 675, 766, 279, 863,
+  53, 795, 221, 871, 186, 62, 855, 137, 771, 195, 211, 26, 243, 384, 369, 643,
+  112, 743, 315, 479, 758, 844, 28, 254, 545, 123, 117, 119, 364, 537, 319, 756,
+  561, 227, 435, 80, 199, 215, 791, 805, 121, 508, 618, 185, 245, 260, 528, 663,
+  114, 128, 73, 828, 642, 777, 176, 324, 641, 849, 709, 763, 697, 521, 480, 583,
+  134, 416, 738, 45, 320, 8, 110, 547, 340, 40, 178, 716, 796, 717, 145, 644,
+  718, 785, 786, 787, 788
+];
+
+const SWSH_DYNAMAX_ADVENTURE_VERSION_NATIVE = {
+  sword: [250, 381, 383, 483, 641, 643, 716, 791],
+  shield: [249, 380, 382, 484, 642, 644, 717, 792]
+};
 
 // Source: Derived from pokepc/dataset regional dex splits for Legends: Z-A.
 const LZA_LUMIOSE_SPECIES = [
@@ -67,12 +183,74 @@ const LZA_MEGA_DIMENSION_SPECIES = [
 
 const LZA_MAIN_SPECIES = mergeUniqueNumbers(LZA_LUMIOSE_SPECIES, LZA_HYPERSPACE_SPECIES);
 const LZA_AVAILABLE_SPECIES = mergeUniqueNumbers(LZA_MAIN_SPECIES, LZA_MEGA_DIMENSION_SPECIES);
+const LZA_LUMIOSE_ORDER_NAMES = ["chikorita","bayleef","meganium","tepig","pignite","emboar","totodile","croconaw","feraligatr","fletchling","fletchinder","talonflame","bunnelby","diggersby","scatterbug","spewpa","vivillon","weedle","kakuna","beedrill","pidgey","pidgeotto","pidgeot","mareep","flaaffy","ampharos","patrat","watchog","budew","roselia","roserade","magikarp","gyarados","binacle","barbaracle","staryu","starmie","flabebe","floette","florges","skiddo","gogoat","espurr","meowstic","litleo","pyroar","pancham","pangoro","trubbish","garbodor","dedenne","pichu","pikachu","raichu","cleffa","clefairy","clefable","spinarak","ariados","ekans","arbok","abra","kadabra","alakazam","gastly","haunter","gengar","venipede","whirlipede","scolipede","honedge","doublade","aegislash","bellsprout","weepinbell","victreebel","pansage","simisage","pansear","simisear","panpour","simipour","meditite","medicham","electrike","manectric","ralts","kirlia","gardevoir","gallade","houndour","houndoom","swablu","altaria","audino","spritzee","aromatisse","swirlix","slurpuff","eevee","vaporeon","jolteon","flareon","espeon","umbreon","leafeon","glaceon","sylveon","buneary","lopunny","shuppet","banette","vanillite","vanillish","vanilluxe","numel","camerupt","hippopotas","hippowdon","drilbur","excadrill","sandile","krokorok","krookodile","machop","machoke","machamp","gible","gabite","garchomp","carbink","sableye","mawile","absol","riolu","lucario","slowpoke","slowbro","slowking","carvanha","sharpedo","tynamo","eelektrik","eelektross","dratini","dragonair","dragonite","bulbasaur","ivysaur","venusaur","charmander","charmeleon","charizard","squirtle","wartortle","blastoise","stunfisk","furfrou","inkay","malamar","skrelp","dragalge","clauncher","clawitzer","goomy","sliggoo","goodra","delibird","snorunt","glalie","froslass","snover","abomasnow","bergmite","avalugg","scyther","scizor","pinsir","heracross","emolga","hawlucha","phantump","trevenant","scraggy","scrafty","noibat","noivern","klefki","litwick","lampent","chandelure","aerodactyl","tyrunt","tyrantrum","amaura","aurorus","onix","steelix","aron","lairon","aggron","helioptile","heliolisk","pumpkaboo","gourgeist","larvitar","pupitar","tyranitar","froakie","frogadier","greninja","falinks","chespin","quilladin","chesnaught","skarmory","fennekin","braixen","delphox","bagon","shelgon","salamence","kangaskhan","drampa","beldum","metang","metagross","xerneas","yveltal","zygarde","diancie","mewtwo"];
+const LZA_MEGA_DIMENSION_ORDER_NAMES = ["mankey","primeape","annihilape","meowth","persian","perrserker","farfetchd","sirfetchd","cubone","marowak","porygon","porygon2","porygon-z","capsakid","scovillain","tinkatink","tinkatuff","tinkaton","cyclizar","glimmet","glimmora","rotom","greavard","houndstone","sandygast","palossand","kecleon","flamigo","cryogonal","dondozo","tatsugiri","frigibax","arctibax","baxcalibur","gimmighoul","gholdengo","qwilfish","overqwil","treecko","grovyle","sceptile","torchic","combusken","blaziken","mudkip","marshtomp","swampert","feebas","milotic","chingling","chimecho","indeedee","purrloin","liepard","munna","musharna","throh","sawk","yamask","cofagrigus","runerigus","wimpod","golisopod","nickit","thievul","clobbopus","grapploct","mimikyu","kleavor","morpeko","golett","golurk","rookidee","corvisquire","corviknight","igglybuff","jigglypuff","wigglytuff","fidough","dachsbun","starly","staravia","staraptor","spoink","grumpig","squawkabilly","crabrawler","crabominable","nacli","naclstack","garganacl","gulpin","swalot","zubat","golbat","crobat","charcadet","armarouge","ceruledge","maschiff","mabosstiff","toxel","toxtricity","shroodle","grafaiai","zangoose","seviper","mime-jr","mr-mime","mr-rime","foongus","amoonguss","heatran","volcanion","cobalion","terrakion","virizion","keldeo","meloetta","genesect","hoopa","marshadow","meltan","melmetal","darkrai","latias","latios","kyogre","groudon","rayquaza","magearna","zeraora"];
+const LZA_FULL_ORDER_NAMES = mergeUniqueValuesInOrder(
+  LZA_LUMIOSE_ORDER_NAMES,
+  LZA_MEGA_DIMENSION_ORDER_NAMES
+);
+const LZA_DLC_SPECIES = mergeUniqueNumbers(LZA_HYPERSPACE_SPECIES, LZA_MEGA_DIMENSION_SPECIES);
+
+// Source: Serebii version-exclusive pages, trimmed to species-level differences only.
+const GAME_VERSION_EXCLUSIVE_SPECIES = {
+  lgpe: {
+    "lets-go-pikachu": [27, 28, 43, 44, 45, 56, 57, 58, 88, 89, 123],
+    "lets-go-eevee": [23, 24, 37, 38, 52, 53, 69, 70, 71, 109, 110, 127]
+  },
+  swsh: {
+    sword: [
+      68, 83, 127, 138, 139, 250, 273, 274, 275, 303, 338, 371, 372, 373, 381, 383, 483,
+      554, 555, 559, 560, 574, 575, 576, 627, 628, 633, 634, 635, 641, 643, 684, 685, 692,
+      693, 716, 766, 776, 782, 783, 784, 791, 839, 841, 865, 874, 888
+    ],
+    shield: [
+      77, 78, 94, 131, 140, 141, 214, 222, 246, 247, 248, 249, 270, 271, 272, 302, 337, 380,
+      382, 443, 444, 445, 453, 454, 484, 577, 578, 579, 629, 630, 642, 644, 682, 683, 690,
+      691, 704, 705, 706, 717, 765, 780, 792, 842, 864, 875, 889
+    ]
+  },
+  bdsp: {
+    "brilliant-diamond": [
+      10, 11, 12, 23, 24, 58, 59, 86, 87, 123, 125, 198, 207, 212, 239, 243, 244, 245, 246,
+      247, 248, 250, 273, 274, 275, 303, 335, 338, 352, 408, 409, 430, 434, 435, 466, 472,
+      483
+    ],
+    "shining-pearl": [
+      13, 14, 15, 27, 28, 37, 38, 79, 80, 126, 127, 144, 145, 146, 199, 200, 216, 217, 234,
+      240, 249, 270, 271, 272, 302, 336, 337, 371, 372, 373, 410, 411, 429, 431, 432, 467,
+      484
+    ]
+  },
+  sv: {
+    scarlet: [
+      37, 38, 207, 246, 247, 248, 408, 409, 425, 426, 434, 435, 472, 633, 634, 635, 690, 691,
+      765, 845, 874, 936, 984, 985, 986, 987, 988, 989, 1005, 1007, 1009, 1020, 1021
+    ],
+    violet: [
+      27, 28, 190, 200, 316, 317, 371, 372, 373, 410, 411, 424, 429, 692, 693, 766, 875, 877,
+      885, 886, 887, 937, 990, 991, 992, 993, 994, 995, 1006, 1008, 1010, 1022, 1023
+    ]
+  }
+};
+
+const GAME_VERSION_EXCLUSIVE_SETS = Object.fromEntries(
+  Object.entries(GAME_VERSION_EXCLUSIVE_SPECIES).map(([gameId, versionMap]) => [
+    gameId,
+    Object.fromEntries(
+      Object.entries(versionMap).map(([versionId, speciesNumbers]) => [versionId, new Set(speciesNumbers)])
+    )
+  ])
+);
 
 const GAME_CATALOG = [
   {
     id: "lgpe",
     shortName: "LGPE",
     name: "Let's Go Pikachu / Eevee",
+    versions: [
+      { id: "lets-go-pikachu", label: "Let's Go Pikachu", shortLabel: "Pikachu" },
+      { id: "lets-go-eevee", label: "Let's Go Eevee", shortLabel: "Eevee" }
+    ],
     progressLabel: "Badges",
     progressMax: 8,
     milestones: ["New Save", "Mid Story", "Elite Four", "Master Trainers"]
@@ -81,6 +259,10 @@ const GAME_CATALOG = [
     id: "swsh",
     shortName: "SWSH",
     name: "Sword / Shield",
+    versions: [
+      { id: "sword", label: "Sword", shortLabel: "Sword" },
+      { id: "shield", label: "Shield", shortLabel: "Shield" }
+    ],
     progressLabel: "Badges",
     progressMax: 8,
     milestones: ["New Save", "Wild Area", "Champion Cup", "DLC / Postgame"]
@@ -89,6 +271,10 @@ const GAME_CATALOG = [
     id: "bdsp",
     shortName: "BDSP",
     name: "Brilliant Diamond / Shining Pearl",
+    versions: [
+      { id: "brilliant-diamond", label: "Brilliant Diamond", shortLabel: "Diamond" },
+      { id: "shining-pearl", label: "Shining Pearl", shortLabel: "Pearl" }
+    ],
     progressLabel: "Badges",
     progressMax: 8,
     milestones: ["New Save", "Mid Story", "Hall of Fame", "Ramanas / Postgame"]
@@ -105,6 +291,10 @@ const GAME_CATALOG = [
     id: "sv",
     shortName: "SV",
     name: "Scarlet / Violet",
+    versions: [
+      { id: "scarlet", label: "Scarlet", shortLabel: "Scarlet" },
+      { id: "violet", label: "Violet", shortLabel: "Violet" }
+    ],
     progressLabel: "Paths Cleared",
     progressMax: 18,
     milestones: ["Academy Start", "Three Paths", "Area Zero", "Raid / Postgame"]
@@ -126,7 +316,7 @@ const SWITCH_GAME_AVAILABILITY = {
     extraSpecies: [808, 809]
   },
   swsh: {
-    label: "Galar + Isle of Armor + Crown Tundra",
+    label: "Galar + Isle of Armor + Crown Tundra + Max Lair",
     pokedexes: ["galar", "isle-of-armor", "crown-tundra"],
     segments: [
       {
@@ -149,6 +339,15 @@ const SWITCH_GAME_AVAILABILITY = {
         label: "Crown Tundra DLC",
         sourceLabel: "Crown Tundra Dex",
         pokedexes: ["crown-tundra"]
+      },
+      {
+        id: "dynamax-adventure",
+        kind: "dlc",
+        label: "Dynamax Adventures",
+        sourceLabel: "Max Lair Pool",
+        speciesNumbers: SWSH_DYNAMAX_ADVENTURE_SPECIES,
+        versionNative: SWSH_DYNAMAX_ADVENTURE_VERSION_NATIVE,
+        defaultVersionLabel: "Both Versions"
       }
     ]
   },
@@ -189,21 +388,24 @@ const SWITCH_GAME_AVAILABILITY = {
   },
   lza: {
     label: "Lumiose + Hyperspace + Mega coverage",
+    speciesOrderNames: LZA_FULL_ORDER_NAMES,
     speciesNumbers: LZA_AVAILABLE_SPECIES,
     segments: [
       {
         id: "main",
         kind: "main",
         label: "Main Game",
-        sourceLabel: "Lumiose + Hyperspace Dex",
-        speciesNumbers: LZA_MAIN_SPECIES
+        sourceLabel: "Lumiose Dex",
+        speciesOrderNames: LZA_LUMIOSE_ORDER_NAMES,
+        speciesNumbers: LZA_LUMIOSE_SPECIES
       },
       {
         id: "mega-dimension",
         kind: "dlc",
         label: "Mega Dimension DLC",
-        sourceLabel: "Mega Dex",
-        speciesNumbers: LZA_MEGA_DIMENSION_SPECIES
+        sourceLabel: "Hyperspace + Mega Dex",
+        speciesOrderNames: LZA_MEGA_DIMENSION_ORDER_NAMES,
+        speciesNumbers: LZA_DLC_SPECIES
       }
     ]
   }
@@ -385,6 +587,183 @@ const FURFROU_TRIMS = [
   { slug: "pharaoh", label: "Pharaoh Trim" }
 ];
 
+const KALOS_FLOWER_COLORS = [
+  { slug: "red", label: "Red Flower", isDefault: true },
+  { slug: "yellow", label: "Yellow Flower" },
+  { slug: "orange", label: "Orange Flower" },
+  { slug: "blue", label: "Blue Flower" },
+  { slug: "white", label: "White Flower" }
+];
+
+const KALOS_FLOWER_FAMILIES = [
+  { baseNumber: 669, basePokemonName: "flabebe", displayLabel: "Flabebe" },
+  { baseNumber: 670, basePokemonName: "floette", displayLabel: "Floette" },
+  { baseNumber: 671, basePokemonName: "florges", displayLabel: "Florges" }
+];
+
+const BURMY_CLOAKS = [
+  { slug: "plant", label: "Plant Cloak", isDefault: true },
+  { slug: "sandy", label: "Sandy Cloak" },
+  { slug: "trash", label: "Trash Cloak" }
+];
+
+const SINNOH_SEA_VARIANT_META = {
+  shellos: {
+    displayName: "Shellos West Sea",
+    variantLabel: "West Sea",
+    detailNote: "West Sea is tracked as Shellos's default Sinnoh sea variant."
+  },
+  "shellos-east": {
+    displayName: "Shellos East Sea",
+    variantLabel: "East Sea",
+    detailNote: "East Sea is tracked as Shellos's alternate Sinnoh sea variant."
+  },
+  gastrodon: {
+    displayName: "Gastrodon West Sea",
+    variantLabel: "West Sea",
+    detailNote: "West Sea is tracked as Gastrodon's default Sinnoh sea variant."
+  },
+  "gastrodon-east": {
+    displayName: "Gastrodon East Sea",
+    variantLabel: "East Sea",
+    detailNote: "East Sea is tracked as Gastrodon's alternate Sinnoh sea variant."
+  }
+};
+
+const SINNOH_EAST_SEA_VARIANTS = [
+  {
+    name: "shellos-east",
+    displayName: "Shellos East Sea",
+    baseNumber: 422,
+    basePokemonName: "shellos",
+    variantLabel: "East Sea",
+    detailNote: "East Sea is tracked as Shellos's alternate Sinnoh sea variant.",
+    spriteSlug: "east"
+  },
+  {
+    name: "gastrodon-east",
+    displayName: "Gastrodon East Sea",
+    baseNumber: 423,
+    basePokemonName: "gastrodon",
+    variantLabel: "East Sea",
+    detailNote: "East Sea is tracked as Gastrodon's alternate Sinnoh sea variant.",
+    spriteSlug: "east"
+  }
+];
+
+const UNOVA_SEASON_VARIANT_META = {
+  deerling: {
+    displayName: "Deerling Spring Form",
+    variantLabel: "Spring Form",
+    detailNote: "Spring Form is tracked as Deerling's default seasonal appearance."
+  },
+  sawsbuck: {
+    displayName: "Sawsbuck Spring Form",
+    variantLabel: "Spring Form",
+    detailNote: "Spring Form is tracked as Sawsbuck's default seasonal appearance."
+  }
+};
+
+const UNOVA_SEASON_VARIANTS = [
+  {
+    name: "deerling-summer",
+    displayName: "Deerling Summer Form",
+    baseNumber: 585,
+    basePokemonName: "deerling",
+    variantLabel: "Summer Form",
+    detailNote: "Summer Form is tracked as Deerling's warm-season appearance.",
+    spriteSlug: "summer"
+  },
+  {
+    name: "deerling-autumn",
+    displayName: "Deerling Autumn Form",
+    baseNumber: 585,
+    basePokemonName: "deerling",
+    variantLabel: "Autumn Form",
+    detailNote: "Autumn Form is tracked as Deerling's fall-season appearance.",
+    spriteSlug: "autumn"
+  },
+  {
+    name: "deerling-winter",
+    displayName: "Deerling Winter Form",
+    baseNumber: 585,
+    basePokemonName: "deerling",
+    variantLabel: "Winter Form",
+    detailNote: "Winter Form is tracked as Deerling's cold-season appearance.",
+    spriteSlug: "winter"
+  },
+  {
+    name: "sawsbuck-summer",
+    displayName: "Sawsbuck Summer Form",
+    baseNumber: 586,
+    basePokemonName: "sawsbuck",
+    variantLabel: "Summer Form",
+    detailNote: "Summer Form is tracked as Sawsbuck's warm-season appearance.",
+    spriteSlug: "summer"
+  },
+  {
+    name: "sawsbuck-autumn",
+    displayName: "Sawsbuck Autumn Form",
+    baseNumber: 586,
+    basePokemonName: "sawsbuck",
+    variantLabel: "Autumn Form",
+    detailNote: "Autumn Form is tracked as Sawsbuck's fall-season appearance.",
+    spriteSlug: "autumn"
+  },
+  {
+    name: "sawsbuck-winter",
+    displayName: "Sawsbuck Winter Form",
+    baseNumber: 586,
+    basePokemonName: "sawsbuck",
+    variantLabel: "Winter Form",
+    detailNote: "Winter Form is tracked as Sawsbuck's cold-season appearance.",
+    spriteSlug: "winter"
+  }
+];
+
+const AUTHENTICITY_FORM_VARIANTS = [
+  {
+    name: "sinistea-antique",
+    displayName: "Sinistea Antique Form",
+    baseNumber: 854,
+    basePokemonName: "sinistea",
+    variantLabel: "Antique Form",
+    detailNote:
+      "Antique Form is shown in the forms bank for Sinistea, but it is not counted as a separate living-dex entry.",
+    extraSearchTerms: ["antique", "authentic", "authenticity", "rare", "teacup"]
+  },
+  {
+    name: "polteageist-antique",
+    displayName: "Polteageist Antique Form",
+    baseNumber: 855,
+    basePokemonName: "polteageist",
+    variantLabel: "Antique Form",
+    detailNote:
+      "Antique Form is shown in the forms bank for Polteageist, but it is not counted as a separate living-dex entry.",
+    extraSearchTerms: ["antique", "authentic", "authenticity", "rare", "teapot"]
+  },
+  {
+    name: "poltchageist-artisan",
+    displayName: "Poltchageist Artisan Form",
+    baseNumber: 1012,
+    basePokemonName: "poltchageist",
+    variantLabel: "Artisan Form",
+    detailNote:
+      "Artisan Form is shown in the forms bank for Poltchageist, but it is not counted as a separate living-dex entry.",
+    extraSearchTerms: ["artisan", "rare", "authentic", "authenticity", "matcha"]
+  },
+  {
+    name: "sinistcha-masterpiece",
+    displayName: "Sinistcha Masterpiece Form",
+    baseNumber: 1013,
+    basePokemonName: "sinistcha",
+    variantLabel: "Masterpiece Form",
+    detailNote:
+      "Masterpiece Form is shown in the forms bank for Sinistcha, but it is not counted as a separate living-dex entry.",
+    extraSearchTerms: ["masterpiece", "rare", "authentic", "authenticity", "matcha"]
+  }
+];
+
 const FEMALE_SPRITE_DIFFERENCE_IDS = [
   3, 12, 19, 20, 25, 26, 41, 42, 44, 45, 64, 65, 84, 85, 97, 111, 112, 118, 119, 123, 129, 130,
   133, 154, 165, 166, 178, 185, 186, 190, 194, 195, 198, 202, 203, 207, 208, 212, 214, 215, 217,
@@ -427,9 +806,15 @@ const HOME_BOX_COMPATIBILITY_RULES = [
   },
   {
     tag: "Dex Only",
+    reason: "Sky Forme is visible in the living dex, but HOME does not preserve it as its own boxed form.",
+    archiveVisible: true,
+    matches: (entry) => /^shaymin-sky$/.test(entry.name)
+  },
+  {
+    tag: "Dex Only",
     reason: "This form depends on an item or mask that HOME does not preserve as its own boxed form.",
     matches: (entry) =>
-      /^(dialga-origin|palkia-origin|giratina-origin|genesect-(burn|chill|douse|shock)|shaymin-sky|ogerpon-(wellspring-mask|hearthflame-mask|cornerstone-mask)|zacian-crowned|zamazenta-crowned)$/.test(
+      /^(dialga-origin|palkia-origin|giratina-origin|genesect-(burn|chill|douse|shock)|ogerpon-(wellspring-mask|hearthflame-mask|cornerstone-mask)|zacian-crowned|zamazenta-crowned)$/.test(
         entry.name
       ) ||
       (entry.basePokemonName === "arceus" && entry.name !== "arceus") ||
@@ -643,6 +1028,8 @@ const GENERATION_RANGES = [
   { label: "9", start: 906, end: 1025 }
 ];
 
+const FAVORITE_PICKER_RESULT_LIMIT = 80;
+
 const elements = {
   navTabs: [...document.querySelectorAll("[data-view]")],
   viewPanels: [...document.querySelectorAll("[data-view-panel]")],
@@ -661,6 +1048,12 @@ const elements = {
   generationSelect: document.querySelector("#generation-select"),
   gameFilterSelect: document.querySelector("#game-filter-select"),
   sessionButton: document.querySelector("#session-button"),
+  landingWelcome: document.querySelector("#landing-welcome"),
+  landingSummary: document.querySelector("#landing-summary"),
+  landingProfileMetric: document.querySelector("#landing-profile-metric"),
+  landingLivingMetric: document.querySelector("#landing-living-metric"),
+  landingShinyMetric: document.querySelector("#landing-shiny-metric"),
+  landingOwnedMetric: document.querySelector("#landing-owned-metric"),
   archiveModeIndicator: document.querySelector("#archive-mode-indicator"),
   archiveBaseCount: document.querySelector("#archive-base-count"),
   archiveFormCount: document.querySelector("#archive-form-count"),
@@ -675,7 +1068,13 @@ const elements = {
   statMissing: document.querySelector("#stat-missing"),
   statVisible: document.querySelector("#stat-visible"),
   statSelected: document.querySelector("#stat-selected"),
+  archiveLivingProgressText: document.querySelector("#archive-living-progress-text"),
+  archiveLivingProgressBar: document.querySelector("#archive-living-progress-bar"),
+  archiveShinyProgressText: document.querySelector("#archive-shiny-progress-text"),
+  archiveShinyProgressBar: document.querySelector("#archive-shiny-progress-bar"),
   currentScanRibbon: document.querySelector("#current-scan-ribbon"),
+  currentScanOpenButton: document.querySelector("#current-scan-open-btn"),
+  currentScanClearButton: document.querySelector("#current-scan-clear-btn"),
   currentScanSprite: document.querySelector("#current-scan-sprite"),
   currentScanName: document.querySelector("#current-scan-name"),
   currentScanMeta: document.querySelector("#current-scan-meta"),
@@ -687,14 +1086,13 @@ const elements = {
   detailContent: document.querySelector("#detail-content"),
   toggleCaughtButton: document.querySelector("#toggle-caught-btn"),
   toggleShinyButton: document.querySelector("#toggle-shiny-btn"),
+  clearScanButton: document.querySelector("#clear-scan-btn"),
   pokemonArt: document.querySelector("#pokemon-art"),
   pokemonDex: document.querySelector("#pokemon-dex"),
   pokemonTypes: document.querySelector("#pokemon-types"),
   detailTabButtons: [...document.querySelectorAll("[data-detail-tab]")],
   detailPanes: [...document.querySelectorAll("[data-detail-panel]")],
-  favoriteButton: document.querySelector("#favorite-btn"),
   bookmarkButton: document.querySelector("#bookmark-btn"),
-  favoriteTypesButton: document.querySelector("#favorite-types-btn"),
   bulbapediaLink: document.querySelector("#bulbapedia-link"),
   serebiiLink: document.querySelector("#serebii-link"),
   pokemonFlavor: document.querySelector("#pokemon-flavor"),
@@ -727,19 +1125,32 @@ const elements = {
   shinyProgressBar: document.querySelector("#shiny-progress-bar"),
   ownedProgressText: document.querySelector("#owned-progress-text"),
   ownedProgressBar: document.querySelector("#owned-progress-bar"),
-  refreshTargetsButton: document.querySelector("#refresh-targets-btn"),
+  generationBreakdownSummary: document.querySelector("#generation-breakdown-summary"),
+  generationBreakdownNote: document.querySelector("#generation-breakdown-note"),
+  generationBreakdownGrid: document.querySelector("#generation-breakdown-grid"),
   randomTargetSummary: document.querySelector("#random-target-summary"),
   targetList: document.querySelector("#target-list"),
   shinyTargetList: document.querySelector("#shiny-target-list"),
+  landingTargetSelected: document.querySelector("#landing-target-selected"),
+  landingShinyTargetSelected: document.querySelector("#landing-shiny-target-selected"),
+  landingTargetCatchButton: document.querySelector("#landing-target-catch-btn"),
+  landingTargetRerollButton: document.querySelector("#landing-target-reroll-btn"),
+  landingShinyLogButton: document.querySelector("#landing-shiny-log-btn"),
+  landingShinyRerollButton: document.querySelector("#landing-shiny-reroll-btn"),
   favoritesCount: document.querySelector("#favorites-count"),
+  favoritesSummary: document.querySelector("#favorites-summary"),
   favoritesList: document.querySelector("#favorites-list"),
   bookmarksCount: document.querySelector("#bookmarks-count"),
   bookmarksList: document.querySelector("#bookmarks-list"),
   favoriteTypesCount: document.querySelector("#favorite-types-count"),
+  favoriteTypesSummary: document.querySelector("#favorite-types-summary"),
   favoriteTypesList: document.querySelector("#favorite-types-list"),
   unobtainableCount: document.querySelector("#unobtainable-count"),
   unobtainableSummary: document.querySelector("#unobtainable-summary"),
   unobtainableList: document.querySelector("#unobtainable-list"),
+  shinyLockedCount: document.querySelector("#shiny-locked-count"),
+  shinyLockedSummary: document.querySelector("#shiny-locked-summary"),
+  shinyLockedList: document.querySelector("#shiny-locked-list"),
   trackerSummary: document.querySelector("#tracker-summary"),
   trackerGrid: document.querySelector("#tracker-grid"),
   expSpeciesLabel: document.querySelector("#exp-species-label"),
@@ -770,6 +1181,7 @@ const elements = {
   profileSelect: document.querySelector("#profile-select"),
   profileNameInput: document.querySelector("#profile-name-input"),
   createProfileButton: document.querySelector("#create-profile-btn"),
+  favoritePickerOpenButton: document.querySelector("#favorite-picker-open-btn"),
   accountBadge: document.querySelector("#account-badge"),
   accountSummary: document.querySelector("#account-summary"),
   accountDetail: document.querySelector("#account-detail"),
@@ -779,7 +1191,6 @@ const elements = {
   accountSignUpButton: document.querySelector("#account-sign-up-btn"),
   accountGoogleSignInButton: document.querySelector("#account-google-sign-in-btn"),
   accountSignOutButton: document.querySelector("#account-sign-out-btn"),
-  cloudPullButton: document.querySelector("#cloud-pull-btn"),
   cloudPushButton: document.querySelector("#cloud-push-btn"),
   cloudSyncButton: document.querySelector("#cloud-sync-btn"),
   notebookStatus: document.querySelector("#notebook-status"),
@@ -788,6 +1199,14 @@ const elements = {
   companionInput: document.querySelector("#companion-input"),
   companionAskButton: document.querySelector("#companion-ask-btn"),
   companionAnswer: document.querySelector("#companion-answer"),
+  favoritePickerOverlay: document.querySelector("#favorite-picker-overlay"),
+  favoritePickerTitle: document.querySelector("#favorite-picker-title"),
+  favoritePickerNote: document.querySelector("#favorite-picker-note"),
+  favoritePickerSearch: document.querySelector("#favorite-picker-search"),
+  favoritePickerClearButton: document.querySelector("#favorite-picker-clear-btn"),
+  favoritePickerResultsSummary: document.querySelector("#favorite-picker-results-summary"),
+  favoritePickerList: document.querySelector("#favorite-picker-list"),
+  favoritePickerCloseButton: document.querySelector("#favorite-picker-close-btn"),
   homeFocus: document.querySelector("#home-focus"),
   clearBoxButton: document.querySelector("#clear-box-btn"),
   homeBoxTabs: document.querySelector("#home-box-tabs"),
@@ -824,12 +1243,21 @@ const state = {
   baseNamesSorted: [],
   query: "",
   ui: {
-    activeView: "archive",
+    activeView: "landing",
     activeDetailTab: "overview",
     archiveMode: "living",
     homeExcludedVisible: false,
     locationSurfaceTabs: {},
-    locationMapZoom: {}
+    locationMapZoom: {},
+    selectedRandomTargetName: null,
+    selectedShinyTargetName: null,
+    favoritePicker: {
+      open: false,
+      mode: "favorites",
+      typeName: null,
+      query: "",
+      loading: false
+    }
   },
   filters: {
     scope: "all",
@@ -858,6 +1286,8 @@ const state = {
   detailCache: new Map(),
   evolutionChainCache: new Map(),
   locationCache: new Map(),
+  typeFavoritePoolCache: new Map(),
+  apiCache: loadApiCache(),
   gameAvailabilityByGame: cachedGameAvailability.map,
   gameAvailabilityDetailsByGame: cachedGameAvailability.details,
   gameAvailabilityReady: cachedGameAvailability.ready,
@@ -865,6 +1295,10 @@ const state = {
   gameAvailabilityLoading: false,
   gameAvailabilityError: false,
   currentPokemon: null,
+  sessionRestore: {
+    currentPokemonName: null,
+    restoring: false
+  },
   activeRequestId: 0,
   archiveStats: {
     baseCount: 0,
@@ -872,7 +1306,8 @@ const state = {
   },
   archiveRender: {
     filteredEntries: [],
-    renderedCount: 0
+    renderedCount: 0,
+    renderedCardsByName: new Map()
   },
   queryInputTimer: null,
   gameAvailabilityScheduled: false,
@@ -892,6 +1327,11 @@ const state = {
     authSubscription: null
   }
 };
+
+const uiSessionSeed = loadUiSessionState();
+state.ui.activeView = uiSessionSeed.activeView;
+state.ui.activeDetailTab = uiSessionSeed.activeDetailTab;
+state.sessionRestore.currentPokemonName = uiSessionSeed.currentPokemonName;
 
 window.__dexterState = state;
 
@@ -915,6 +1355,37 @@ function saveStoredObject(key, value) {
   } catch (error) {
     console.warn("Local save failed", key, error);
   }
+}
+
+function createDefaultUiSessionState() {
+  return {
+    activeView: "landing",
+    activeDetailTab: "overview",
+    currentPokemonName: null
+  };
+}
+
+function loadUiSessionState() {
+  const loaded = loadStoredObject(UI_SESSION_STORAGE_KEY, createDefaultUiSessionState());
+  const activeView = VALID_VIEW_IDS.has(loaded?.activeView) ? loaded.activeView : "landing";
+  const activeDetailTab = VALID_DETAIL_TAB_IDS.has(loaded?.activeDetailTab)
+    ? loaded.activeDetailTab
+    : "overview";
+  const currentPokemonName = loaded?.currentPokemonName ? String(loaded.currentPokemonName) : null;
+
+  return {
+    activeView,
+    activeDetailTab,
+    currentPokemonName
+  };
+}
+
+function saveUiSessionState() {
+  saveStoredObject(UI_SESSION_STORAGE_KEY, {
+    activeView: state.ui.activeView,
+    activeDetailTab: state.ui.activeDetailTab,
+    currentPokemonName: state.currentPokemon?.name ?? state.sessionRestore.currentPokemonName ?? null
+  });
 }
 
 function getCloudRedirectUrl() {
@@ -1044,6 +1515,39 @@ function createDefaultHomeBoxesState() {
   };
 }
 
+function getGameVersions(game) {
+  return Array.isArray(game?.versions) ? game.versions : [];
+}
+
+function gameHasSeparateVersions(game) {
+  return getGameVersions(game).length > 0;
+}
+
+function createDefaultGameVersionState(game) {
+  return Object.fromEntries(getGameVersions(game).map((version) => [version.id, false]));
+}
+
+function syncTrackerGameOwnedState(game, trackerGameState) {
+  if (!trackerGameState) {
+    return false;
+  }
+
+  if (gameHasSeparateVersions(game)) {
+    if (!trackerGameState.versions || typeof trackerGameState.versions !== "object") {
+      trackerGameState.versions = createDefaultGameVersionState(game);
+    }
+
+    trackerGameState.owned = getGameVersions(game).some((version) =>
+      Boolean(trackerGameState.versions?.[version.id])
+    );
+    return trackerGameState.owned;
+  }
+
+  trackerGameState.versions = {};
+  trackerGameState.owned = Boolean(trackerGameState.owned);
+  return trackerGameState.owned;
+}
+
 function createDefaultTrackerState() {
   return {
     activeGame: "none",
@@ -1052,6 +1556,7 @@ function createDefaultTrackerState() {
         game.id,
         {
           owned: false,
+          versions: createDefaultGameVersionState(game),
           progress: 0,
           milestone: game.milestones[0],
           hallOfFame: false,
@@ -1338,12 +1843,20 @@ function getAvailabilitySegmentSpecs(gameId) {
   return (SWITCH_GAME_AVAILABILITY[gameId]?.segments ?? []).map((segment) => ({ ...segment }));
 }
 
+function buildGameAvailabilityOrderIndex(order = []) {
+  return new Map(order.map((number, index) => [number, index]));
+}
+
 function createGameAvailabilityDetail(gameId) {
   return {
     all: new Set(),
+    order: [],
+    orderIndex: new Map(),
     segments: getAvailabilitySegmentSpecs(gameId).map((segment) => ({
       ...segment,
-      speciesSet: new Set()
+      speciesSet: new Set(),
+      order: [],
+      orderIndex: new Map()
     }))
   };
 }
@@ -1359,6 +1872,8 @@ function cloneGameAvailabilityDetail(detail, gameId) {
   }
 
   clone.all = new Set(detail.all ?? []);
+  clone.order = [...(detail.order ?? [])];
+  clone.orderIndex = buildGameAvailabilityOrderIndex(clone.order);
 
   if (!clone.segments.length) {
     return clone;
@@ -1367,7 +1882,9 @@ function cloneGameAvailabilityDetail(detail, gameId) {
   const sourceSegments = new Map((detail.segments ?? []).map((segment) => [segment.id, segment]));
   clone.segments = clone.segments.map((segment) => ({
     ...segment,
-    speciesSet: new Set(sourceSegments.get(segment.id)?.speciesSet ?? [])
+    speciesSet: new Set(sourceSegments.get(segment.id)?.speciesSet ?? []),
+    order: [...(sourceSegments.get(segment.id)?.order ?? [])],
+    orderIndex: buildGameAvailabilityOrderIndex(sourceSegments.get(segment.id)?.order ?? [])
   }));
 
   return clone;
@@ -1417,15 +1934,26 @@ function loadGameAvailabilityCache() {
       numbers = Array.isArray(cacheEntry.all)
         ? cacheEntry.all.map(Number).filter(Number.isFinite)
         : [];
+      detail.order = Array.isArray(cacheEntry.order)
+        ? cacheEntry.order.map(Number).filter(Number.isFinite)
+        : [...numbers];
+      detail.orderIndex = buildGameAvailabilityOrderIndex(detail.order);
 
       if (expectsSegments) {
         const cachedSegments =
           cacheEntry.segments && typeof cacheEntry.segments === "object" ? cacheEntry.segments : null;
+        const cachedSegmentOrders =
+          cacheEntry.segmentOrders && typeof cacheEntry.segmentOrders === "object"
+            ? cacheEntry.segmentOrders
+            : null;
 
         detail.segments = detail.segments.map((segment) => {
           const segmentNumbers = Array.isArray(cachedSegments?.[segment.id])
             ? cachedSegments[segment.id].map(Number).filter(Number.isFinite)
             : [];
+          const segmentOrder = Array.isArray(cachedSegmentOrders?.[segment.id])
+            ? cachedSegmentOrders[segment.id].map(Number).filter(Number.isFinite)
+            : [...segmentNumbers];
 
           if (!cachedSegments || !Array.isArray(cachedSegments[segment.id])) {
             breakdownReady = false;
@@ -1433,7 +1961,9 @@ function loadGameAvailabilityCache() {
 
           return {
             ...segment,
-            speciesSet: new Set(segmentNumbers)
+            speciesSet: new Set(segmentNumbers),
+            order: segmentOrder,
+            orderIndex: buildGameAvailabilityOrderIndex(segmentOrder)
           };
         });
       }
@@ -1446,6 +1976,10 @@ function loadGameAvailabilityCache() {
     }
 
     detail.all = new Set(numbers);
+    if (!detail.order.length) {
+      detail.order = [...numbers];
+      detail.orderIndex = buildGameAvailabilityOrderIndex(detail.order);
+    }
     map.set(game.id, new Set(numbers));
     details.set(game.id, detail);
   });
@@ -1464,10 +1998,17 @@ function saveGameAvailabilityCache() {
       const allNumbers = [...(detail.all ?? state.gameAvailabilityByGame.get(game.id) ?? new Set())].sort(
         (left, right) => left - right
       );
+      const allOrder = [...(detail.order?.length ? detail.order : allNumbers)];
       const segments = Object.fromEntries(
         (detail.segments ?? []).map((segment) => [
           segment.id,
           [...(segment.speciesSet ?? new Set())].sort((left, right) => left - right)
+        ])
+      );
+      const segmentOrders = Object.fromEntries(
+        (detail.segments ?? []).map((segment) => [
+          segment.id,
+          Array.from(segment.order?.length ? segment.order : segment.speciesSet ?? [])
         ])
       );
 
@@ -1476,10 +2017,13 @@ function saveGameAvailabilityCache() {
         Object.keys(segments).length
           ? {
               all: allNumbers,
-              segments
+              order: allOrder,
+              segments,
+              segmentOrders
             }
           : {
-              all: allNumbers
+              all: allNumbers,
+              order: allOrder
             }
       ];
     })
@@ -1491,16 +2035,38 @@ function saveGameAvailabilityCache() {
 function loadTrackerState() {
   const base = createDefaultTrackerState();
   const loaded = loadProfileStoredObject(TRACKER_STORAGE_KEY, base);
+  const games = GAME_CATALOG.reduce((accumulator, game) => {
+    const baseGameState = base.games[game.id];
+    const loadedGameState = loaded.games?.[game.id] ?? {};
+    const normalizedGameState = {
+      ...baseGameState,
+      ...loadedGameState
+    };
+
+    if (gameHasSeparateVersions(game)) {
+      normalizedGameState.versions = {
+        ...baseGameState.versions,
+        ...(loadedGameState.versions ?? {})
+      };
+
+      const hasExplicitVersionSelection = Object.values(normalizedGameState.versions).some(Boolean);
+      if (!hasExplicitVersionSelection && loadedGameState.owned) {
+        Object.keys(normalizedGameState.versions).forEach((versionId) => {
+          normalizedGameState.versions[versionId] = true;
+        });
+      }
+    }
+
+    syncTrackerGameOwnedState(game, normalizedGameState);
+    accumulator[game.id] = normalizedGameState;
+    return accumulator;
+  }, {});
+
+  const activeGame = games[loaded.activeGame]?.owned ? loaded.activeGame : base.activeGame;
 
   return {
-    activeGame: loaded.activeGame ?? base.activeGame,
-    games: GAME_CATALOG.reduce((accumulator, game) => {
-      accumulator[game.id] = {
-        ...base.games[game.id],
-        ...(loaded.games?.[game.id] ?? {})
-      };
-      return accumulator;
-    }, {})
+    activeGame,
+    games
   };
 }
 
@@ -1627,29 +2193,48 @@ function loadApiCache() {
   return loadStoredObject(API_CACHE_STORAGE_KEY, {});
 }
 
-function saveApiCache(cache) {
-  saveStoredObject(API_CACHE_STORAGE_KEY, cache);
+function saveApiCache() {
+  saveStoredObject(API_CACHE_STORAGE_KEY, state.apiCache);
 }
 
-async function fetchJsonCached(url) {
-  const apiCache = loadApiCache();
+async function refreshJsonCache(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`request-${response.status}`);
+  }
+
+  const payload = await response.json();
+  state.apiCache[url] = { savedAt: Date.now(), payload };
+  saveApiCache();
+  return payload;
+}
+
+async function fetchJsonCached(url, options = {}) {
+  const { preferCache = true } = options;
+  const cachedPayload = state.apiCache[url]?.payload;
+
+  if (preferCache && cachedPayload) {
+    void refreshJsonCache(url).catch(() => {});
+    return cachedPayload;
+  }
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`request-${response.status}`);
-    }
-
-    const payload = await response.json();
-    apiCache[url] = { savedAt: Date.now(), payload };
-    saveApiCache(apiCache);
-    return payload;
+    return await refreshJsonCache(url);
   } catch (error) {
-    if (apiCache[url]?.payload) {
-      return apiCache[url].payload;
+    if (cachedPayload) {
+      return cachedPayload;
     }
     throw error;
   }
+}
+
+function loadDexIndexCache() {
+  const cached = loadStoredObject(DEX_INDEX_CACHE_STORAGE_KEY, {});
+  return cached && typeof cached === "object" ? cached : {};
+}
+
+function saveDexIndexCache(payload) {
+  saveStoredObject(DEX_INDEX_CACHE_STORAGE_KEY, payload);
 }
 
 function registerOfflineSupport() {
@@ -1672,6 +2257,14 @@ function isCaught(name) {
 
 function isShiny(name) {
   return Boolean(state.shinyMap[name]);
+}
+
+function isShinyDexLocked(name) {
+  return SHINY_DEX_LOCKED_ENTRY_NAMES.has(name);
+}
+
+function getShinyDexEntries(entries = state.entries) {
+  return entries.filter((entry) => !isShinyDexLocked(entry.name));
 }
 
 function isFavorite(name) {
@@ -1700,6 +2293,16 @@ function setBookmarkState(name, value) {
   }
 
   saveBookmarksMap();
+}
+
+function setFavoriteTypeState(typeName, pokemonName) {
+  if (pokemonName) {
+    state.favoriteTypes[typeName] = pokemonName;
+  } else {
+    delete state.favoriteTypes[typeName];
+  }
+
+  saveFavoriteTypesState();
 }
 
 function setCaughtState(name, value) {
@@ -1746,8 +2349,115 @@ function setGameChecklistCaughtState(gameId, name, value) {
   saveGameChecklistState();
 }
 
+function getOwnedReleaseRecords() {
+  return GAME_CATALOG.flatMap((game) => {
+    const trackerGameState = state.tracker.games[game.id];
+
+    if (gameHasSeparateVersions(game)) {
+      return getGameVersions(game)
+        .filter((version) => Boolean(trackerGameState?.versions?.[version.id]))
+        .map((version) => ({
+          gameId: game.id,
+          releaseId: version.id,
+          label: version.label,
+          shortLabel: version.shortLabel ?? version.label
+        }));
+    }
+
+    return trackerGameState?.owned
+      ? [
+          {
+            gameId: game.id,
+            releaseId: game.id,
+            label: game.name,
+            shortLabel: game.shortName
+          }
+        ]
+      : [];
+  });
+}
+
+function getOwnedReleaseCount() {
+  return getOwnedReleaseRecords().length;
+}
+
 function getOwnedGameIds() {
   return GAME_CATALOG.filter((game) => state.tracker.games[game.id]?.owned).map((game) => game.id);
+}
+
+function isAvailableInOwnedGameSelection(baseNumber, gameId) {
+  if (!isAvailableInGame(baseNumber, gameId)) {
+    return false;
+  }
+
+  const game = getGameMeta(gameId);
+  const trackerGameState = state.tracker.games[gameId];
+
+  if (!game || !trackerGameState?.owned) {
+    return false;
+  }
+
+  if (!gameHasSeparateVersions(game)) {
+    return true;
+  }
+
+  const versionExclusiveMap = GAME_VERSION_EXCLUSIVE_SETS[gameId];
+  if (!versionExclusiveMap) {
+    return true;
+  }
+
+  const matchingVersions = Object.entries(versionExclusiveMap)
+    .filter(([, speciesSet]) => speciesSet.has(baseNumber))
+    .map(([versionId]) => versionId);
+
+  if (!matchingVersions.length) {
+    return true;
+  }
+
+  return matchingVersions.some((versionId) => Boolean(trackerGameState.versions?.[versionId]));
+}
+
+function getVersionExclusiveLabel(gameId, baseNumber) {
+  const matchingVersions = getVersionExclusiveVersions(gameId, baseNumber);
+
+  if (!matchingVersions.length) {
+    return "";
+  }
+
+  if (matchingVersions.length === 1) {
+    const version = matchingVersions[0];
+    return `${version.shortLabel ?? version.label} Exclusive`;
+  }
+
+  return `${matchingVersions.map((version) => version.shortLabel ?? version.label).join(" / ")} Exclusive`;
+}
+
+function getVersionExclusiveVersions(gameId, baseNumber) {
+  const game = getGameMeta(gameId);
+  if (!game || !gameHasSeparateVersions(game)) {
+    return [];
+  }
+
+  const versionExclusiveMap = GAME_VERSION_EXCLUSIVE_SETS[gameId];
+  if (!versionExclusiveMap) {
+    return [];
+  }
+
+  return getGameVersions(game).filter((version) => versionExclusiveMap[version.id]?.has(baseNumber));
+}
+
+function getVersionExclusiveBadgeClasses(gameId, baseNumber) {
+  const matchingVersions = getVersionExclusiveVersions(gameId, baseNumber);
+
+  if (matchingVersions.length === 1) {
+    return [`version-${matchingVersions[0].id}`];
+  }
+
+  if (matchingVersions.length > 1) {
+    return ["multi-version-exclusive"];
+  }
+
+  return [];
 }
 
 function getUnobtainableEntries() {
@@ -1760,7 +2470,7 @@ function getUnobtainableEntries() {
   return state.entries.filter(
     (entry) =>
       !entry.isForm &&
-      !ownedGames.some((gameId) => isAvailableInGame(entry.baseNumber, gameId))
+      !ownedGames.some((gameId) => isAvailableInOwnedGameSelection(entry.baseNumber, gameId))
   );
 }
 
@@ -1777,10 +2487,117 @@ function shuffleEntries(entries) {
 
 function refreshRandomTargets() {
   const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
-  const shinyPool = missingBaseEntries.filter((entry) => !isShiny(entry.name));
-  const shuffled = shuffleEntries(missingBaseEntries);
-  state.randomTargets = shuffled.slice(0, 8);
+  const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
+  const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
+  state.randomTargets = shuffleEntries(missingBaseEntries).slice(0, 8);
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
+  ensureSuggestedBoardSelections();
+}
+
+function rerollRandomTargetBoard() {
+  const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
+  state.randomTargets = shuffleEntries(missingBaseEntries).slice(0, 8);
+  ensureSuggestedBoardSelections();
+}
+
+function rerollShinyTargetBoard() {
+  const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
+  const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
+  const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
+  state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
+  ensureSuggestedBoardSelections();
+}
+
+function ensureSuggestedBoardSelections() {
+  if (!state.randomTargets.some((entry) => entry.name === state.ui.selectedRandomTargetName)) {
+    state.ui.selectedRandomTargetName = state.randomTargets[0]?.name ?? null;
+  }
+
+  if (!state.shinyTargets.some((entry) => entry.name === state.ui.selectedShinyTargetName)) {
+    state.ui.selectedShinyTargetName = state.shinyTargets[0]?.name ?? null;
+  }
+}
+
+function getSelectedSuggestedTarget(kind) {
+  if (kind === "shiny") {
+    return (
+      state.shinyTargets.find((entry) => entry.name === state.ui.selectedShinyTargetName) ??
+      state.shinyTargets[0] ??
+      null
+    );
+  }
+
+  return (
+    state.randomTargets.find((entry) => entry.name === state.ui.selectedRandomTargetName) ??
+    state.randomTargets[0] ??
+    null
+  );
+}
+
+function setSelectedSuggestedTarget(kind, name) {
+  if (kind === "shiny") {
+    state.ui.selectedShinyTargetName = name;
+  } else {
+    state.ui.selectedRandomTargetName = name;
+  }
+}
+
+function markSuggestedTargetCaught() {
+  const target = getSelectedSuggestedTarget("living");
+  if (!target) {
+    setStatus("Select a suggested catch target first.");
+    return;
+  }
+
+  setCaughtState(target.name, true);
+
+  if (state.currentPokemon?.name === target.name) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  renderCollections();
+  renderHomeOrganizer();
+  refreshResults();
+  setStatus(`${target.displayName} registered as caught from the hunt board.`);
+}
+
+function markSuggestedTargetShiny() {
+  const target = getSelectedSuggestedTarget("shiny");
+  if (!target) {
+    setStatus("Select a suggested shiny target first.");
+    return;
+  }
+
+  if (isShinyDexLocked(target.name)) {
+    setStatus(`${target.displayName} is shiny-locked and cannot be logged in the shiny dex.`);
+    return;
+  }
+
+  setCaughtState(target.name, true);
+  setShinyState(target.name, true);
+
+  if (state.currentPokemon?.name === target.name) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  renderCollections();
+  renderHomeOrganizer();
+  refreshResults();
+  setStatus(`${target.displayName} logged as a shiny catch from the hunt board.`);
+}
+
+function getFavoriteEntries() {
+  return Object.keys(state.favoritesMap)
+    .map((name) => state.entriesByName.get(name))
+    .filter(Boolean)
+    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
+}
+
+function getBookmarkEntries() {
+  return Object.keys(state.bookmarksMap)
+    .map((name) => state.entriesByName.get(name))
+    .filter(Boolean)
+    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
 }
 
 function getFavoriteTypeEntries() {
@@ -1791,6 +2608,63 @@ function getFavoriteTypeEntries() {
       ? state.entriesByName.get(state.favoriteTypes[typeName]) ?? null
       : null
   }));
+}
+
+function getFavoritePickerEntryPool() {
+  return [...state.entries].sort(
+    (left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right)
+  );
+}
+
+async function ensureTypeFavoritePool(typeName) {
+  if (state.typeFavoritePoolCache.has(typeName)) {
+    return state.typeFavoritePoolCache.get(typeName);
+  }
+
+  const payload = await fetchJsonCached(`https://pokeapi.co/api/v2/type/${encodeURIComponent(typeName)}`);
+  const validNames = new Set((payload?.pokemon ?? []).map((item) => item?.pokemon?.name).filter(Boolean));
+  const filteredEntries = getFavoritePickerEntryPool().filter(
+    (entry) => validNames.has(entry.name) || validNames.has(entry.basePokemonName)
+  );
+  state.typeFavoritePoolCache.set(typeName, filteredEntries);
+  return filteredEntries;
+}
+
+function getFavoritePickerCurrentSelectionName() {
+  const picker = state.ui.favoritePicker;
+  if (!picker.open) {
+    return null;
+  }
+
+  if (picker.mode === "type" && picker.typeName) {
+    return state.favoriteTypes[picker.typeName] ?? null;
+  }
+
+  return null;
+}
+
+function getFavoritePickerQuery() {
+  return normalizeSearch(state.ui.favoritePicker.query);
+}
+
+function getFavoritePickerFilteredEntries(pool) {
+  const query = getFavoritePickerQuery();
+  if (!query) {
+    return pool;
+  }
+
+  const numeric = Number(query);
+  return pool.filter((entry) => {
+    if (!Number.isNaN(numeric) && /^\d+$/.test(query)) {
+      return entry.baseNumber === numeric || entry.id === numeric;
+    }
+
+    return (
+      entry.name === query.replace(/\s+/g, "-") ||
+      entry.displayName.toLowerCase() === query ||
+      entry.searchBlob.includes(query)
+    );
+  });
 }
 
 function isArchiveShinyMode() {
@@ -1827,7 +2701,7 @@ function getPrimaryGameEntry(baseNumber) {
   if (!state.gameAvailabilityReady) {
     return getGameMeta(getActiveGameId()) ?? (ownedGames[0] ? getGameMeta(ownedGames[0]) : null);
   }
-  const ownedMatch = ownedGames.find((gameId) => isAvailableInGame(baseNumber, gameId));
+  const ownedMatch = ownedGames.find((gameId) => isAvailableInOwnedGameSelection(baseNumber, gameId));
   return ownedMatch ? getGameMeta(ownedMatch) : null;
 }
 
@@ -2052,7 +2926,7 @@ async function fetchCloudSaveForCurrentUser() {
 async function pushLocalSnapshotToCloud({ quiet = false, source = "manual" } = {}) {
   const client = await ensureCloudClient();
   if (!client || !state.cloud.user) {
-    setCloudMessage("Sign in to a trainer account before syncing this device.", "warn");
+    setCloudMessage("Sign in to a trainer account before pushing this device to the cloud.", "warn");
     renderTrainerVault();
     return false;
   }
@@ -2095,19 +2969,19 @@ async function pushLocalSnapshotToCloud({ quiet = false, source = "manual" } = {
     setCloudMessage(
       source === "auto"
         ? "This device auto-synced its latest trainer data to the cloud."
-        : "This device was pushed to the cloud save.",
+        : "This device was pushed to the trainer cloud save.",
       "success"
     );
 
     if (!quiet) {
-      setStatus("Trainer cloud save updated.");
+      setStatus("Local device data pushed to cloud.");
     }
 
     return true;
   } catch (error) {
     setCloudMessage(formatCloudError(error), "error");
     if (!quiet) {
-      setStatus("Cloud push failed.");
+      setStatus("Push to cloud failed.");
     }
     return false;
   } finally {
@@ -2140,15 +3014,15 @@ async function pullCloudSnapshotToDevice({ quiet = false } = {}) {
     state.accountSync.lastDirection = "pull";
     saveAccountSyncState();
 
-    setCloudMessage("This device was restored from the cloud save.", "success");
+    setCloudMessage("This device was synced from the trainer cloud save.", "success");
     if (!quiet) {
-      setStatus("Trainer cloud save downloaded.");
+      setStatus("Cloud save pulled onto this device.");
     }
     return true;
   } catch (error) {
-    setCloudMessage(formatCloudError(error, "Cloud pull failed."), "error");
+    setCloudMessage(formatCloudError(error, "Sync with cloud failed."), "error");
     if (!quiet) {
-      setStatus("Cloud pull failed.");
+      setStatus("Sync with cloud failed.");
     }
     return false;
   } finally {
@@ -2183,7 +3057,7 @@ async function hydrateCloudSession(event = "INITIAL_SESSION") {
       state.accountSync.pendingUserId = state.cloud.user.id;
       saveAccountSyncState();
       setCloudMessage(
-        `Cloud save found for ${getCloudUserLabel()}. Pull Cloud to use that save here, or Push Local to replace it with this device's data.`,
+        `Cloud save found for ${getCloudUserLabel()}. Sync with Cloud to load that save here, or Push to Cloud to replace it with this device's data.`,
         "warn"
       );
       return;
@@ -2194,7 +3068,7 @@ async function hydrateCloudSession(event = "INITIAL_SESSION") {
       state.accountSync.pendingUserId = state.cloud.user.id;
       saveAccountSyncState();
       setCloudMessage(
-        "This device has unsynced local changes. Pull Cloud or Push Local to choose which version wins.",
+        "This device has unsynced local changes. Sync with Cloud to pull the cloud save here, or Push to Cloud to upload this device's local data.",
         "warn"
       );
       return;
@@ -2274,7 +3148,7 @@ async function signUpCloudAccount() {
       options: {
         emailRedirectTo: state.cloud.config.redirectTo,
         data: {
-          display_name: getActiveProfile()?.name ?? "Dexter Trainer"
+          display_name: getActiveProfile()?.name ?? "PokéPilot Trainer"
         }
       }
     });
@@ -2372,19 +3246,8 @@ async function signOutCloudAccount() {
 
 async function syncCloudNow() {
   if (!state.cloud.user) {
-    setCloudMessage("Sign in to a cloud account before syncing.", "warn");
+    setCloudMessage("Sign in to a cloud account before syncing with the cloud save.", "warn");
     renderTrainerVault();
-    return;
-  }
-
-  if (state.accountSync.pendingResolution) {
-    setCloudMessage("Choose Pull Cloud or Push Local first so this device knows which save to trust.", "warn");
-    renderTrainerVault();
-    return;
-  }
-
-  if (hasUnsyncedLocalChanges()) {
-    await pushLocalSnapshotToCloud();
     return;
   }
 
@@ -2400,7 +3263,7 @@ function renderCloudAccountCard() {
 
   let badge = "Offline Only";
   let summary =
-    "Sign in to link this device and sync your living dex, notes, trackers, and HOME plan across devices.";
+    "Sign in to link this device and move your living dex, notes, trackers, and HOME plan between devices.";
 
   if (!configured) {
     summary =
@@ -2417,15 +3280,15 @@ function renderCloudAccountCard() {
   } else if (pending) {
     badge = "Needs Choice";
     summary =
-      "A cloud save was found, but this device needs a pull/push choice before syncing can continue safely.";
+      "A cloud save was found, and this device needs a clear direction: push this device upward or sync from the cloud downward.";
   } else if (linked) {
     badge = unsynced ? "Pending Sync" : "Linked";
     summary = unsynced
-      ? `${getCloudUserLabel()} is linked, and this device has local changes waiting to sync.`
+      ? `${getCloudUserLabel()} is linked. Push to Cloud to upload this device, or Sync with Cloud to replace it with the stored cloud save.`
       : `${getCloudUserLabel()} is linked, and this device is in sync across sessions.`;
   } else {
     badge = "Signed In";
-    summary = `${getCloudUserLabel()} is signed in. Pull or push once to link this device.`;
+    summary = `${getCloudUserLabel()} is signed in. Push to Cloud to upload this device, or Sync with Cloud to pull down the trainer save.`;
   }
 
   elements.accountBadge.textContent = badge;
@@ -2435,7 +3298,7 @@ function renderCloudAccountCard() {
     (!configured
       ? "Add your Supabase URL and publishable key to supabase-config.js, then create the cloud_saves table from supabase/schema.sql."
       : signedIn
-        ? `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}.`
+        ? `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}. Push to Cloud uploads local device data. Sync with Cloud checks the trainer cloud save and pulls it onto this device.`
         : "Email/password and Google auth are ready once Supabase is configured.");
   elements.accountDetail.className = `results-summary account-detail${
     state.cloud.messageTone === "error"
@@ -2453,9 +3316,8 @@ function renderCloudAccountCard() {
   elements.accountSignUpButton.disabled = !configured || state.cloud.busy || signedIn;
   elements.accountGoogleSignInButton.disabled = !configured || state.cloud.busy || signedIn;
   elements.accountSignOutButton.disabled = !configured || state.cloud.busy || !signedIn;
-  elements.cloudPullButton.disabled = !configured || state.cloud.busy || !signedIn;
   elements.cloudPushButton.disabled = !configured || state.cloud.busy || !signedIn;
-  elements.cloudSyncButton.disabled = !configured || state.cloud.busy || !signedIn || pending;
+  elements.cloudSyncButton.disabled = !configured || state.cloud.busy || !signedIn;
 }
 
 function getBaseEntries() {
@@ -2495,7 +3357,11 @@ function setActiveView(viewId) {
   }
 
   const viewChanged = state.ui.activeView !== viewId;
+  if (viewId !== "vault" && state.ui.favoritePicker.open) {
+    closeFavoritePicker();
+  }
   state.ui.activeView = viewId;
+  saveUiSessionState();
   renderActiveView();
   if (viewChanged) {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2524,6 +3390,7 @@ function setActiveDetailTab(tabId) {
   }
 
   state.ui.activeDetailTab = tabId;
+  saveUiSessionState();
   renderDetailTabs();
 }
 
@@ -2543,6 +3410,71 @@ function createCollectionEmptyState(message) {
   empty.className = "results-summary collection-empty";
   empty.textContent = message;
   return empty;
+}
+
+function createSuggestedHuntTile(entry, options = {}) {
+  const { selected = false, forceShiny = false, onSelect = null } = options;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `suggested-hunt-tile${selected ? " is-selected" : ""}`;
+  button.setAttribute("aria-pressed", String(selected));
+  button.setAttribute(
+    "aria-label",
+    `${entry.displayName}${forceShiny ? " shiny" : ""} suggestion`
+  );
+  button.title = entry.displayName;
+
+  const pod = document.createElement("span");
+  pod.className = "suggested-hunt-pod";
+
+  const sprite = document.createElement("img");
+  sprite.className = "suggested-hunt-sprite";
+  sprite.loading = "lazy";
+  sprite.decoding = "async";
+  applyEntrySprite(sprite, entry, { forceShiny });
+
+  const dexBadge = document.createElement("span");
+  dexBadge.className = "suggested-hunt-dex";
+  dexBadge.textContent = `#${formatNumber(entry.baseNumber)}`;
+
+  pod.append(sprite, dexBadge);
+  button.appendChild(pod);
+
+  button.addEventListener("click", () => {
+    onSelect?.(entry);
+  });
+
+  return button;
+}
+
+function renderSuggestedHuntBoard(container, entries, options = {}) {
+  const {
+    kind = "living",
+    selectedName = null,
+    emptyText = "No hunt targets are ready.",
+    forceShiny = false
+  } = options;
+
+  container.replaceChildren();
+
+  if (!entries.length) {
+    container.appendChild(createCollectionEmptyState(emptyText));
+    return;
+  }
+
+  entries.forEach((entry) => {
+    container.appendChild(
+      createSuggestedHuntTile(entry, {
+        selected: entry.name === selectedName,
+        forceShiny,
+        onSelect: (nextEntry) => {
+          setSelectedSuggestedTarget(kind, nextEntry.name);
+          openPokemonEntry(nextEntry.name);
+          renderCollections();
+        }
+      })
+    );
+  });
 }
 
 function createCollectionItem(entry, note, tags = [], options = {}) {
@@ -2622,6 +3554,185 @@ function createCollectionPlaceholder(title, note, tags = []) {
   }
 
   return card;
+}
+
+function createManagerActionButton(label, onClick, variant = "ghost") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className =
+    variant === "primary"
+      ? "primary-action compact manager-action-button"
+      : "ghost-button detail-link-button manager-action-button";
+  button.textContent = label;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClick();
+  });
+  return button;
+}
+
+function createVaultManagerItem(contentNode, actions = []) {
+  const shell = document.createElement("div");
+  shell.className = "vault-manager-item";
+  shell.appendChild(contentNode);
+
+  if (actions.length) {
+    const actionRow = document.createElement("div");
+    actionRow.className = "vault-manager-actions";
+    actions.forEach((action) => {
+      actionRow.appendChild(createManagerActionButton(action.label, action.onClick, action.variant));
+    });
+    shell.appendChild(actionRow);
+  }
+
+  return shell;
+}
+
+function syncFavoriteDisplays() {
+  renderCollections();
+  renderTrainerVault();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+}
+
+function closeFavoritePicker() {
+  state.ui.favoritePicker.open = false;
+  state.ui.favoritePicker.mode = "favorites";
+  state.ui.favoritePicker.typeName = null;
+  state.ui.favoritePicker.query = "";
+  state.ui.favoritePicker.loading = false;
+  renderFavoritePicker();
+}
+
+function openFavoritePicker(mode, typeName = null) {
+  state.ui.favoritePicker.open = true;
+  state.ui.favoritePicker.mode = mode;
+  state.ui.favoritePicker.typeName = typeName;
+  state.ui.favoritePicker.query = "";
+  state.ui.favoritePicker.loading = mode === "type";
+  renderFavoritePicker();
+
+  window.requestAnimationFrame(() => {
+    elements.favoritePickerSearch?.focus();
+  });
+
+  if (mode === "type" && typeName) {
+    void ensureTypeFavoritePool(typeName)
+      .catch(() => [])
+      .then(() => {
+        if (
+          !state.ui.favoritePicker.open ||
+          state.ui.favoritePicker.mode !== "type" ||
+          state.ui.favoritePicker.typeName !== typeName
+        ) {
+          return;
+        }
+
+        state.ui.favoritePicker.loading = false;
+        renderFavoritePicker();
+      });
+    return;
+  }
+
+  state.ui.favoritePicker.loading = false;
+  renderFavoritePicker();
+}
+
+function applyFavoritePickerSelection(entry) {
+  if (state.ui.favoritePicker.mode === "type" && state.ui.favoritePicker.typeName) {
+    const typeName = state.ui.favoritePicker.typeName;
+    setFavoriteTypeState(typeName, entry.name);
+    closeFavoritePicker();
+    syncFavoriteDisplays();
+    setStatus(`${entry.displayName} is now your ${titleCase(typeName)} type favorite.`);
+    return;
+  }
+
+  setFavoriteState(entry.name, true);
+  closeFavoritePicker();
+  syncFavoriteDisplays();
+  setStatus(`${entry.displayName} added to favorites.`);
+}
+
+function renderFavoritePicker() {
+  const picker = state.ui.favoritePicker;
+  const isOpen = picker.open;
+
+  elements.favoritePickerOverlay.classList.toggle("hidden", !isOpen);
+  elements.favoritePickerOverlay.hidden = !isOpen;
+  if (!isOpen) {
+    return;
+  }
+
+  const activeType = picker.typeName ? titleCase(picker.typeName) : null;
+  const currentSelectionName = getFavoritePickerCurrentSelectionName();
+  const currentSelection = currentSelectionName ? state.entriesByName.get(currentSelectionName) ?? null : null;
+  const pool =
+    picker.mode === "type" && picker.typeName
+      ? state.typeFavoritePoolCache.get(picker.typeName) ?? []
+      : getFavoritePickerEntryPool();
+  const filteredEntries = getFavoritePickerFilteredEntries(pool);
+  const visibleEntries = filteredEntries.slice(0, FAVORITE_PICKER_RESULT_LIMIT);
+
+  if (elements.favoritePickerSearch.value !== picker.query) {
+    elements.favoritePickerSearch.value = picker.query;
+  }
+
+  elements.favoritePickerTitle.textContent =
+    picker.mode === "type" && activeType ? `Choose ${activeType} Favorite` : "Add New Favorite";
+  elements.favoritePickerNote.textContent =
+    picker.mode === "type" && activeType
+      ? `Search the archive for a ${activeType}-type Pokémon, then pick the one you want to showcase in the Vault.`
+      : "Search the archive, then pick the Pokémon you want to save to your Vault showcase.";
+  const showClearSelection = picker.mode === "type" && Boolean(currentSelection);
+  elements.favoritePickerClearButton.hidden = !showClearSelection;
+  elements.favoritePickerClearButton.classList.toggle("hidden", !showClearSelection);
+  elements.favoritePickerClearButton.parentElement?.classList.toggle("hidden", !showClearSelection);
+  if (elements.favoritePickerClearButton.parentElement) {
+    elements.favoritePickerClearButton.parentElement.hidden = !showClearSelection;
+  }
+  elements.favoritePickerResultsSummary.textContent = picker.loading
+    ? "Loading the eligible archive pool for this type..."
+    : filteredEntries.length
+      ? filteredEntries.length > FAVORITE_PICKER_RESULT_LIMIT
+        ? `${formatCount(filteredEntries.length)} matches found. Showing the first ${formatCount(FAVORITE_PICKER_RESULT_LIMIT)} to keep the picker fast. Keep typing to narrow it down.`
+        : `${formatCount(filteredEntries.length)} matches ready. Scroll or search to narrow the list.`
+      : "No matches found for the current search.";
+
+  elements.favoritePickerList.replaceChildren();
+
+  if (picker.loading) {
+    elements.favoritePickerList.appendChild(
+      createCollectionEmptyState("Syncing the type-accurate picker list.")
+    );
+    return;
+  }
+
+  if (!filteredEntries.length) {
+    elements.favoritePickerList.appendChild(
+      createCollectionEmptyState("No Pokémon matched that search. Try a different name, form, or Dex number.")
+    );
+    return;
+  }
+
+  visibleEntries.forEach((entry) => {
+    const note = `${getEntryVariantLabel(entry)} · ${isCaught(entry.name) ? "Caught" : "Missing"}`;
+    const tags = [
+      picker.mode === "type" && activeType ? activeType : "Favorite",
+      ...(isShiny(entry.name) ? ["Shiny"] : [])
+    ];
+    const choiceButton = document.createElement("button");
+    choiceButton.type = "button";
+    choiceButton.className = "vault-picker-choice";
+    choiceButton.appendChild(createCollectionItem(entry, note, tags, { interactive: false }));
+    choiceButton.addEventListener("click", () => {
+      applyFavoritePickerSelection(entry);
+    });
+    elements.favoritePickerList.appendChild(choiceButton);
+  });
 }
 
 function getGameChecklistEntries(gameId) {
@@ -2897,6 +4008,125 @@ function buildEntrySearchBlob(entry, extraTerms = []) {
     .toLowerCase();
 }
 
+function normalizeCachedDexEntry(entry) {
+  if (!entry || typeof entry !== "object" || !entry.name) {
+    return null;
+  }
+
+  const id = Number(entry.id) || 0;
+  const baseNumber = Number(entry.baseNumber) || id;
+  const basePokemonName = String(entry.basePokemonName || entry.name).trim();
+  const normalizedEntry = {
+    ...entry,
+    id,
+    baseNumber,
+    name: String(entry.name).trim(),
+    displayName: String(entry.displayName || titleCase(entry.name)).trim(),
+    isForm: Boolean(entry.isForm),
+    basePokemonName,
+    baseDisplayName: String(entry.baseDisplayName || titleCase(basePokemonName)).trim(),
+    generation: Number(entry.generation) || determineGeneration(baseNumber),
+    formFlags: Array.isArray(entry.formFlags) ? entry.formFlags.map(String) : detectFormFlags(entry.name, id),
+    variantLabel: entry.variantLabel ?? null,
+    detailNote: String(entry.detailNote ?? ""),
+    listSprite: String(entry.listSprite ?? buildSpriteUrl(id || baseNumber)),
+    shinyListSprite: String(entry.shinyListSprite ?? buildSpriteUrl(id || baseNumber, true)),
+    archiveVisible: entry.archiveVisible !== false,
+    showInFormsTab: entry.showInFormsTab !== false
+  };
+  const homeMeta = getHomeBoxCompatibilityMeta(normalizedEntry);
+
+  Object.assign(normalizedEntry, homeMeta, {
+    parkedOnly: normalizedEntry.archiveVisible === false || homeMeta.parkedOnly
+  });
+  normalizedEntry.searchBlob = buildEntrySearchBlob(normalizedEntry);
+  return normalizedEntry;
+}
+
+function commitDexIndexState(snapshot, options = {}) {
+  const { renderUi = true } = options;
+  const baseEntries = Array.isArray(snapshot?.baseEntries)
+    ? snapshot.baseEntries
+        .map((entry) => ({
+          id: Number(entry?.id) || 0,
+          name: String(entry?.name || "").trim()
+        }))
+        .filter((entry) => entry.id && entry.name)
+    : [];
+  const normalizedEntries = Array.isArray(snapshot?.entries)
+    ? snapshot.entries.map(normalizeCachedDexEntry).filter(Boolean)
+    : [];
+  const normalizedParkedEntries = Array.isArray(snapshot?.parkedEntries)
+    ? snapshot.parkedEntries.map(normalizeCachedDexEntry).filter(Boolean)
+    : [];
+
+  if (!normalizedEntries.length || !baseEntries.length) {
+    return false;
+  }
+
+  state.baseEntriesByName = new Map(baseEntries.map((entry) => [entry.name, entry]));
+  state.baseNamesSorted = Array.isArray(snapshot?.baseNamesSorted) && snapshot.baseNamesSorted.length
+    ? snapshot.baseNamesSorted.map((name) => String(name))
+    : [...state.baseEntriesByName.keys()].sort((left, right) => right.length - left.length);
+  state.entries = normalizedEntries;
+  state.parkedEntries = normalizedParkedEntries;
+  state.archiveStats.baseCount = state.entries.reduce((sum, entry) => sum + Number(!entry.isForm), 0);
+  state.archiveStats.formCount = state.entries.length - state.archiveStats.baseCount;
+  state.entriesByName = new Map(
+    [...state.entries, ...state.parkedEntries.filter((entry) => entry.showInFormsTab)].map((entry) => [
+      entry.name,
+      entry
+    ])
+  );
+
+  refreshRandomTargets();
+
+  if (renderUi) {
+    refreshResults();
+    renderCollections();
+    renderTrainerVault();
+    renderHomeOrganizer();
+    renderSuggestors();
+    if (state.currentPokemon) {
+      renderCurrentPokemon(state.currentPokemon);
+    }
+  }
+
+  return true;
+}
+
+function hydrateDexIndexFromCache() {
+  const cached = loadDexIndexCache();
+  const hydrated = commitDexIndexState(cached, { renderUi: false });
+
+  if (hydrated) {
+    setStatus(`${formatCount(state.entries.length)} cached entities ready. Refreshing live archive...`);
+  }
+
+  return hydrated;
+}
+
+async function restorePersistedCurrentScan() {
+  const targetName = state.sessionRestore.currentPokemonName;
+
+  if (!targetName || state.sessionRestore.restoring || state.currentPokemon?.name === targetName) {
+    return;
+  }
+
+  if (!state.entriesByName.has(targetName)) {
+    state.sessionRestore.currentPokemonName = null;
+    saveUiSessionState();
+    return;
+  }
+
+  state.sessionRestore.restoring = true;
+  try {
+    await fetchPokemonDetail(targetName);
+  } finally {
+    state.sessionRestore.restoring = false;
+  }
+}
+
 function setStatus(message) {
   elements.statusText.textContent = message;
 }
@@ -2996,6 +4226,14 @@ function resolveBaseEntry(name, id) {
 function detectFormFlags(name, id) {
   const flags = [];
   const lowerName = name.toLowerCase();
+  const segments = lowerName.split("-").filter(Boolean);
+  const segmentSet = new Set(segments);
+  const hasCompoundSegments = (...compoundSegments) =>
+    compoundSegments.every((segment, index) => segments[index + Math.max(0, segments.length - compoundSegments.length)] === segment) ||
+    compoundSegments.every((segment, index) => {
+      const startIndex = segments.indexOf(compoundSegments[0]);
+      return startIndex !== -1 && segments[startIndex + index] === segment;
+    });
 
   if (id > BASE_POKEMON_COUNT) {
     flags.push("form");
@@ -3015,9 +4253,37 @@ function detectFormFlags(name, id) {
     flags.push("regional");
   }
   if (
-    /(totem|therian|origin|eternamax|crowned|battle-bond|cap|primal|ultra|school|busted|hangry|bloodmoon|family|hero|roaming|terastal|stellar|breed|mode|build|mask|totem)/.test(
-      lowerName
-    )
+    [
+      "totem",
+      "therian",
+      "origin",
+      "eternamax",
+      "crowned",
+      "primal",
+      "ultra",
+      "school",
+      "busted",
+      "hangry",
+      "bloodmoon",
+      "family",
+      "hero",
+      "roaming",
+      "terastal",
+      "stellar",
+      "breed",
+      "mode",
+      "build",
+      "mask",
+      "zen",
+      "construct",
+      "gulping",
+      "gorging",
+      "noice",
+      "pirouette",
+      "crowned"
+    ].some((token) => segmentSet.has(token)) ||
+    hasCompoundSegments("battle", "bond") ||
+    segmentSet.has("cap")
   ) {
     flags.push("special");
   }
@@ -3038,7 +4304,9 @@ function createAppearanceEntry({
   shinyListSprite,
   formFlags = ["form", "special"],
   syntheticKind = "appearance",
-  extraSearchTerms = ["appearance", "cosmetic"]
+  extraSearchTerms = ["appearance", "cosmetic"],
+  archiveVisible = true,
+  showInFormsTab = true
 }) {
   const entry = {
     id,
@@ -3053,6 +4321,8 @@ function createAppearanceEntry({
     variantLabel,
     detailNote,
     syntheticKind,
+    archiveVisible,
+    showInFormsTab,
     listSprite: listSprite ?? buildFormSpriteUrl(baseNumber, spriteSlug),
     shinyListSprite: shinyListSprite ?? buildFormSpriteUrl(baseNumber, spriteSlug, true)
   };
@@ -3136,6 +4406,121 @@ function buildAppearanceFormEntries(startId, existingNames = new Set(), sourceEn
         variantLabel: trim.label,
         detailNote: `${trim.label} is tracked as a cosmetic Furfrou appearance form.`,
         spriteSlug: trim.slug
+      })
+    );
+  });
+
+  KALOS_FLOWER_FAMILIES.forEach((family) => {
+    KALOS_FLOWER_COLORS.forEach((color) => {
+      if (color.isDefault) {
+        return;
+      }
+
+      const name = `${family.basePokemonName}-${color.slug}`;
+      if (existingNames.has(name)) {
+        return;
+      }
+
+      entries.push(
+        createAppearanceEntry({
+          id: nextId++,
+          name,
+          displayName: `${family.displayLabel} ${color.label}`,
+          baseNumber: family.baseNumber,
+          basePokemonName: family.basePokemonName,
+          variantLabel: color.label,
+          detailNote: `${color.label} is tracked as a cosmetic ${family.displayLabel} color variant.`,
+          spriteSlug: color.slug,
+          extraSearchTerms: ["appearance", "cosmetic", "flower", "color"]
+        })
+      );
+    });
+  });
+
+  BURMY_CLOAKS.forEach((cloak) => {
+    if (cloak.isDefault) {
+      return;
+    }
+
+    const name = `burmy-${cloak.slug}`;
+    if (existingNames.has(name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name,
+        displayName: `Burmy ${cloak.label}`,
+        baseNumber: 412,
+        basePokemonName: "burmy",
+        variantLabel: cloak.label,
+        detailNote: `${cloak.label} is tracked as a cosmetic Burmy cloak variant.`,
+        spriteSlug: cloak.slug,
+        extraSearchTerms: ["appearance", "cosmetic", "cloak", "burmy"]
+      })
+    );
+  });
+
+  SINNOH_EAST_SEA_VARIANTS.forEach((variant) => {
+    if (existingNames.has(variant.name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name: variant.name,
+        displayName: variant.displayName,
+        baseNumber: variant.baseNumber,
+        basePokemonName: variant.basePokemonName,
+        variantLabel: variant.variantLabel,
+        detailNote: variant.detailNote,
+        spriteSlug: variant.spriteSlug,
+        extraSearchTerms: ["appearance", "cosmetic", "sea", "sinnoh"]
+      })
+    );
+  });
+
+  UNOVA_SEASON_VARIANTS.forEach((variant) => {
+    if (existingNames.has(variant.name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name: variant.name,
+        displayName: variant.displayName,
+        baseNumber: variant.baseNumber,
+        basePokemonName: variant.basePokemonName,
+        variantLabel: variant.variantLabel,
+        detailNote: variant.detailNote,
+        spriteSlug: variant.spriteSlug,
+        extraSearchTerms: ["appearance", "cosmetic", "season", "unova"]
+      })
+    );
+  });
+
+  AUTHENTICITY_FORM_VARIANTS.forEach((variant) => {
+    if (existingNames.has(variant.name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: nextId++,
+        name: variant.name,
+        displayName: variant.displayName,
+        baseNumber: variant.baseNumber,
+        basePokemonName: variant.basePokemonName,
+        variantLabel: variant.variantLabel,
+        detailNote: variant.detailNote,
+        listSprite: buildSpriteUrl(variant.baseNumber),
+        shinyListSprite: buildSpriteUrl(variant.baseNumber, true),
+        archiveVisible: false,
+        showInFormsTab: true,
+        extraSearchTerms: variant.extraSearchTerms
       })
     );
   });
@@ -3241,7 +4626,7 @@ function compareEntriesWithinGroup(left, right) {
 }
 
 function getEntriesForBaseNumber(baseNumber) {
-  return state.entries
+  return [...state.entries, ...state.parkedEntries.filter((entry) => entry.showInFormsTab)]
     .filter((entry) => entry.baseNumber === baseNumber)
     .sort(compareEntriesWithinGroup);
 }
@@ -3288,40 +4673,78 @@ async function repairUnresolvedFormEntries(entries) {
   });
 }
 
-async function fetchPokedexSpeciesSet(pokedexName) {
+function buildSpeciesOrderFromNames(speciesNames = []) {
+  const seen = new Set();
+  const order = [];
+
+  speciesNames.forEach((name) => {
+    const baseEntry = state.baseEntriesByName.get(name);
+    const speciesNumber = baseEntry?.id;
+
+    if (!Number.isFinite(speciesNumber) || seen.has(speciesNumber)) {
+      return;
+    }
+
+    seen.add(speciesNumber);
+    order.push(speciesNumber);
+  });
+
+  return order;
+}
+
+async function fetchPokedexSpeciesOrder(pokedexName) {
   const payload = await fetchJsonCached(
     `https://pokeapi.co/api/v2/pokedex/${encodeURIComponent(pokedexName)}`
   );
-  return new Set(payload.pokemon_entries.map((entry) => extractIdFromUrl(entry.pokemon_species.url)));
+  return payload.pokemon_entries
+    .slice()
+    .sort((left, right) => left.entry_number - right.entry_number)
+    .map((entry) => extractIdFromUrl(entry.pokemon_species.url));
 }
 
-async function buildAvailabilitySpeciesSet(config) {
+async function buildAvailabilitySpeciesData(config) {
   const speciesSet = new Set();
+  const order = [];
+
+  const appendNumber = (number) => {
+    if (!Number.isFinite(number) || speciesSet.has(number)) {
+      return;
+    }
+
+    speciesSet.add(number);
+    order.push(number);
+  };
 
   config?.baseRanges?.forEach((range) => {
     for (let current = range.start; current <= range.end; current += 1) {
-      speciesSet.add(current);
+      appendNumber(current);
     }
   });
 
   if (config?.pokedexes?.length) {
-    const pokedexSets = await Promise.all(config.pokedexes.map(fetchPokedexSpeciesSet));
-    pokedexSets.forEach((set) => {
-      set.forEach((number) => {
-        speciesSet.add(number);
+    const pokedexOrders = await Promise.all(config.pokedexes.map(fetchPokedexSpeciesOrder));
+    pokedexOrders.forEach((pokedexOrder) => {
+      pokedexOrder.forEach((number) => {
+        appendNumber(number);
       });
     });
   }
 
+  if (config?.speciesOrderNames?.length) {
+    buildSpeciesOrderFromNames(config.speciesOrderNames).forEach((number) => {
+      appendNumber(number);
+    });
+  }
+
   config?.extraSpecies?.forEach((number) => {
-    speciesSet.add(number);
+    appendNumber(number);
   });
 
   config?.speciesNumbers?.forEach((number) => {
-    speciesSet.add(number);
+    appendNumber(number);
   });
 
-  return speciesSet;
+  return { speciesSet, order };
 }
 
 async function buildGameAvailabilityDetail(gameId) {
@@ -3332,14 +4755,22 @@ async function buildGameAvailabilityDetail(gameId) {
     return detail;
   }
 
-  detail.all = await buildAvailabilitySpeciesSet(config);
+  const allData = await buildAvailabilitySpeciesData(config);
+  detail.all = allData.speciesSet;
+  detail.order = allData.order;
+  detail.orderIndex = buildGameAvailabilityOrderIndex(detail.order);
 
   if (detail.segments.length) {
     detail.segments = await Promise.all(
-      detail.segments.map(async (segment) => ({
-        ...segment,
-        speciesSet: await buildAvailabilitySpeciesSet(segment)
-      }))
+      detail.segments.map(async (segment) => {
+        const segmentData = await buildAvailabilitySpeciesData(segment);
+        return {
+          ...segment,
+          speciesSet: segmentData.speciesSet,
+          order: segmentData.order,
+          orderIndex: buildGameAvailabilityOrderIndex(segmentData.order)
+        };
+      })
     );
   }
 
@@ -3350,6 +4781,42 @@ function isAvailableInGame(baseNumber, gameId) {
   return Boolean(state.gameAvailabilityByGame.get(gameId)?.has(baseNumber));
 }
 
+function getGameDexOrderIndex(baseNumber, gameId) {
+  const detail = state.gameAvailabilityDetailsByGame.get(gameId);
+  return detail?.orderIndex?.get(baseNumber) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function compareEntriesByGameDexOrder(left, right, gameId) {
+  return (
+    getGameDexOrderIndex(left.baseNumber, gameId) - getGameDexOrderIndex(right.baseNumber, gameId) ||
+    left.baseNumber - right.baseNumber ||
+    compareEntriesWithinGroup(left, right)
+  );
+}
+
+function getAvailabilitySegmentVersionLabel(segment, baseNumber) {
+  if (!segment?.available) {
+    return "";
+  }
+
+  const swordNative = segment.versionNative?.sword?.includes(baseNumber);
+  const shieldNative = segment.versionNative?.shield?.includes(baseNumber);
+
+  if (swordNative && shieldNative) {
+    return "Sword / Shield";
+  }
+
+  if (swordNative) {
+    return "Sword Native";
+  }
+
+  if (shieldNative) {
+    return "Shield Native";
+  }
+
+  return segment.defaultVersionLabel ?? "";
+}
+
 function getGameAvailabilityRecords(baseNumber) {
   return GAME_CATALOG.map((game) => {
     const detail =
@@ -3358,15 +4825,30 @@ function getGameAvailabilityRecords(baseNumber) {
     return {
       ...game,
       available: isAvailableInGame(baseNumber, game.id),
-      owned: Boolean(state.tracker.games[game.id]?.owned),
+      owned: isAvailableInOwnedGameSelection(baseNumber, game.id),
       active: state.tracker.activeGame === game.id,
+      versionExclusiveLabel: isAvailableInGame(baseNumber, game.id)
+        ? getVersionExclusiveLabel(game.id, baseNumber)
+        : "",
+      versionExclusiveClasses: isAvailableInGame(baseNumber, game.id)
+        ? getVersionExclusiveBadgeClasses(game.id, baseNumber)
+        : [],
       sourceLabel: SWITCH_GAME_AVAILABILITY[game.id]?.label ?? "Tracked switch coverage",
       segmentRecords: detail.segments.map((segment) => ({
         id: segment.id,
         kind: segment.kind ?? "segment",
         label: segment.label,
         sourceLabel: segment.sourceLabel ?? segment.label,
-        available: segment.speciesSet.has(baseNumber)
+        available: segment.speciesSet.has(baseNumber),
+        versionNative: segment.versionNative,
+        defaultVersionLabel: segment.defaultVersionLabel,
+        versionLabel: getAvailabilitySegmentVersionLabel(
+          {
+            ...segment,
+            available: segment.speciesSet.has(baseNumber)
+          },
+          baseNumber
+        )
       }))
     };
   });
@@ -3375,6 +4857,9 @@ function getGameAvailabilityRecords(baseNumber) {
 function renderGameAvailability(baseNumber) {
   const records = getGameAvailabilityRecords(baseNumber);
   const availableCount = records.reduce((sum, record) => sum + Number(record.available), 0);
+  const dynamaxAdventureRecord = records
+    .find((record) => record.id === "swsh")
+    ?.segmentRecords.find((segment) => segment.id === "dynamax-adventure" && segment.available);
 
   elements.gameAvailabilityList.replaceChildren();
 
@@ -3392,7 +4877,11 @@ function renderGameAvailability(baseNumber) {
       "Refreshing the split between each main game and its DLC dex coverage now.";
   } else {
     elements.gameAvailabilityCount.textContent = `${availableCount}/${GAME_CATALOG.length} games`;
-    elements.gameAvailabilityNote.textContent = SWITCH_GAME_AVAILABILITY_NOTE;
+    elements.gameAvailabilityNote.textContent = `${SWITCH_GAME_AVAILABILITY_NOTE}${
+      dynamaxAdventureRecord
+        ? " Dynamax Adventure native labels show which version hosts that path by default; online co-op can still surface opposite-version paths."
+        : ""
+    }`;
   }
 
   records.forEach((record) => {
@@ -3483,7 +4972,10 @@ function renderGameAvailability(baseNumber) {
         label.textContent = segment.label;
 
         const source = document.createElement("span");
-        source.textContent = segment.sourceLabel;
+        source.textContent =
+          state.gameAvailabilityReady && segment.available && segment.versionLabel
+            ? `${segment.sourceLabel} · ${segment.versionLabel}`
+            : segment.sourceLabel;
 
         copy.append(label, source);
 
@@ -3507,9 +4999,19 @@ function renderGameAvailability(baseNumber) {
       card.appendChild(segmentRow);
     }
 
-    if (record.owned || record.active) {
+    if (record.owned || record.active || record.versionExclusiveLabel) {
       const flags = document.createElement("div");
       flags.className = "availability-card-flags";
+
+      if (record.versionExclusiveLabel) {
+        const versionBadge = document.createElement("span");
+        versionBadge.className = "availability-badge version-exclusive";
+        if (record.versionExclusiveClasses?.length) {
+          versionBadge.classList.add(...record.versionExclusiveClasses);
+        }
+        versionBadge.textContent = record.versionExclusiveLabel;
+        flags.appendChild(versionBadge);
+      }
 
       if (record.active) {
         const activeBadge = document.createElement("span");
@@ -3645,10 +5147,7 @@ function renderExpGameOptions() {
 }
 
 function getOwnedSummary() {
-  const ownedCount = GAME_CATALOG.reduce(
-    (sum, game) => sum + Number(Boolean(state.tracker.games[game.id]?.owned)),
-    0
-  );
+  const ownedCount = getOwnedReleaseCount();
   const clearedCount = GAME_CATALOG.reduce(
     (sum, game) => sum + Number(Boolean(state.tracker.games[game.id]?.hallOfFame)),
     0
@@ -3685,6 +5184,17 @@ function getShinyPlan(gameId, pokemon) {
       detail: basePlan.detail,
       note: basePlan.note,
       prep: basePlan.prep
+    };
+  }
+
+  if (isShinyDexLocked(pokemon.name)) {
+    return {
+      status: "locked",
+      method: "Shiny Locked",
+      detail: `${pokemon.displayName} does not have a legitimate shiny release right now, so it is excluded from the shiny dex and hunt planner.`,
+      note:
+        "Keep it in the living dex, but do not count it toward shiny-dex completion until a legal shiny release exists.",
+      prep: []
     };
   }
 
@@ -3777,7 +5287,9 @@ function renderShinyHelper(pokemon = state.currentPokemon) {
       ? `Focus: ${activeGame.shortName}`
       : "Pick a target";
   elements.huntSummary.textContent = pokemon
-    ? isShiny(pokemon.name)
+    ? isShinyDexLocked(pokemon.name)
+      ? `${pokemon.displayName} is currently shiny-locked, so it is excluded from the shiny dex until a legal shiny release exists.`
+      : isShiny(pokemon.name)
       ? `${pokemon.displayName} is already logged shiny. Use the game cards below if you want a duplicate, a different mark, or another form route.`
       : `${summaryTarget} is mapped across the supported Switch games below, with availability-aware hunt routes for each title.`
     : "Open a Pokémon entry to compare the cleanest shiny hunt route in each supported Switch game.";
@@ -4091,7 +5603,8 @@ const GAME_LOCATION_MAPS = {
         label: "Kanto",
         badgeLabel: "Kanto Field Map",
         mapKey: "lgpe-kanto",
-        aspectRatio: "16 / 11",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/kanto.png`,
+        aspectRatio: "200 / 618",
         viewBox: "0 0 100 100",
         regions: [
           { id: "pallet", label: "Pallet / Viridian", short: "PV", x: 6, y: 64, w: 20, h: 18, patterns: ["pallet town", "viridian city", "viridian forest", "route 1", "route 2", "route 22"] },
@@ -4117,7 +5630,8 @@ const GAME_LOCATION_MAPS = {
         kind: "main",
         segmentId: "main",
         mapKey: "swsh-galar",
-        aspectRatio: "10 / 16",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/galar.jpg`,
+        aspectRatio: "728 / 1420",
         viewBox: "0 0 100 180",
         regions: [
           { id: "south-galar", label: "South Galar", short: "SG", x: 28, y: 122, w: 30, h: 22, patterns: ["slumbering weald", "wedgehurst", "route 1", "route 2", "route 3", "route 4", "motostoke outskirts", "galar mine"] },
@@ -4133,6 +5647,7 @@ const GAME_LOCATION_MAPS = {
         kind: "dlc",
         segmentId: "isle-of-armor",
         mapKey: "swsh-isle-armor",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/maps/galar/70.jpg`,
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4150,6 +5665,7 @@ const GAME_LOCATION_MAPS = {
         kind: "dlc",
         segmentId: "crown-tundra",
         mapKey: "swsh-crown-tundra",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/maps/galar/92.jpg`,
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4170,7 +5686,8 @@ const GAME_LOCATION_MAPS = {
         label: "Sinnoh",
         badgeLabel: "Sinnoh Route Map",
         mapKey: "bdsp-sinnoh",
-        aspectRatio: "16 / 11",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/sinnoh.jpg`,
+        aspectRatio: "640 / 344",
         viewBox: "0 0 100 100",
         regions: [
           { id: "twinleaf", label: "Twinleaf / Sandgem", short: "TS", x: 8, y: 76, w: 20, h: 14, patterns: ["twinleaf town", "sandgem town", "route 201", "route 202", "lake verity"] },
@@ -4194,6 +5711,7 @@ const GAME_LOCATION_MAPS = {
         label: "Hisui",
         badgeLabel: "Hisui Survey Map",
         mapKey: "pla-hisui",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/hisui.jpg`,
         aspectRatio: "16 / 11",
         viewBox: "0 0 100 100",
         regions: [
@@ -4216,6 +5734,7 @@ const GAME_LOCATION_MAPS = {
         kind: "main",
         segmentId: "main",
         mapKey: "sv-paldea",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/paldea.jpg`,
         aspectRatio: "14 / 11",
         viewBox: "0 0 100 100",
         regions: [
@@ -4244,6 +5763,7 @@ const GAME_LOCATION_MAPS = {
         kind: "dlc",
         segmentId: "kitakami",
         mapKey: "sv-kitakami",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/kitakami.jpg`,
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4261,6 +5781,7 @@ const GAME_LOCATION_MAPS = {
         kind: "dlc",
         segmentId: "blueberry",
         mapKey: "sv-blueberry",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/terarium.jpg`,
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4282,6 +5803,8 @@ const GAME_LOCATION_MAPS = {
         kind: "main",
         speciesNumbers: LZA_LUMIOSE_SPECIES,
         mapKey: "lza-lumiose",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/lumiosecity.jpg`,
+        fallbackRegionIds: ["central"],
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4299,6 +5822,7 @@ const GAME_LOCATION_MAPS = {
         kind: "main",
         speciesNumbers: LZA_HYPERSPACE_SPECIES,
         mapKey: "lza-hyperspace",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/maps/lumiosecity/50.jpg`,
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4320,6 +5844,8 @@ const GAME_LOCATION_MAPS = {
         kind: "dlc",
         speciesNumbers: LZA_MEGA_DIMENSION_SPECIES,
         mapKey: "lza-mega-dimension",
+        imageUrl: `${POKEARTH_BASE_URL}/pokearth/maps/lumiosecity/51.jpg`,
+        fallbackRegionIds: ["mega-core"],
         aspectRatio: "1 / 1",
         viewBox: "0 0 100 100",
         regions: [
@@ -4407,10 +5933,7 @@ function getHighlightedLocationRegions(record, surface) {
   }
 
   if (!record.areas.length) {
-    const fallbackRegionIds =
-      Array.isArray(surface.fallbackRegionIds) && surface.fallbackRegionIds.length
-        ? surface.fallbackRegionIds
-        : surface.regions.map((region) => region.id);
+    const fallbackRegionIds = Array.isArray(surface.fallbackRegionIds) ? surface.fallbackRegionIds : [];
     if (record.available && fallbackRegionIds.length) {
       return surface.regions.filter((region) => fallbackRegionIds.includes(region.id));
     }
@@ -4499,11 +6022,55 @@ function getActiveLocationSurfaceRecord(record) {
   );
 }
 
+function parseSvgViewBox(viewBox) {
+  const parts = String(viewBox ?? "0 0 100 100")
+    .trim()
+    .split(/\s+/)
+    .map((value) => Number(value));
+  if (parts.length !== 4 || parts.some((value) => !Number.isFinite(value))) {
+    return { minX: 0, minY: 0, width: 100, height: 100 };
+  }
+  return { minX: parts[0], minY: parts[1], width: parts[2], height: parts[3] };
+}
+
+function formatSvgViewBox(viewBox) {
+  return `${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`;
+}
+
+function scaleLocationRegion(region, sourceViewBox, targetViewBox) {
+  const scaleX = targetViewBox.width / sourceViewBox.width;
+  const scaleY = targetViewBox.height / sourceViewBox.height;
+  const translateX = (value) => targetViewBox.minX + (value - sourceViewBox.minX) * scaleX;
+  const translateY = (value) => targetViewBox.minY + (value - sourceViewBox.minY) * scaleY;
+
+  if (region.type === "circle") {
+    return {
+      ...region,
+      cx: translateX(region.cx),
+      cy: translateY(region.cy),
+      r: region.r * Math.min(scaleX, scaleY)
+    };
+  }
+
+  return {
+    ...region,
+    x: translateX(region.x),
+    y: translateY(region.y),
+    w: region.w * scaleX,
+    h: region.h * scaleY,
+    rx: (region.rx ?? 4) * Math.min(scaleX, scaleY),
+    ry: (region.ry ?? region.rx ?? 4) * Math.min(scaleX, scaleY)
+  };
+}
+
 function createLocationMapSvg(surfaceRecord, gameRecord) {
-  const highlightedRegionIds = new Set(surfaceRecord.highlightedRegions.map((region) => region.id));
-  const zoom = getLocationMapZoom(gameRecord.id, surfaceRecord.id);
+  const highlightedRegions = surfaceRecord.highlightedRegions ?? [];
+  const sourceViewBox = parseSvgViewBox(surfaceRecord.viewBox ?? "0 0 100 100");
+  const targetViewBox = parseSvgViewBox(
+    POKEARTH_MAP_VIEWBOXES[surfaceRecord.mapKey] ?? surfaceRecord.viewBox ?? "0 0 100 100"
+  );
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", surfaceRecord.viewBox ?? "0 0 100 100");
+  svg.setAttribute("viewBox", formatSvgViewBox(targetViewBox));
   svg.setAttribute("role", "img");
   svg.setAttribute(
     "aria-label",
@@ -4516,41 +6083,29 @@ function createLocationMapSvg(surfaceRecord, gameRecord) {
     }`
   );
   svg.classList.add("location-map-canvas");
-  svg.style.transform = `scale(${zoom})`;
 
-  surfaceRecord.regions.forEach((region) => {
+  highlightedRegions.forEach((region) => {
+    const scaledRegion = scaleLocationRegion(region, sourceViewBox, targetViewBox);
     const zone = document.createElementNS("http://www.w3.org/2000/svg", "g");
     zone.classList.add("location-map-zone");
-    if (highlightedRegionIds.has(region.id)) {
-      zone.classList.add("is-active");
-    }
+    zone.classList.add("is-active");
 
-    if (region.type === "circle") {
+    if (scaledRegion.type === "circle") {
       const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      circle.setAttribute("cx", String(region.cx));
-      circle.setAttribute("cy", String(region.cy));
-      circle.setAttribute("r", String(region.r));
+      circle.setAttribute("cx", String(scaledRegion.cx));
+      circle.setAttribute("cy", String(scaledRegion.cy));
+      circle.setAttribute("r", String(scaledRegion.r));
       zone.appendChild(circle);
     } else {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute("x", String(region.x));
-      rect.setAttribute("y", String(region.y));
-      rect.setAttribute("width", String(region.w));
-      rect.setAttribute("height", String(region.h));
-      rect.setAttribute("rx", String(region.rx ?? 4));
-      rect.setAttribute("ry", String(region.ry ?? region.rx ?? 4));
+      rect.setAttribute("x", String(scaledRegion.x));
+      rect.setAttribute("y", String(scaledRegion.y));
+      rect.setAttribute("width", String(scaledRegion.w));
+      rect.setAttribute("height", String(scaledRegion.h));
+      rect.setAttribute("rx", String(scaledRegion.rx ?? 4));
+      rect.setAttribute("ry", String(scaledRegion.ry ?? scaledRegion.rx ?? 4));
       zone.appendChild(rect);
     }
-
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    const textX = region.type === "circle" ? region.cx : region.x + region.w / 2;
-    const textY = region.type === "circle" ? region.cy + 1.5 : region.y + region.h / 2 + 1.5;
-    label.setAttribute("x", String(textX));
-    label.setAttribute("y", String(textY));
-    label.setAttribute("text-anchor", "middle");
-    label.textContent = region.short;
-
-    zone.appendChild(label);
     svg.appendChild(zone);
   });
 
@@ -4559,9 +6114,14 @@ function createLocationMapSvg(surfaceRecord, gameRecord) {
 
 function buildLocationSurfaceStatus(surfaceRecord) {
   if (surfaceRecord.matchedAreas.length) {
+    const zoneSuffix = surfaceRecord.highlightedRegions.length
+      ? ` · ${surfaceRecord.highlightedRegions.length} zone${
+          surfaceRecord.highlightedRegions.length === 1 ? "" : "s"
+        }`
+      : "";
     return `${surfaceRecord.matchedAreas.length} archived area${
       surfaceRecord.matchedAreas.length === 1 ? "" : "s"
-    } matched`;
+    } matched${zoneSuffix}`;
   }
 
   if (surfaceRecord.highlightedRegions.length) {
@@ -4582,10 +6142,10 @@ function buildLocationSurfaceNote(surfaceRecord) {
   }
 
   if (surfaceRecord.highlightedRegions.length) {
-    return "This surface is confirmed for the current entry, but the archive only has broad map coverage for it right now.";
+    return "This surface is confirmed for the current entry, but the archive only has broad area coverage for it right now.";
   }
 
-  return "Exact route pins are not attached to this surface in the current archive yet.";
+  return "Exact route locations are not attached to this surface in the current archive yet.";
 }
 
 function buildLocationGameRecords(pokemon, locations = []) {
@@ -4613,7 +6173,7 @@ function describeLocationRecord(record) {
     const preview = record.areas.slice(0, 4).join(" · ");
     const suffix =
       record.surfaceRecords?.length > 1
-        ? ` Use the map tabs to compare ${record.shortName}'s main-game and DLC surfaces.`
+        ? ` Use the surface tabs to compare ${record.shortName}'s main-game and DLC breakdowns.`
         : "";
     return record.areas.length > 4
       ? `${preview} · +${record.areas.length - 4} more.${suffix}`
@@ -4621,13 +6181,13 @@ function describeLocationRecord(record) {
   }
 
   if (record.id === "lza") {
-    return "Legends: Z-A now splits Lumiose, Hyperspace, and Mega Dimension surfaces separately. Exact route pins are still sparse, so these maps lean on the PokePC regional dex split when the archive has no direct area names.";
+    return "Legends: Z-A splits Lumiose, Hyperspace, and Mega Dimension separately. Exact route locations are still sparse, so this view leans on the PokePC regional dex split when the archive has no direct area names.";
   }
 
   if (record.surfaceRecords?.length > 1) {
     return `Switch between ${record.surfaceRecords
       .map((surface) => surface.label)
-      .join(" · ")} to compare this title's main-game and DLC map coverage.`;
+      .join(" · ")} to compare this title's main-game and DLC breakdowns.`;
   }
 
   return "Tracked in this Switch title, but route-level area names are not attached in the current archive yet.";
@@ -4658,7 +6218,7 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
   const shell = document.createElement("section");
   shell.className = `location-map-shell location-map-shell--${record.id}`;
 
-  const renderMapPanel = () => {
+  const renderLocationPanel = () => {
     shell.replaceChildren();
 
     const activeSurface = getActiveLocationSurfaceRecord(record);
@@ -4670,7 +6230,7 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
     toolbar.className = "location-map-toolbar";
 
     const toolbarTitle = document.createElement("strong");
-    toolbarTitle.textContent = "Map";
+    toolbarTitle.textContent = "Location Breakdown";
 
     const badge = document.createElement("span");
     badge.className = "location-map-badge";
@@ -4700,55 +6260,13 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
         button.appendChild(count);
         button.addEventListener("click", () => {
           state.ui.locationSurfaceTabs[record.id] = surface.id;
-          renderMapPanel();
+          renderLocationPanel();
         });
         tabs.appendChild(button);
       });
 
       shell.appendChild(tabs);
     }
-
-    const stageWrap = document.createElement("div");
-    stageWrap.className = "location-map-stage-wrap";
-
-    const stage = document.createElement("div");
-    stage.className = `location-map-stage location-map-stage--${activeSurface.mapKey}`;
-    stage.style.setProperty("--map-aspect", activeSurface.aspectRatio ?? "5 / 4");
-    stage.appendChild(createLocationMapSvg(activeSurface, record));
-
-    const controls = document.createElement("div");
-    controls.className = "location-map-controls";
-
-    const zoomIn = document.createElement("button");
-    zoomIn.type = "button";
-    zoomIn.className = "location-map-control";
-    zoomIn.textContent = "+";
-    zoomIn.addEventListener("click", () => {
-      setLocationMapZoom(record.id, activeSurface.id, getLocationMapZoom(record.id, activeSurface.id) + 0.15);
-      renderMapPanel();
-    });
-
-    const zoomOut = document.createElement("button");
-    zoomOut.type = "button";
-    zoomOut.className = "location-map-control";
-    zoomOut.textContent = "−";
-    zoomOut.addEventListener("click", () => {
-      setLocationMapZoom(record.id, activeSurface.id, getLocationMapZoom(record.id, activeSurface.id) - 0.15);
-      renderMapPanel();
-    });
-
-    const reset = document.createElement("button");
-    reset.type = "button";
-    reset.className = "location-map-control location-map-control--reset";
-    reset.textContent = "↺";
-    reset.addEventListener("click", () => {
-      setLocationMapZoom(record.id, activeSurface.id, 1);
-      renderMapPanel();
-    });
-
-    controls.append(zoomIn, zoomOut, reset);
-    stageWrap.append(stage, controls);
-    shell.appendChild(stageWrap);
 
     const meta = document.createElement("div");
     meta.className = "location-map-meta";
@@ -4770,25 +6288,44 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
 
     const legend = document.createElement("div");
     legend.className = "location-map-legend";
-    if (activeSurface.highlightedRegions.length) {
+    if (activeSurface.matchedAreas.length) {
+      activeSurface.matchedAreas.slice(0, 8).forEach((area) => {
+        const chip = document.createElement("span");
+        chip.className = "location-map-chip";
+        chip.textContent = area;
+        legend.appendChild(chip);
+      });
+
+      if (activeSurface.matchedAreas.length > 8) {
+        const chip = document.createElement("span");
+        chip.className = "location-map-chip location-map-chip--muted";
+        chip.textContent = `+${activeSurface.matchedAreas.length - 8} more areas`;
+        legend.appendChild(chip);
+      }
+
+      activeSurface.highlightedRegions.forEach((region) => {
+        const chip = document.createElement("span");
+        chip.className = "location-map-chip location-map-chip--muted";
+        chip.textContent = `Coverage · ${region.label}`;
+        legend.appendChild(chip);
+      });
+    } else if (activeSurface.highlightedRegions.length) {
       activeSurface.highlightedRegions.forEach((region) => {
         const chip = document.createElement("span");
         chip.className = "location-map-chip";
-        chip.textContent = region.label;
+        chip.textContent = `Coverage · ${region.label}`;
         legend.appendChild(chip);
       });
     } else {
       const chip = document.createElement("span");
       chip.className = "location-map-chip location-map-chip--muted";
-      chip.textContent = activeSurface.matchedAreas.length
-        ? "Area names are attached here, but the map is still using broad schematic zones."
-        : "This surface is tracked, but exact route pins are not attached in the current archive yet.";
+      chip.textContent = "This surface is tracked, but exact route pins are not attached in the current archive yet.";
       legend.appendChild(chip);
     }
     shell.appendChild(legend);
   };
 
-  renderMapPanel();
+  renderLocationPanel();
 
   const note = document.createElement("p");
   note.className = "results-summary";
@@ -4905,13 +6442,15 @@ async function renderLocationIntel(pokemon) {
 function renderCollections() {
   const profile = getActiveProfile();
   const baseEntries = getBaseEntries();
+  const shinyDexEntries = getShinyDexEntries();
   const caughtBaseCount = baseEntries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
-  const shinyEntryCount = state.entries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
+  const shinyEntryCount = shinyDexEntries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
   const ownedGames = getOwnedGameIds();
+  const ownedReleaseCount = getOwnedReleaseCount();
   const obtainableEntries =
     ownedGames.length && state.gameAvailabilityReady
       ? baseEntries.filter((entry) =>
-          ownedGames.some((gameId) => isAvailableInGame(entry.baseNumber, gameId))
+          ownedGames.some((gameId) => isAvailableInOwnedGameSelection(entry.baseNumber, gameId))
         )
       : [];
   const obtainableCaughtCount = obtainableEntries.reduce(
@@ -4919,23 +6458,25 @@ function renderCollections() {
     0
   );
   const totalCaughtEntries = state.entries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
-  const favoriteEntries = Object.keys(state.favoritesMap)
-    .map((name) => state.entriesByName.get(name))
-    .filter(Boolean)
-    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
-  const bookmarkEntries = Object.keys(state.bookmarksMap)
-    .map((name) => state.entriesByName.get(name))
-    .filter(Boolean)
-    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
+  const favoriteEntries = getFavoriteEntries();
+  const bookmarkEntries = getBookmarkEntries();
   const favoriteTypeEntries = getFavoriteTypeEntries();
   const favoriteTypeCount = favoriteTypeEntries.reduce((sum, item) => sum + Number(Boolean(item.entry)), 0);
   const unobtainableEntries = getUnobtainableEntries();
+  const shinyLockedEntries = state.entries
+    .filter((entry) => isShinyDexLocked(entry.name))
+    .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
   const currentMissingNames = new Set(baseEntries.filter((entry) => !isCaught(entry.name)).map((entry) => entry.name));
+  const currentShinyCandidateNames = new Set(
+    baseEntries
+      .filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name))
+      .map((entry) => entry.name)
+  );
 
   if (
     (!state.randomTargets.length && baseEntries.length) ||
     state.randomTargets.some((entry) => !currentMissingNames.has(entry.name)) ||
-    state.shinyTargets.some((entry) => !currentMissingNames.has(entry.name))
+    state.shinyTargets.some((entry) => !currentShinyCandidateNames.has(entry.name))
   ) {
     refreshRandomTargets();
   }
@@ -4945,28 +6486,145 @@ function renderCollections() {
   )} shiny`;
 
   const mainRatio = baseEntries.length ? caughtBaseCount / baseEntries.length : 0;
-  const shinyRatio = state.entries.length ? shinyEntryCount / state.entries.length : 0;
+  const shinyRatio = shinyDexEntries.length ? shinyEntryCount / shinyDexEntries.length : 0;
   const ownedRatio = obtainableEntries.length ? obtainableCaughtCount / obtainableEntries.length : 0;
+  const generationBreakdown = GENERATION_RANGES.map((range) => {
+    const generationEntries = baseEntries.filter(
+      (entry) => entry.baseNumber >= range.start && entry.baseNumber <= range.end
+    );
+    const caughtCount = generationEntries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
+    const shinyEligibleEntries = generationEntries.filter((entry) => !isShinyDexLocked(entry.name));
+    const shinyCount = shinyEligibleEntries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
+
+    return {
+      ...range,
+      total: generationEntries.length,
+      caughtCount,
+      caughtRatio: generationEntries.length ? caughtCount / generationEntries.length : 0,
+      shinyTotal: shinyEligibleEntries.length,
+      shinyCount,
+      shinyRatio: shinyEligibleEntries.length ? shinyCount / shinyEligibleEntries.length : 0
+    };
+  });
+
+  elements.landingWelcome.textContent = `Welcome back, ${profile.name}`;
+  elements.landingSummary.textContent = state.randomTargets.length
+    ? `Your next hunts are ready: ${state.randomTargets.length} living dex suggestions and ${state.shinyTargets.length} shiny targets are queued up for this profile.`
+    : ownedReleaseCount
+      ? "Your tracker is loaded. Refresh the hunt board or jump into the archive to plan the next capture."
+      : "Your living form archive is online. Mark the games you own and start logging catches to build tailored hunt suggestions.";
+  elements.landingProfileMetric.textContent = profile.name;
+  elements.landingLivingMetric.textContent = `${formatCount(caughtBaseCount)} / ${formatCount(baseEntries.length)}`;
+  elements.landingShinyMetric.textContent = `${formatCount(shinyEntryCount)} / ${formatCount(shinyDexEntries.length)}`;
+  elements.landingOwnedMetric.textContent = obtainableEntries.length
+    ? `${formatCount(obtainableCaughtCount)} / ${formatCount(obtainableEntries.length)}`
+    : ownedReleaseCount
+      ? "Syncing"
+      : "No games";
 
   elements.mainProgressText.textContent = baseEntries.length
     ? `${formatPercent(mainRatio)} · ${formatCount(caughtBaseCount)}/${formatCount(baseEntries.length)}`
     : "0%";
-  elements.shinyProgressText.textContent = state.entries.length
-    ? `${formatPercent(shinyRatio)} · ${formatCount(shinyEntryCount)}/${formatCount(state.entries.length)}`
+  elements.shinyProgressText.textContent = shinyDexEntries.length
+    ? `${formatPercent(shinyRatio)} · ${formatCount(shinyEntryCount)}/${formatCount(shinyDexEntries.length)}`
     : "0%";
   elements.ownedProgressText.textContent = obtainableEntries.length
     ? `${formatPercent(ownedRatio)} · ${formatCount(obtainableCaughtCount)}/${formatCount(obtainableEntries.length)}`
-    : ownedGames.length
+    : ownedReleaseCount
       ? "Syncing game coverage"
-      : "Mark owned games";
+      : "Mark owned versions";
 
   setProgressBar(elements.mainProgressBar, mainRatio);
   setProgressBar(elements.shinyProgressBar, shinyRatio);
   setProgressBar(elements.ownedProgressBar, ownedRatio);
 
+  elements.generationBreakdownSummary.textContent = `${GENERATION_RANGES.length} gens · ${formatCount(
+    baseEntries.length
+  )} species`;
+  elements.generationBreakdownNote.textContent =
+    "Base-species progress by generation. Shiny totals exclude shiny-locked species.";
+  elements.generationBreakdownGrid.replaceChildren();
+
+  generationBreakdown.forEach((record) => {
+    const card = document.createElement("article");
+    card.className = `generation-breakdown-entry generation-breakdown-entry--gen-${record.label}`;
+
+    const head = document.createElement("div");
+    head.className = "generation-breakdown-head";
+
+    const title = document.createElement("strong");
+    title.textContent = `Generation ${record.label}`;
+
+    const total = document.createElement("span");
+    total.textContent = `${formatCount(record.total)} species`;
+
+    head.append(title, total);
+
+    const livingRow = document.createElement("div");
+    livingRow.className = "generation-breakdown-stat";
+    const livingLabel = document.createElement("span");
+    livingLabel.textContent = "Living";
+    const livingValue = document.createElement("strong");
+    livingValue.textContent = record.total
+      ? `${formatPercent(record.caughtRatio)} · ${formatCount(record.caughtCount)}/${formatCount(record.total)}`
+      : "0%";
+    livingRow.append(livingLabel, livingValue);
+
+    const livingBar = document.createElement("div");
+    livingBar.className = "progress-bar generation-progress-bar";
+    const livingFill = document.createElement("span");
+    setProgressBar(livingFill, record.caughtRatio);
+    livingBar.appendChild(livingFill);
+
+    const shinyRow = document.createElement("div");
+    shinyRow.className = "generation-breakdown-stat generation-breakdown-stat--shiny";
+    const shinyLabel = document.createElement("span");
+    shinyLabel.textContent = "Shiny";
+    const shinyValue = document.createElement("strong");
+    shinyValue.textContent = record.shinyTotal
+      ? `${formatPercent(record.shinyRatio)} · ${formatCount(record.shinyCount)}/${formatCount(record.shinyTotal)}`
+      : "0%";
+    shinyRow.append(shinyLabel, shinyValue);
+
+    const shinyBar = document.createElement("div");
+    shinyBar.className = "progress-bar generation-progress-bar generation-progress-bar--shiny";
+    const shinyFill = document.createElement("span");
+    shinyFill.className = "generation-progress-fill generation-progress-fill--shiny";
+    setProgressBar(shinyFill, record.shinyRatio);
+    shinyBar.appendChild(shinyFill);
+
+    card.append(head, livingRow, livingBar, shinyRow, shinyBar);
+    elements.generationBreakdownGrid.appendChild(card);
+  });
+
+  ensureSuggestedBoardSelections();
+  const selectedLivingTarget = getSelectedSuggestedTarget("living");
+  const selectedShinyTarget = getSelectedSuggestedTarget("shiny");
+
   elements.randomTargetSummary.textContent = state.randomTargets.length
-    ? `${state.randomTargets.length} living dex targets and ${state.shinyTargets.length} bonus shiny calls are ready for ${profile.name}.`
+    ? `${state.randomTargets.length} living dex targets and ${state.shinyTargets.length} bonus shiny calls are ready for ${profile.name}. Click a tile to jump straight into its scan.`
     : "Everything in the base archive is already logged for this profile. Flip to a fresh profile or start a shiny push.";
+  elements.landingTargetSelected.textContent = selectedLivingTarget
+    ? `${selectedLivingTarget.displayName} · ${getEntryVariantLabel(selectedLivingTarget)}`
+    : "Choose a target";
+  elements.landingShinyTargetSelected.textContent = selectedShinyTarget
+    ? `${selectedShinyTarget.displayName} · Shiny Preview`
+    : "Choose a shiny target";
+  elements.landingTargetCatchButton.disabled = !selectedLivingTarget;
+  elements.landingShinyLogButton.disabled = !selectedShinyTarget;
+
+  renderSuggestedHuntBoard(elements.targetList, state.randomTargets, {
+    kind: "living",
+    selectedName: selectedLivingTarget?.name ?? null,
+    emptyText: "No uncaught targets are left in the main dex pool for this profile."
+  });
+
+  renderSuggestedHuntBoard(elements.shinyTargetList, state.shinyTargets, {
+    kind: "shiny",
+    selectedName: selectedShinyTarget?.name ?? null,
+    emptyText: "No bonus shiny targets are waiting right now.",
+    forceShiny: true
+  });
 
   const renderEntryList = (
     container,
@@ -4990,38 +6648,36 @@ function renderCollections() {
     });
   };
 
-  renderEntryList(
-    elements.targetList,
-    state.randomTargets,
-    "No uncaught targets are left in the main dex pool for this profile.",
-    (entry) => {
-      const game = getPrimaryGameEntry(entry.baseNumber);
-      return game
-        ? `${game.shortName} available · Generation ${entry.generation}`
-        : `Generation ${entry.generation}`;
-    },
-    () => ["Missing"]
-  );
-
-  renderEntryList(
-    elements.shinyTargetList,
-    state.shinyTargets,
-    "No bonus shiny targets are waiting right now.",
-    (entry) => {
-      const game = getPrimaryGameEntry(entry.baseNumber);
-      return game ? `${game.shortName} route ready` : "Missing from main dex";
-    },
-    () => ["Shiny"]
-  );
-
   elements.favoritesCount.textContent = formatCount(favoriteEntries.length);
-  renderEntryList(
-    elements.favoritesList,
-    favoriteEntries,
-    "Favorite Pokémon will appear here.",
-    (entry) => `${getEntryVariantLabel(entry)} · ${isCaught(entry.name) ? "Caught" : "Missing"}`,
-    (entry) => (isShiny(entry.name) ? ["Favorite", "Shiny"] : ["Favorite"])
-  );
+  elements.favoritesSummary.textContent = favoriteEntries.length
+    ? `${formatCount(favoriteEntries.length)} cosmetic favorite${favoriteEntries.length === 1 ? "" : "s"} are showcased in the Vault.`
+    : "Build a cosmetic showcase of your favorite Pokémon here in the Vault.";
+  elements.favoritesList.replaceChildren();
+  if (!favoriteEntries.length) {
+    elements.favoritesList.appendChild(createCollectionEmptyState("No favorite Pokémon selected yet."));
+  } else {
+    favoriteEntries.forEach((entry) => {
+      elements.favoritesList.appendChild(
+        createVaultManagerItem(
+          createCollectionItem(
+            entry,
+            `${getEntryVariantLabel(entry)} · ${isCaught(entry.name) ? "Caught" : "Missing"}`,
+            isShiny(entry.name) ? ["Favorite", "Shiny"] : ["Favorite"]
+          ),
+          [
+            {
+              label: "Remove",
+              onClick: () => {
+                setFavoriteState(entry.name, false);
+                syncFavoriteDisplays();
+                setStatus(`${entry.displayName} removed from favorites.`);
+              }
+            }
+          ]
+        )
+      );
+    });
+  }
 
   elements.bookmarksCount.textContent = formatCount(bookmarkEntries.length);
   renderEntryList(
@@ -5033,18 +6689,50 @@ function renderCollections() {
   );
 
   elements.favoriteTypesCount.textContent = `${favoriteTypeCount}/${TYPE_NAMES.length}`;
+  elements.favoriteTypesSummary.textContent = favoriteTypeCount
+    ? `${favoriteTypeCount}/${TYPE_NAMES.length} type showcase slot${favoriteTypeCount === 1 ? "" : "s"} filled in the Vault.`
+    : "Pick one showcase favorite for each type. Choose or change them from this Vault screen.";
   elements.favoriteTypesList.replaceChildren();
   favoriteTypeEntries.forEach((item) => {
     const label = titleCase(item.typeName);
     if (item.entry) {
       elements.favoriteTypesList.appendChild(
-        createCollectionItem(item.entry, `${label} favorite`, [label])
+        createVaultManagerItem(
+          createCollectionItem(item.entry, `${label} showcase favorite`, [label]),
+          [
+            {
+              label: "Change",
+              onClick: () => {
+                openFavoritePicker("type", item.typeName);
+              }
+            },
+            {
+              label: "Clear",
+              onClick: () => {
+                setFavoriteTypeState(item.typeName, null);
+                syncFavoriteDisplays();
+                setStatus(`${label} type favorite cleared.`);
+              }
+            }
+          ]
+        )
       );
       return;
     }
 
     elements.favoriteTypesList.appendChild(
-      createCollectionPlaceholder(label, "No favorite selected yet.", [label])
+      createVaultManagerItem(
+        createCollectionPlaceholder(label, "No showcase favorite selected yet.", [label]),
+        [
+          {
+            label: "Choose",
+            variant: "primary",
+            onClick: () => {
+              openFavoritePicker("type", item.typeName);
+            }
+          }
+        ]
+      )
     );
   });
 
@@ -5052,20 +6740,32 @@ function renderCollections() {
     ? formatCount(unobtainableEntries.length)
     : "Syncing";
   elements.unobtainableSummary.textContent = !ownedGames.length
-    ? "Mark the Switch games you own to calculate which species are unobtainable."
+    ? "Mark the game versions you own to calculate which species are unobtainable."
     : !state.gameAvailabilityReady
       ? "Switch game coverage is still syncing, so unobtainable species are temporarily on hold."
       : unobtainableEntries.length
-        ? `These base species are outside the dex support of your currently owned Switch games.`
-        : "Everything in the current owned-game pool is obtainable somewhere in your library.";
+        ? `These base species are outside the dex support of your currently owned game versions.`
+        : "Everything in the current owned-version pool is obtainable somewhere in your library.";
   renderEntryList(
     elements.unobtainableList,
     unobtainableEntries,
     ownedGames.length
-      ? "No unobtainable species found across your owned games."
-      : "Owned-game tracking will unlock this list.",
-    (entry) => `${entry.baseDisplayName} is missing from your owned-game coverage`,
+      ? "No unobtainable species found across your owned versions."
+      : "Owned-version tracking will unlock this list.",
+    (entry) => `${entry.baseDisplayName} is missing from your owned-version coverage`,
     () => ["Unavailable"]
+  );
+
+  elements.shinyLockedCount.textContent = formatCount(shinyLockedEntries.length);
+  elements.shinyLockedSummary.textContent = shinyLockedEntries.length
+    ? "These entries are excluded from shiny dex tracking because they do not have a legitimate shiny release right now."
+    : "No shiny-locked entries are currently defined in this archive build.";
+  renderEntryList(
+    elements.shinyLockedList,
+    shinyLockedEntries,
+    "No shiny-locked entries are currently defined.",
+    (entry) => `${getEntryVariantLabel(entry)} · Excluded from shiny dex tracking`,
+    () => ["Shiny Locked"]
   );
 }
 
@@ -5093,14 +6793,15 @@ function renderTrainerVault() {
 
   elements.companionStatus.textContent = state.currentPokemon
     ? `${state.currentPokemon.displayName} context active`
-    : getOwnedGameIds().length
-      ? `${getOwnedGameIds().length} games tracked`
+    : getOwnedReleaseCount()
+      ? `${getOwnedReleaseCount()} releases tracked`
       : "Offline Helper";
   elements.companionAnswer.textContent =
     state.companionReply ||
-    "Ask a question and Dexter will answer from your current archive, trackers, and Pokémon data.";
+    "Ask a question and PokéPilot will answer from your current archive, trackers, and Pokémon data.";
 
   renderCloudAccountCard();
+  renderFavoritePicker();
 }
 
 function findEvolutionTrail(node, speciesName, trail = []) {
@@ -5162,7 +6863,7 @@ async function buildLocationAnswer(pokemon) {
   if (activeRecord?.areas.length) {
     const highlightedRegions = activeSurface?.highlightedRegions ?? [];
     const mapNote = highlightedRegions.length
-      ? ` Map zones lit: ${highlightedRegions.map((region) => region.label).join(" · ")}.`
+      ? ` Coverage regions: ${highlightedRegions.map((region) => region.label).join(" · ")}.`
       : "";
     return `${pokemon.displayName} has ${activeRecord.areas.length} tracked ${activeRecord.shortName} locations. First hits: ${activeRecord.areas.slice(0, 4).join(" · ")}.${mapNote}`;
   }
@@ -5171,7 +6872,7 @@ async function buildLocationAnswer(pokemon) {
     const highlightedRegions = activeSurface?.highlightedRegions ?? [];
     if (highlightedRegions.length) {
       const surfaceLabel = activeSurface?.label ? ` on the ${activeSurface.label} surface` : "";
-      return `${pokemon.displayName} is confirmed in ${activeRecord.shortName}${surfaceLabel}. Exact route pins are not attached yet, so the schematic map lights up ${highlightedRegions
+      return `${pokemon.displayName} is confirmed in ${activeRecord.shortName}${surfaceLabel}. Exact route locations are not attached yet, so the coverage narrows to ${highlightedRegions
         .map((region) => region.label)
         .join(" · ")}.`;
     }
@@ -5190,7 +6891,7 @@ async function buildLocationAnswer(pokemon) {
     const routedSurface = getActiveLocationSurfaceRecord(routedRecord);
     const highlightedRegions = routedSurface?.highlightedRegions ?? [];
     const mapNote = highlightedRegions.length
-      ? ` The ${routedRecord.shortName} map lights up ${highlightedRegions
+      ? ` The ${routedRecord.shortName} coverage narrows to ${highlightedRegions
           .map((region) => region.label)
           .join(" · ")}.`
       : "";
@@ -5227,28 +6928,28 @@ async function answerCompanionQuestion(question) {
   }
 
   if (/(owned game|what games do i own|my games|tracked games)/.test(normalized)) {
-    const owned = getOwnedGameIds().map((gameId) => getGameMeta(gameId)?.shortName).filter(Boolean);
+    const owned = getOwnedReleaseRecords().map((record) => record.label);
     return owned.length
-      ? `You currently marked these Switch saves as owned: ${owned.join(", ")}.`
-      : "No Switch games are marked as owned yet in the playthrough tracker.";
+      ? `You currently marked these Switch releases as owned: ${owned.join(", ")}.`
+      : "No Switch releases are marked as owned yet in the playthrough tracker.";
   }
 
   if (/(unobtainable|cannot obtain|can.t get)/.test(normalized)) {
     const unobtainable = getUnobtainableEntries();
     return !getOwnedGameIds().length
-      ? "Mark the Switch games you own first, then I can calculate the unobtainable pool."
+      ? "Mark the game versions you own first, then I can calculate the unobtainable pool."
       : !state.gameAvailabilityReady
         ? "Game coverage is still syncing, so the unobtainable pool is not ready yet."
         : unobtainable.length
-          ? `${formatCount(unobtainable.length)} base species are unobtainable in your current owned-game library. First few: ${unobtainable.slice(0, 6).map((entry) => entry.displayName).join(", ")}.`
-          : "Everything is obtainable somewhere in the games you currently marked as owned.";
+          ? `${formatCount(unobtainable.length)} base species are unobtainable in your current owned-version library. First few: ${unobtainable.slice(0, 6).map((entry) => entry.displayName).join(", ")}.`
+          : "Everything is obtainable somewhere in the game versions you currently marked as owned.";
   }
 
   if (/(favorite type|fav of each type|type favorite)/.test(normalized)) {
     const chosen = getFavoriteTypeEntries().filter((entry) => entry.entry);
     return chosen.length
       ? `You have ${chosen.length} type favorites set. First few: ${chosen.slice(0, 6).map((entry) => `${titleCase(entry.typeName)} = ${entry.entry.displayName}`).join(" · ")}.`
-      : "No type favorites are set yet. Open a Pokémon entry and use Fav Of Its Types.";
+      : "No type favorites are set yet. Open the Vault and choose them from the type-favorite manager.";
   }
 
   if (/(favorite|favourite)/.test(normalized) && !/(type favorite|fav of each type)/.test(normalized)) {
@@ -5492,7 +7193,7 @@ function renderHomeOrganizer() {
   GAME_CATALOG.forEach((game) => {
     const progress = getGameChecklistProgress(game.id);
     const card = document.createElement("article");
-    card.className = "checklist-card";
+    card.className = `checklist-card checklist-card--${game.id}`;
 
     const head = document.createElement("div");
     head.className = "tracker-card-head";
@@ -5611,31 +7312,86 @@ function renderModuleQueue() {
   });
 }
 
+function preserveViewportScroll(callback) {
+  const previousX = window.scrollX;
+  const previousY = window.scrollY;
+
+  const restore = () => {
+    if (window.scrollX !== previousX || window.scrollY !== previousY) {
+      window.scrollTo(previousX, previousY);
+    }
+  };
+
+  callback();
+
+  restore();
+
+  window.requestAnimationFrame(() => {
+    restore();
+    window.requestAnimationFrame(restore);
+  });
+}
+
 function setActiveGame(gameId) {
-  state.tracker.activeGame = gameId;
-  state.expPlan.gameId = gameId;
-  saveTrackerState();
-  saveExpPlanState();
-  renderTracker();
-  renderExpGameOptions();
-  renderCollections();
-  renderHomeOrganizer();
-  renderShinyHelper();
-  renderSuggestors();
-  if (state.currentPokemon) {
-    renderCurrentPokemon(state.currentPokemon);
+  preserveViewportScroll(() => {
+    state.tracker.activeGame = gameId;
+    state.expPlan.gameId = gameId;
+    saveTrackerState();
+    saveExpPlanState();
+    renderTracker();
+    renderExpGameOptions();
+    renderCollections();
+    renderHomeOrganizer();
+    renderShinyHelper();
+    renderSuggestors();
+    renderTrainerVault();
+    if (state.currentPokemon) {
+      renderCurrentPokemon(state.currentPokemon);
+    }
+    void renderExpPlanner();
+  });
+}
+
+function syncTrackerOwnershipSelection(game, trackerState) {
+  syncTrackerGameOwnedState(game, trackerState);
+
+  if (!trackerState.owned && state.tracker.activeGame === game.id) {
+    state.tracker.activeGame = "none";
+  } else if (trackerState.owned && state.tracker.activeGame === "none") {
+    state.tracker.activeGame = game.id;
   }
-  void renderExpPlanner();
+}
+
+function refreshTrackerConnectedViews() {
+  preserveViewportScroll(() => {
+    saveTrackerState();
+    renderTracker();
+    renderCollections();
+    renderHomeOrganizer();
+    renderShinyHelper();
+    renderSuggestors();
+    renderExpGameOptions();
+    renderTrainerVault();
+    if (state.currentPokemon) {
+      renderCurrentPokemon(state.currentPokemon);
+    }
+    void renderExpPlanner();
+  });
 }
 
 function renderTracker() {
   const { ownedCount, clearedCount } = getOwnedSummary();
   elements.trackerSummary.textContent =
-    ownedCount === 0 ? "No games tracked" : `${ownedCount} owned · ${clearedCount} cleared`;
+    ownedCount === 0 ? "No games tracked" : `${ownedCount} owned releases · ${clearedCount} cleared`;
   elements.trackerGrid.replaceChildren();
 
   GAME_CATALOG.forEach((game) => {
     const trackerState = state.tracker.games[game.id];
+    const versionOptions = getGameVersions(game);
+    const selectedVersionCount = versionOptions.reduce(
+      (sum, version) => sum + Number(Boolean(trackerState.versions?.[version.id])),
+      0
+    );
     const card = document.createElement("article");
     card.className = "tracker-card";
     card.classList.toggle("active", state.tracker.activeGame === game.id);
@@ -5663,34 +7419,66 @@ function renderTracker() {
 
     const controls = document.createElement("div");
     controls.className = "tracker-controls";
+    let versionShell = null;
 
-    const ownedLabel = document.createElement("label");
-    ownedLabel.className = "tracker-toggle";
-    const ownedInput = document.createElement("input");
-    ownedInput.type = "checkbox";
-    ownedInput.checked = trackerState.owned;
-    ownedInput.addEventListener("change", () => {
-      trackerState.owned = ownedInput.checked;
-      if (!trackerState.owned && state.tracker.activeGame === game.id) {
-        state.tracker.activeGame = "none";
-      } else if (trackerState.owned && state.tracker.activeGame === "none") {
-        state.tracker.activeGame = game.id;
-      }
-      saveTrackerState();
-      renderTracker();
-      renderCollections();
-      renderHomeOrganizer();
-      renderShinyHelper();
-      renderSuggestors();
-      renderExpGameOptions();
-      if (state.currentPokemon) {
-        renderCurrentPokemon(state.currentPokemon);
-      }
-      void renderExpPlanner();
-    });
-    const ownedText = document.createElement("span");
-    ownedText.textContent = "Owned";
-    ownedLabel.append(ownedInput, ownedText);
+    if (versionOptions.length) {
+      versionShell = document.createElement("div");
+      versionShell.className = "tracker-version-shell";
+
+      const versionHead = document.createElement("div");
+      versionHead.className = "tracker-version-head";
+
+      const versionTitle = document.createElement("strong");
+      versionTitle.textContent = "Version Ownership";
+
+      const versionSummary = document.createElement("span");
+      versionSummary.textContent = selectedVersionCount
+        ? `${selectedVersionCount}/${versionOptions.length} selected`
+        : "Pick the releases you own";
+
+      versionHead.append(versionTitle, versionSummary);
+
+      const versionGrid = document.createElement("div");
+      versionGrid.className = "tracker-version-grid";
+
+      versionOptions.forEach((version) => {
+        const versionLabel = document.createElement("label");
+        versionLabel.className = "tracker-version-toggle";
+        versionLabel.classList.toggle("active", Boolean(trackerState.versions?.[version.id]));
+
+        const versionInput = document.createElement("input");
+        versionInput.type = "checkbox";
+        versionInput.checked = Boolean(trackerState.versions?.[version.id]);
+        versionInput.addEventListener("change", () => {
+          trackerState.versions[version.id] = versionInput.checked;
+          syncTrackerOwnershipSelection(game, trackerState);
+          refreshTrackerConnectedViews();
+        });
+
+        const versionText = document.createElement("span");
+        versionText.textContent = version.shortLabel ?? version.label;
+
+        versionLabel.append(versionInput, versionText);
+        versionGrid.appendChild(versionLabel);
+      });
+
+      versionShell.append(versionHead, versionGrid);
+    } else {
+      const ownedLabel = document.createElement("label");
+      ownedLabel.className = "tracker-toggle";
+      const ownedInput = document.createElement("input");
+      ownedInput.type = "checkbox";
+      ownedInput.checked = trackerState.owned;
+      ownedInput.addEventListener("change", () => {
+        trackerState.owned = ownedInput.checked;
+        syncTrackerOwnershipSelection(game, trackerState);
+        refreshTrackerConnectedViews();
+      });
+      const ownedText = document.createElement("span");
+      ownedText.textContent = "Owned";
+      ownedLabel.append(ownedInput, ownedText);
+      controls.appendChild(ownedLabel);
+    }
 
     const hofLabel = document.createElement("label");
     hofLabel.className = "tracker-toggle";
@@ -5698,10 +7486,12 @@ function renderTracker() {
     hofInput.type = "checkbox";
     hofInput.checked = trackerState.hallOfFame;
     hofInput.addEventListener("change", () => {
-      trackerState.hallOfFame = hofInput.checked;
-      saveTrackerState();
-      renderTracker();
-      renderSuggestors();
+      preserveViewportScroll(() => {
+        trackerState.hallOfFame = hofInput.checked;
+        saveTrackerState();
+        renderTracker();
+        renderSuggestors();
+      });
     });
     const hofText = document.createElement("span");
     hofText.textContent = "Cleared";
@@ -5713,16 +7503,18 @@ function renderTracker() {
     postgameInput.type = "checkbox";
     postgameInput.checked = trackerState.postgame;
     postgameInput.addEventListener("change", () => {
-      trackerState.postgame = postgameInput.checked;
-      saveTrackerState();
-      renderTracker();
-      renderSuggestors();
+      preserveViewportScroll(() => {
+        trackerState.postgame = postgameInput.checked;
+        saveTrackerState();
+        renderTracker();
+        renderSuggestors();
+      });
     });
     const postgameText = document.createElement("span");
     postgameText.textContent = "Postgame";
     postgameLabel.append(postgameInput, postgameText);
 
-    controls.append(ownedLabel, hofLabel, postgameLabel);
+    controls.append(hofLabel, postgameLabel);
 
     const progressShell = document.createElement("div");
     progressShell.className = "tracker-progress-shell";
@@ -5783,7 +7575,11 @@ function renderTracker() {
     });
     focusLabel.append(focusText, focusInput);
 
-    card.append(head, controls, progressShell, milestoneLabel, focusLabel);
+    card.append(head);
+    if (versionShell) {
+      card.appendChild(versionShell);
+    }
+    card.append(controls, progressShell, milestoneLabel, focusLabel);
     elements.trackerGrid.appendChild(card);
   });
 }
@@ -6113,17 +7909,31 @@ async function renderExpPlanner() {
 }
 
 function getSuggestedCatchEntry() {
-  const visible = getFilteredEntries();
+  const visible = getVisibleArchiveEntries();
   return visible.find((entry) => !isCaught(entry.name)) ?? state.entries.find((entry) => !isCaught(entry.name)) ?? null;
 }
 
 function getSuggestedShinyEntry() {
-  const visible = getFilteredEntries();
+  const visible = getVisibleArchiveEntries().filter((entry) => !isShinyDexLocked(entry.name));
   return (
     visible.find((entry) => isCaught(entry.name) && !isShiny(entry.name)) ||
-    state.entries.find((entry) => isCaught(entry.name) && !isShiny(entry.name)) ||
+    state.entries.find((entry) => !isShinyDexLocked(entry.name) && isCaught(entry.name) && !isShiny(entry.name)) ||
     null
   );
+}
+
+function getGameProgressCheckpoint(game, trackerState) {
+  const milestones = Array.isArray(game?.milestones) ? game.milestones : [];
+  const currentIndex = Math.max(0, milestones.indexOf(trackerState?.milestone));
+  const currentMilestone = milestones[currentIndex] ?? milestones[0] ?? "Current Run";
+  const nextMilestone = milestones[currentIndex + 1] ?? null;
+
+  return {
+    currentMilestone,
+    nextMilestone,
+    progress: Number(trackerState?.progress ?? 0),
+    progressMax: Number(game?.progressMax ?? 0)
+  };
 }
 
 function getNextTask() {
@@ -6133,53 +7943,63 @@ function getNextTask() {
   if (!activeGame) {
     return {
       title: "Set up your saves",
-      detail: "Mark the Switch games you own to unlock game-aware objectives, tracker reminders, and EXP context.",
+      detail: "Mark the game versions you own, pick an active file, and the tracker will start surfacing story and postgame checkpoints here.",
       focus: "Focus: Setup"
     };
   }
 
   const trackerState = state.tracker.games[activeGame.id];
+  const checkpoint = getGameProgressCheckpoint(activeGame, trackerState);
+  const focusNote = trackerState.focus
+    ? ` Current focus: ${trackerState.focus}.`
+    : " Add a focus note in the tracker if you want a more personal next-session prompt.";
 
   if (!trackerState.hallOfFame) {
     return {
-      title: `Push ${activeGame.shortName}`,
-      detail: `${activeGame.name} is still in story progress. Current milestone: ${trackerState.milestone}. ${
-        trackerState.focus ? `Focus note: ${trackerState.focus}.` : "Set a focus note for your next session."
-      }`,
+      title:
+        checkpoint.progress <= 0 && checkpoint.currentMilestone === activeGame.milestones[0]
+          ? `Start ${activeGame.shortName}`
+          : `Advance ${activeGame.shortName}`,
+      detail: `${activeGame.name} is still in story progress. Current checkpoint: ${checkpoint.currentMilestone}. ${
+        checkpoint.nextMilestone
+          ? `Next checkpoint: ${checkpoint.nextMilestone}.`
+          : "You're closing in on the main-story finish."
+      } ${activeGame.progressLabel}: ${checkpoint.progress}/${checkpoint.progressMax}.${focusNote}`,
       focus: `Focus: ${activeGame.shortName}`
     };
   }
 
-  if (state.currentPokemon && state.expPlan.targetLevel > state.expPlan.currentLevel) {
+  if (!trackerState.postgame) {
     return {
-      title: `Train ${state.currentPokemon.displayName}`,
-      detail: `Your active EXP route still needs ${state.expPlan.targetLevel - state.expPlan.currentLevel} levels. Keep the current training plan moving.`,
-      focus: "Focus: EXP"
+      title: `Open ${activeGame.shortName} postgame`,
+      detail: `${activeGame.name} is cleared, but the postgame flag is still off. Push into ${
+        checkpoint.nextMilestone ?? activeGame.milestones[activeGame.milestones.length - 1] ?? "postgame content"
+      } next.${focusNote}`,
+      focus: `Focus: ${activeGame.shortName} Postgame`
     };
   }
 
-  const catchTarget = getSuggestedCatchEntry();
-  if (catchTarget) {
+  if (trackerState.focus) {
     return {
-      title: "Advance the living dex",
-      detail: `Your next clean pickup is ${catchTarget.displayName}, keeping the archive moving family by family.`,
-      focus: "Focus: Living Dex"
+      title: `Continue ${activeGame.shortName}`,
+      detail: `${activeGame.name} is in postgame now. Current checkpoint: ${checkpoint.currentMilestone}. Keep pushing your focus target: ${trackerState.focus}.`,
+      focus: `Focus: ${activeGame.shortName}`
     };
   }
 
-  const shinyTarget = getSuggestedShinyEntry();
-  if (shinyTarget) {
+  const nextMilestone = checkpoint.nextMilestone ?? activeGame.milestones[activeGame.milestones.length - 1] ?? "Postgame";
+  if (checkpoint.currentMilestone !== nextMilestone) {
     return {
-      title: "Start a shiny project",
-      detail: `${shinyTarget.displayName} is already caught and still missing from your shiny log.`,
-      focus: "Focus: Shiny Dex"
+      title: `Push ${activeGame.shortName} deeper`,
+      detail: `${activeGame.name} is already in postgame. Roll from ${checkpoint.currentMilestone} into ${nextMilestone} for your next progression checkpoint.`,
+      focus: `Focus: ${activeGame.shortName}`
     };
   }
 
   return {
-    title: "Archive sweep complete",
-    detail: "Everything visible in the current stack is already logged. Flip to another filter or game and choose a new hunt.",
-    focus: "Focus: Review"
+    title: `Steady ${activeGame.shortName} cleanup`,
+    detail: `${activeGame.name} is already sitting in late-game cleanup mode. Set a tracker focus or swap the active game when you want a new progression push.`,
+    focus: `Focus: ${activeGame.shortName}`
   };
 }
 
@@ -6448,6 +8268,10 @@ function renderCurrentScanRibbon() {
 
   if (!pokemon) {
     elements.currentScanRibbon.classList.add("is-empty");
+    elements.currentScanOpenButton.disabled = true;
+    elements.currentScanClearButton.hidden = true;
+    elements.currentScanClearButton.disabled = true;
+    elements.currentScanClearButton.classList.add("hidden");
     elements.currentScanName.textContent = "No active scan";
     elements.currentScanMeta.textContent =
       "Open a Pokémon and it will stay pinned here while you move around the app.";
@@ -6467,6 +8291,10 @@ function renderCurrentScanRibbon() {
     .join(" · ");
 
   elements.currentScanRibbon.classList.remove("is-empty");
+  elements.currentScanOpenButton.disabled = false;
+  elements.currentScanClearButton.hidden = false;
+  elements.currentScanClearButton.disabled = false;
+  elements.currentScanClearButton.classList.remove("hidden");
   elements.currentScanName.textContent = pokemon.displayName;
   elements.currentScanMeta.textContent = `${statusBits} · Tap to jump back into the Scan console.`;
   applyPokemonVisual(elements.currentScanSprite, pokemon);
@@ -6479,13 +8307,47 @@ function renderCurrentScanRibbon() {
   );
 }
 
+function clearCurrentScan() {
+  if (!state.currentPokemon) {
+    return;
+  }
+
+  const previousPokemonName = state.currentPokemon.name;
+  state.currentPokemon = null;
+  state.sessionRestore.currentPokemonName = null;
+  saveUiSessionState();
+  setSelectedDexEntryCard(null, previousPokemonName);
+  renderCurrentScanRibbon();
+  renderShinyHelper();
+  renderTrainerVault();
+  void renderExpPlanner();
+
+  elements.pokemonName.textContent = "No active scan";
+  elements.detailEmpty.classList.remove("hidden");
+  elements.detailContent.classList.add("hidden");
+  elements.toggleCaughtButton.disabled = true;
+  elements.toggleCaughtButton.textContent = "Register Caught";
+  elements.toggleCaughtButton.classList.remove("caught");
+  elements.toggleShinyButton.disabled = true;
+  elements.toggleShinyButton.textContent = "Log Shiny";
+  elements.toggleShinyButton.classList.remove("active");
+  elements.clearScanButton.disabled = true;
+  elements.clearScanButton.classList.add("hidden");
+  elements.bookmarkButton.textContent = "Bookmark";
+  elements.bookmarkButton.classList.remove("active");
+  setStatus("Current scan cleared.");
+}
+
 function renderCurrentPokemon(pokemon) {
+  const previousPokemonName = state.currentPokemon?.name ?? null;
   state.currentPokemon = pokemon;
+  state.sessionRestore.currentPokemonName = pokemon.name;
+  saveUiSessionState();
+  setSelectedDexEntryCard(pokemon.name, previousPokemonName);
   const caught = isCaught(pokemon.name);
   const shiny = isShiny(pokemon.name);
-  const favorite = isFavorite(pokemon.name);
+  const shinyLocked = isShinyDexLocked(pokemon.name);
   const bookmarked = isBookmarked(pokemon.name);
-  const favoritedForAllTypes = pokemon.types.every((typeName) => state.favoriteTypes[typeName] === pokemon.name);
 
   elements.pokemonName.textContent = pokemon.displayName;
   applyPokemonVisual(elements.pokemonArt, pokemon, { preferArtwork: true });
@@ -6503,15 +8365,13 @@ function renderCurrentPokemon(pokemon) {
   elements.toggleCaughtButton.disabled = false;
   elements.toggleCaughtButton.textContent = caught ? "Caught Logged" : "Register Caught";
   elements.toggleCaughtButton.classList.toggle("caught", caught);
-  elements.toggleShinyButton.disabled = false;
-  elements.toggleShinyButton.textContent = shiny ? "Shiny Logged" : "Log Shiny";
-  elements.toggleShinyButton.classList.toggle("active", shiny);
-  elements.favoriteButton.textContent = favorite ? "Favorited" : "Favorite";
-  elements.favoriteButton.classList.toggle("active", favorite);
+  elements.toggleShinyButton.disabled = shinyLocked;
+  elements.toggleShinyButton.textContent = shinyLocked ? "Shiny Locked" : shiny ? "Shiny Logged" : "Log Shiny";
+  elements.toggleShinyButton.classList.toggle("active", !shinyLocked && shiny);
+  elements.clearScanButton.disabled = false;
+  elements.clearScanButton.classList.remove("hidden");
   elements.bookmarkButton.textContent = bookmarked ? "Bookmarked" : "Bookmark";
   elements.bookmarkButton.classList.toggle("active", bookmarked);
-  elements.favoriteTypesButton.textContent = favoritedForAllTypes ? "Clear Type Favs" : "Fav Of Its Types";
-  elements.favoriteTypesButton.classList.toggle("active", favoritedForAllTypes);
   elements.bulbapediaLink.href = buildBulbapediaUrl(pokemon);
   elements.serebiiLink.href = buildSerebiiUrl(pokemon);
 
@@ -6577,6 +8437,7 @@ function getFilteredEntries() {
   }, new Map());
 
   const filtered = state.entries.filter((entry) => {
+    const shinyDexVisible = !isArchiveShinyMode() || !isShinyDexLocked(entry.name);
     const tracked = isArchiveTracked(entry.name);
     const scopeMatches =
       state.filters.scope === "all" ||
@@ -6598,6 +8459,7 @@ function getFilteredEntries() {
     const queryMatches = !query || entry.searchBlob.includes(query);
 
     return (
+      shinyDexVisible &&
       scopeMatches &&
       statusMatches &&
       generationMatches &&
@@ -6608,6 +8470,11 @@ function getFilteredEntries() {
   });
 
   filtered.sort((left, right) => {
+    const compareByDexOrder =
+      state.filters.game !== "all"
+        ? compareEntriesByGameDexOrder(left, right, state.filters.game)
+        : left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right);
+
     switch (state.filters.sort) {
       case "alpha":
         return (
@@ -6618,19 +8485,17 @@ function getFilteredEntries() {
         return (
           Number(Boolean(groupTrackedMap.get(right.baseNumber))) -
             Number(Boolean(groupTrackedMap.get(left.baseNumber))) ||
-          left.baseNumber - right.baseNumber ||
-          compareEntriesWithinGroup(left, right)
+          compareByDexOrder
         );
       case "forms":
         return (
           Number((groupSizeMap.get(right.baseNumber) ?? 0) > 1) -
             Number((groupSizeMap.get(left.baseNumber) ?? 0) > 1) ||
-          left.baseNumber - right.baseNumber ||
-          compareEntriesWithinGroup(left, right)
+          compareByDexOrder
         );
       case "id-asc":
       default:
-        return left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right);
+        return compareByDexOrder;
     }
   });
 
@@ -6670,20 +8535,41 @@ function renderFilterButtons() {
 }
 
 function renderResultsSummary(filteredEntries) {
-  const total = state.entries.length;
+  const summaryEntries = isArchiveShinyMode() ? getShinyDexEntries() : state.entries;
+  const total = summaryEntries.length;
   const { baseCount, formCount } = state.archiveStats;
+  const livingEntries = state.entries;
+  const shinyEntries = getShinyDexEntries();
   let trackedCount = 0;
+  let livingTrackedCount = 0;
+  let shinyTrackedCount = 0;
 
-  for (const entry of state.entries) {
+  for (const entry of summaryEntries) {
     trackedCount += Number(isArchiveTracked(entry.name));
+  }
+  for (const entry of livingEntries) {
+    livingTrackedCount += Number(isCaught(entry.name));
+  }
+  for (const entry of shinyEntries) {
+    shinyTrackedCount += Number(isShiny(entry.name));
   }
 
   const missingCount = total - trackedCount;
   const modeLabel = getArchiveModeLabel();
+  const livingCompletionRatio = livingEntries.length ? livingTrackedCount / livingEntries.length : 0;
+  const shinyCompletionRatio = shinyEntries.length ? shinyTrackedCount / shinyEntries.length : 0;
 
   elements.archiveBaseCount.textContent = formatCount(baseCount);
   elements.archiveFormCount.textContent = formatCount(formCount);
   elements.archiveCaughtCount.textContent = formatCount(trackedCount);
+  elements.archiveLivingProgressText.textContent = livingEntries.length
+    ? `${formatPercent(livingCompletionRatio)} · ${formatCount(livingTrackedCount)}/${formatCount(livingEntries.length)}`
+    : "0%";
+  elements.archiveShinyProgressText.textContent = shinyEntries.length
+    ? `${formatPercent(shinyCompletionRatio)} · ${formatCount(shinyTrackedCount)}/${formatCount(shinyEntries.length)}`
+    : "0%";
+  setProgressBar(elements.archiveLivingProgressBar, livingCompletionRatio);
+  setProgressBar(elements.archiveShinyProgressBar, shinyCompletionRatio);
   elements.resultsCount.textContent = formatCount(filteredEntries.length);
   const activeGameFilter = state.filters.game === "all" ? null : getGameMeta(state.filters.game);
   if (activeGameFilter && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
@@ -6771,7 +8657,22 @@ function buildDexEntryNode(entry) {
     entryTags.appendChild(makeTag(label, label === "Shiny" ? null : accentKey));
   });
 
+  state.archiveRender.renderedCardsByName.set(entry.name, card);
   return instance;
+}
+
+function setSelectedDexEntryCard(entryName, previousName = null) {
+  if (previousName && previousName !== entryName) {
+    state.archiveRender.renderedCardsByName.get(previousName)?.classList.remove("selected");
+  }
+
+  if (entryName) {
+    state.archiveRender.renderedCardsByName.get(entryName)?.classList.add("selected");
+  }
+
+  elements.statSelected.textContent = entryName
+    ? state.entriesByName.get(entryName)?.displayName ?? "None"
+    : "None";
 }
 
 function renderDexListTail() {
@@ -6822,6 +8723,7 @@ function getTargetRenderedCount(previousScrollTop = 0) {
 
 function renderDexList(filteredEntries) {
   const previousScrollTop = elements.dexList.scrollTop;
+  state.archiveRender.renderedCardsByName.clear();
   elements.dexList.replaceChildren();
   state.archiveRender.filteredEntries = filteredEntries;
   state.archiveRender.renderedCount = 0;
@@ -6860,17 +8762,23 @@ function refreshResults() {
   renderSuggestors();
 }
 
+function getVisibleArchiveEntries() {
+  return state.archiveRender.filteredEntries.length ? state.archiveRender.filteredEntries : state.entries;
+}
+
 function findExactMatch(rawQuery) {
   const query = normalizeSearch(rawQuery);
   if (!query) {
     return null;
   }
 
+  const searchableEntries = isArchiveShinyMode() ? getShinyDexEntries() : state.entries;
+
   const numeric = Number(query);
   if (!Number.isNaN(numeric) && /^\d+$/.test(query)) {
     return (
-      state.entries.find((entry) => !entry.isForm && entry.baseNumber === numeric) ||
-      state.entries.find((entry) => entry.id === numeric) ||
+      searchableEntries.find((entry) => !entry.isForm && entry.baseNumber === numeric) ||
+      searchableEntries.find((entry) => entry.id === numeric) ||
       null
     );
   }
@@ -6878,8 +8786,8 @@ function findExactMatch(rawQuery) {
   const exactNormalized = query.replace(/\s+/g, "-");
 
   return (
-    state.entries.find((entry) => entry.name === exactNormalized) ||
-    state.entries.find((entry) => entry.displayName.toLowerCase() === query) ||
+    searchableEntries.find((entry) => entry.name === exactNormalized) ||
+    searchableEntries.find((entry) => entry.displayName.toLowerCase() === query) ||
     null
   );
 }
@@ -6943,26 +8851,33 @@ async function fetchDexIndex() {
   setStatus("Syncing full archive index...");
 
   try {
-    const bootstrapPayload = await fetchJsonCached("https://pokeapi.co/api/v2/pokemon?limit=1");
+    const bootstrapPayload = await fetchJsonCached("https://pokeapi.co/api/v2/pokemon?limit=1", {
+      preferCache: false
+    });
     const listPayload = await fetchJsonCached(
-      `https://pokeapi.co/api/v2/pokemon?limit=${bootstrapPayload.count}`
+      `https://pokeapi.co/api/v2/pokemon?limit=${bootstrapPayload.count}`,
+      { preferCache: false }
     );
-    const existingNames = new Set(listPayload.results.map((entry) => entry.name));
+    const filteredResults = listPayload.results.filter((entry) => !EXCLUDED_API_ENTRY_NAMES.has(entry.name));
+    const existingNames = new Set(filteredResults.map((entry) => entry.name));
     const maxExistingId = listPayload.results.reduce(
       (maxId, entry) => Math.max(maxId, extractIdFromUrl(entry.url)),
       0
     );
-    const baseEntries = listPayload.results
+    const baseEntries = filteredResults
       .map((entry) => ({ id: extractIdFromUrl(entry.url), name: entry.name }))
       .filter((entry) => entry.id <= BASE_POKEMON_COUNT);
 
     state.baseEntriesByName = new Map(baseEntries.map((entry) => [entry.name, entry]));
     state.baseNamesSorted = [...state.baseEntriesByName.keys()].sort((left, right) => right.length - left.length);
 
-    const apiEntries = listPayload.results
+    const apiEntries = filteredResults
       .map((entry) => {
         const id = extractIdFromUrl(entry.url);
-        const displayName = titleCase(entry.name);
+        const seaVariantMeta = SINNOH_SEA_VARIANT_META[entry.name] ?? null;
+        const seasonVariantMeta = UNOVA_SEASON_VARIANT_META[entry.name] ?? null;
+        const variantMeta = seaVariantMeta ?? seasonVariantMeta;
+        const displayName = variantMeta?.displayName ?? titleCase(entry.name);
         const baseEntry = resolveBaseEntry(entry.name, id);
         const baseNumber = baseEntry?.id ?? id;
         const baseDisplayName = titleCase(baseEntry?.name ?? entry.name);
@@ -6978,6 +8893,8 @@ async function fetchDexIndex() {
           baseDisplayName,
           generation,
           formFlags,
+          variantLabel: variantMeta?.variantLabel,
+          detailNote: variantMeta?.detailNote ?? "",
           listSprite: buildSpriteUrl(id),
           shinyListSprite: buildSpriteUrl(id, true)
         };
@@ -6992,21 +8909,35 @@ async function fetchDexIndex() {
 
     const allEntries = [...apiEntries, ...appearanceEntries]
       .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right))
-      .map((entry) => Object.assign(entry, getHomeBoxCompatibilityMeta(entry)));
+      .map((entry) => {
+        const homeMeta = getHomeBoxCompatibilityMeta(entry);
+        return Object.assign(entry, homeMeta, {
+          parkedOnly: entry.archiveVisible === false || homeMeta.parkedOnly
+        });
+      });
 
-    state.parkedEntries = allEntries.filter((entry) => entry.parkedOnly);
-    state.entries = allEntries.filter((entry) => !entry.parkedOnly);
-    state.archiveStats.baseCount = state.entries.reduce((sum, entry) => sum + Number(!entry.isForm), 0);
-    state.archiveStats.formCount = state.entries.length - state.archiveStats.baseCount;
-
-    state.entriesByName = new Map(state.entries.map((entry) => [entry.name, entry]));
-    refreshRandomTargets();
-    refreshResults();
-    renderCollections();
-    renderTrainerVault();
-    renderHomeOrganizer();
+    const entries = allEntries.filter((entry) => !entry.parkedOnly);
+    const parkedEntries = allEntries.filter((entry) => entry.parkedOnly);
+    const baseEntriesSnapshot = [...state.baseEntriesByName.values()];
+    commitDexIndexState(
+      {
+        entries,
+        parkedEntries,
+        baseEntries: baseEntriesSnapshot,
+        baseNamesSorted: state.baseNamesSorted
+      },
+      { renderUi: true }
+    );
+    saveDexIndexCache({
+      savedAt: Date.now(),
+      entries,
+      parkedEntries,
+      baseEntries: baseEntriesSnapshot,
+      baseNamesSorted: state.baseNamesSorted
+    });
     setStatus(`${formatCount(state.entries.length)} entities connected. Launch a scan.`);
     scheduleSwitchGameAvailabilityLoad();
+    await restorePersistedCurrentScan();
   } catch (error) {
     setStatus("The archive could not reach PokeAPI. Refresh the interface and try again.");
   }
@@ -7038,7 +8969,6 @@ async function fetchPokemonDetail(nameOrId) {
     }
 
     renderCurrentPokemon(simplifyPokemon(pokemonPayload, speciesPayload, knownEntry));
-    refreshResults();
     setStatus(`${state.currentPokemon.displayName} is open in the Pokédex.`);
   } catch (error) {
     if (requestId !== state.activeRequestId) {
@@ -7075,6 +9005,11 @@ function toggleCurrentCaught() {
 
 function toggleCurrentShiny() {
   if (!state.currentPokemon) {
+    return;
+  }
+
+  if (isShinyDexLocked(state.currentPokemon.name)) {
+    setStatus(`${state.currentPokemon.displayName} is currently shiny-locked and excluded from the shiny dex.`);
     return;
   }
 
@@ -7125,7 +9060,7 @@ elements.navTabs.forEach((button) => {
     setActiveView(button.dataset.view);
   });
 });
-elements.currentScanRibbon.addEventListener("click", () => {
+elements.currentScanOpenButton.addEventListener("click", () => {
   if (!state.currentPokemon) {
     return;
   }
@@ -7133,6 +9068,7 @@ elements.currentScanRibbon.addEventListener("click", () => {
   setActiveView("scan");
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
+elements.currentScanClearButton.addEventListener("click", clearCurrentScan);
 
 elements.detailTabButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -7149,7 +9085,6 @@ elements.searchInput.addEventListener("input", () => {
     state.queryInputTimer = null;
     state.query = normalizeSearch(elements.searchInput.value);
     refreshResults();
-    maybeAutoOpenFromQuery();
   }, SEARCH_INPUT_DEBOUNCE_MS);
 });
 
@@ -7162,17 +9097,7 @@ elements.openEntryButton.addEventListener("click", openBestMatch);
 elements.randomButton.addEventListener("click", openRandomEntry);
 elements.toggleCaughtButton.addEventListener("click", toggleCurrentCaught);
 elements.toggleShinyButton.addEventListener("click", toggleCurrentShiny);
-elements.favoriteButton.addEventListener("click", () => {
-  if (!state.currentPokemon) {
-    return;
-  }
-
-  const nextValue = !isFavorite(state.currentPokemon.name);
-  setFavoriteState(state.currentPokemon.name, nextValue);
-  renderCurrentPokemon(state.currentPokemon);
-  renderCollections();
-  setStatus(`${state.currentPokemon.displayName} ${nextValue ? "added to" : "removed from"} favorites.`);
-});
+elements.clearScanButton.addEventListener("click", clearCurrentScan);
 elements.bookmarkButton.addEventListener("click", () => {
   if (!state.currentPokemon) {
     return;
@@ -7184,35 +9109,47 @@ elements.bookmarkButton.addEventListener("click", () => {
   renderCollections();
   setStatus(`${state.currentPokemon.displayName} ${nextValue ? "bookmarked." : "removed from bookmarks."}`);
 });
-elements.favoriteTypesButton.addEventListener("click", () => {
-  if (!state.currentPokemon) {
+elements.favoritePickerOpenButton.addEventListener("click", () => {
+  openFavoritePicker("favorites");
+});
+elements.favoritePickerCloseButton.addEventListener("click", closeFavoritePicker);
+elements.favoritePickerOverlay.addEventListener("click", (event) => {
+  if (event.target === elements.favoritePickerOverlay) {
+    closeFavoritePicker();
+  }
+});
+elements.favoritePickerSearch.addEventListener("input", () => {
+  state.ui.favoritePicker.query = elements.favoritePickerSearch.value;
+  renderFavoritePicker();
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.ui.favoritePicker.open) {
+    closeFavoritePicker();
+  }
+});
+elements.favoritePickerClearButton.addEventListener("click", () => {
+  const picker = state.ui.favoritePicker;
+  if (picker.mode !== "type" || !picker.typeName) {
     return;
   }
 
-  const clearExisting = elements.favoriteTypesButton.classList.contains("active");
-
-  state.currentPokemon.types.forEach((typeName) => {
-    if (clearExisting) {
-      delete state.favoriteTypes[typeName];
-      return;
-    }
-
-    state.favoriteTypes[typeName] = state.currentPokemon.name;
-  });
-
-  saveFavoriteTypesState();
-  renderCurrentPokemon(state.currentPokemon);
-  renderCollections();
-  setStatus(
-    clearExisting
-      ? `${state.currentPokemon.displayName} cleared from its type-favorite slots.`
-      : `${state.currentPokemon.displayName} set as the favorite for ${state.currentPokemon.types.map(titleCase).join(" / ")}.`
-  );
+  const label = titleCase(picker.typeName);
+  setFavoriteTypeState(picker.typeName, null);
+  closeFavoritePicker();
+  syncFavoriteDisplays();
+  setStatus(`${label} type favorite cleared.`);
 });
-elements.refreshTargetsButton.addEventListener("click", () => {
-  refreshRandomTargets();
+elements.landingTargetCatchButton.addEventListener("click", markSuggestedTargetCaught);
+elements.landingShinyLogButton.addEventListener("click", markSuggestedTargetShiny);
+elements.landingTargetRerollButton.addEventListener("click", () => {
+  rerollRandomTargetBoard();
   renderCollections();
-  setStatus("Random hunt board refreshed.");
+  setStatus("Suggested catch targets rerolled.");
+});
+elements.landingShinyRerollButton.addEventListener("click", () => {
+  rerollShinyTargetBoard();
+  renderCollections();
+  setStatus("Suggested shiny targets rerolled.");
 });
 elements.profileSelect.addEventListener("change", () => {
   switchProfile(elements.profileSelect.value);
@@ -7255,9 +9192,6 @@ elements.accountGoogleSignInButton.addEventListener("click", () => {
 });
 elements.accountSignOutButton.addEventListener("click", () => {
   void signOutCloudAccount();
-});
-elements.cloudPullButton.addEventListener("click", () => {
-  void pullCloudSnapshotToDevice();
 });
 elements.cloudPushButton.addEventListener("click", () => {
   void pushLocalSnapshotToCloud();
@@ -7374,9 +9308,9 @@ elements.statusButtons.forEach((button) => {
 elements.signatureButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const signature = button.dataset.signature;
-    if (state.filters.signatures.has(signature)) {
-      state.filters.signatures.delete(signature);
-    } else {
+    const alreadyActive = state.filters.signatures.has(signature);
+    state.filters.signatures.clear();
+    if (!alreadyActive) {
       state.filters.signatures.add(signature);
     }
     refreshResults();
@@ -7425,6 +9359,7 @@ elements.expLevel100Button.addEventListener("click", () => {
 });
 
 renderModuleQueue();
+const bootedFromDexCache = hydrateDexIndexFromCache();
 renderActiveView();
 renderDetailTabs();
 renderCurrentScanRibbon();
@@ -7441,4 +9376,7 @@ registerOfflineSupport();
 void ensureCloudClient().then(() => {
   renderTrainerVault();
 });
+if (bootedFromDexCache) {
+  void restorePersistedCurrentScan();
+}
 fetchDexIndex();

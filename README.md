@@ -1,6 +1,6 @@
-# DexterOS Living Form Dex
+# PokéPilot Living Form Dex
 
-DexterOS is a static Pokemon helper website with a modern Pokédex feel, a living-form dex, Switch-game tracking, shiny tools, and a dedicated scan console.
+PokéPilot is a static Pokemon helper website with a modern Pokédex feel, a living-form dex, Switch-game tracking, shiny tools, and a dedicated scan console.
 
 ## Features
 
@@ -36,7 +36,7 @@ Create a new empty GitHub repository, then run:
 ```bash
 git init
 git add .
-git commit -m "Initial DexterOS site"
+git commit -m "Initial PokéPilot site"
 git branch -M main
 git remote add origin https://github.com/YOUR-USERNAME/YOUR-REPO.git
 git push -u origin main
@@ -59,7 +59,7 @@ https://YOUR-USERNAME.github.io/YOUR-REPO/
 
 ## Cloud Accounts Setup
 
-DexterOS can now use Supabase for real sign-in accounts and cross-device save sync.
+PokéPilot can now use Supabase for real sign-in accounts and cross-device save sync.
 
 ### 1. Create a Supabase project
 

@@ -1,6 +1,6 @@
 {
-  "name": "DexterOS Pokemon Helper",
-  "short_name": "DexterOS",
+  "name": "PokéPilot Pokemon Helper",
+  "short_name": "PokéPilot",
   "description": "A modern living dex, shiny hunt helper, playthrough tracker, and Pokemon Home organizer for Switch-era Pokemon games.",
   "start_url": "./index.html",
   "display": "standalone",

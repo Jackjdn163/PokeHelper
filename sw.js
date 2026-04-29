@@ -1,4 +1,4 @@
-const CACHE_NAME = "dexteros-shell-v16";
+const CACHE_NAME = "pokepilot-shell-v18";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ function shouldRuntimeCache(url) {
     url.origin === "https://cdn.jsdelivr.net" ||
     url.origin === "https://pokeapi.co" ||
     url.origin === "https://raw.githubusercontent.com" ||
+    url.origin === "https://www.serebii.net" ||
     url.origin === "https://fonts.googleapis.com" ||
     url.origin === "https://fonts.gstatic.com"
   );
