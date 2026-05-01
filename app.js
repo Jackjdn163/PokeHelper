@@ -37,9 +37,12 @@ const CLOUD_SYNC_DEBOUNCE_MS = 1200;
 const ARCHIVE_INITIAL_RENDER_COUNT = 120;
 const ARCHIVE_RENDER_BATCH_COUNT = 120;
 const ARCHIVE_ENTRY_HEIGHT_ESTIMATE = 92;
+const ARCHIVE_GRID_CARD_MIN_WIDTH = 152;
+const ARCHIVE_GRID_ENTRY_HEIGHT_ESTIMATE = 194;
 const SEARCH_INPUT_DEBOUNCE_MS = 120;
 const VALID_VIEW_IDS = new Set(["landing", "archive", "scan", "collection", "home", "journey", "lab", "vault"]);
 const VALID_DETAIL_TAB_IDS = new Set(["overview", "battle", "field"]);
+const VALID_ARCHIVE_VIEW_IDS = new Set(["list", "grid"]);
 const EXCLUDED_API_ENTRY_NAMES = new Set([
   "minior-red-meteor",
   "minior-orange-meteor",
@@ -308,6 +311,346 @@ const GAME_CATALOG = [
     milestones: ["Hotel Z Start", "Wild Zone Patrol", "Z-A Royale", "Postgame / DLC"]
   }
 ];
+
+function journeyItem(id, label) {
+  return { id, label };
+}
+
+const JOURNEY_GAME_DETAILS = {
+  lgpe: {
+    title: "Pokémon: Let's Go, Pikachu! and Let's Go, Eevee!",
+    shortTitle: "Pokémon Let's Go",
+    subtitle: "Kanto partner run tracker",
+    story: [
+      journeyItem("lgpe-story-partner", "Choose your partner"),
+      journeyItem("lgpe-story-cerulean", "Reach Cerulean City"),
+      journeyItem("lgpe-story-silph", "Clear Silph Co."),
+      journeyItem("lgpe-story-indigo", "Reach Indigo Plateau"),
+      journeyItem("lgpe-story-champion", "Defeat the Champion")
+    ],
+    columnsTitle: "Badges",
+    columns: [
+      { title: "Badge 1", items: [journeyItem("lgpe-badge-boulder", "Boulder Badge")] },
+      { title: "Badge 2", items: [journeyItem("lgpe-badge-cascade", "Cascade Badge")] },
+      { title: "Badge 3", items: [journeyItem("lgpe-badge-thunder", "Thunder Badge")] },
+      { title: "Badge 4", items: [journeyItem("lgpe-badge-rainbow", "Rainbow Badge")] },
+      { title: "Badge 5", items: [journeyItem("lgpe-badge-soul", "Soul Badge")] },
+      { title: "Badge 6", items: [journeyItem("lgpe-badge-marsh", "Marsh Badge")] },
+      { title: "Badge 7", items: [journeyItem("lgpe-badge-volcano", "Volcano Badge")] },
+      { title: "Badge 8", items: [journeyItem("lgpe-badge-earth", "Earth Badge")] }
+    ],
+    legendarySpecies: [144, 145, 146, 150, 808, 809],
+    postgame: [
+      journeyItem("lgpe-post-master-trainers", "Master Trainers unlocked"),
+      journeyItem("lgpe-post-cerulean-cave", "Cerulean Cave explored"),
+      journeyItem("lgpe-post-mewtwo", "Mewtwo encounter resolved")
+    ],
+    dlc: [],
+    progressIds: [
+      "lgpe-badge-boulder",
+      "lgpe-badge-cascade",
+      "lgpe-badge-thunder",
+      "lgpe-badge-rainbow",
+      "lgpe-badge-soul",
+      "lgpe-badge-marsh",
+      "lgpe-badge-volcano",
+      "lgpe-badge-earth"
+    ],
+    hallOfFameIds: ["lgpe-story-champion"],
+    postgameIds: ["lgpe-post-master-trainers"]
+  },
+  swsh: {
+    title: "Pokémon Sword and Shield",
+    shortTitle: "Pokémon Sword and Shield",
+    subtitle: "Galar league and Wild Area tracker",
+    story: [
+      journeyItem("swsh-story-starter", "Choose your starter"),
+      journeyItem("swsh-story-wild-area", "Enter the Wild Area"),
+      journeyItem("swsh-story-cup", "Qualify for the Champion Cup"),
+      journeyItem("swsh-story-champion", "Defeat Leon")
+    ],
+    columnsTitle: "Gym Badges",
+    columns: [
+      { title: "Badge 1", items: [journeyItem("swsh-badge-grass", "Grass Badge")] },
+      { title: "Badge 2", items: [journeyItem("swsh-badge-water", "Water Badge")] },
+      { title: "Badge 3", items: [journeyItem("swsh-badge-fire", "Fire Badge")] },
+      { title: "Badge 4", items: [journeyItem("swsh-badge-fighting", "Fighting Badge")] },
+      { title: "Badge 5", items: [journeyItem("swsh-badge-fairy", "Fairy Badge")] },
+      { title: "Badge 6", items: [journeyItem("swsh-badge-rock", "Rock Badge")] },
+      { title: "Badge 7", items: [journeyItem("swsh-badge-dark", "Dark Badge")] },
+      { title: "Badge 8", items: [journeyItem("swsh-badge-dragon", "Dragon Badge")] }
+    ],
+    legendarySpecies: [888, 889, 890, 894, 895, 896, 897, 898],
+    postgame: [
+      journeyItem("swsh-post-slumbering", "Slumbering Weald postgame cleared"),
+      journeyItem("swsh-post-battle-tower", "Battle Tower opened"),
+      journeyItem("swsh-post-star-tournament", "Galarian Star Tournament unlocked")
+    ],
+    dlc: [
+      journeyItem("swsh-dlc-armor-start", "Isle of Armor started"),
+      journeyItem("swsh-dlc-kubfu", "Kubfu trial line cleared"),
+      journeyItem("swsh-dlc-tundra-start", "Crown Tundra started"),
+      journeyItem("swsh-dlc-dynamax-adventure", "Dynamax Adventures unlocked")
+    ],
+    progressIds: [
+      "swsh-badge-grass",
+      "swsh-badge-water",
+      "swsh-badge-fire",
+      "swsh-badge-fighting",
+      "swsh-badge-fairy",
+      "swsh-badge-rock",
+      "swsh-badge-dark",
+      "swsh-badge-dragon"
+    ],
+    hallOfFameIds: ["swsh-story-champion"],
+    postgameIds: ["swsh-post-slumbering"]
+  },
+  bdsp: {
+    title: "Pokémon Brilliant Diamond and Shining Pearl",
+    shortTitle: "Pokémon Brilliant Diamond and Shining Pearl",
+    subtitle: "Sinnoh badge run and postgame tracker",
+    story: [
+      journeyItem("bdsp-story-starter", "Choose your starter"),
+      journeyItem("bdsp-story-mt-coronet", "Push through Mt. Coronet"),
+      journeyItem("bdsp-story-spear-pillar", "Clear Spear Pillar"),
+      journeyItem("bdsp-story-champion", "Defeat Cynthia")
+    ],
+    columnsTitle: "Gym Badges",
+    columns: [
+      { title: "Badge 1", items: [journeyItem("bdsp-badge-coal", "Coal Badge")] },
+      { title: "Badge 2", items: [journeyItem("bdsp-badge-forest", "Forest Badge")] },
+      { title: "Badge 3", items: [journeyItem("bdsp-badge-cobble", "Cobble Badge")] },
+      { title: "Badge 4", items: [journeyItem("bdsp-badge-fen", "Fen Badge")] },
+      { title: "Badge 5", items: [journeyItem("bdsp-badge-relic", "Relic Badge")] },
+      { title: "Badge 6", items: [journeyItem("bdsp-badge-mine", "Mine Badge")] },
+      { title: "Badge 7", items: [journeyItem("bdsp-badge-icicle", "Icicle Badge")] },
+      { title: "Badge 8", items: [journeyItem("bdsp-badge-beacon", "Beacon Badge")] }
+    ],
+    legendarySpecies: [480, 481, 482, 483, 484, 487, 491, 493],
+    postgame: [
+      journeyItem("bdsp-post-national-dex", "National Dex unlocked"),
+      journeyItem("bdsp-post-battle-zone", "Battle Zone reached"),
+      journeyItem("bdsp-post-ramanas", "Ramanas Park unlocked")
+    ],
+    dlc: [],
+    progressIds: [
+      "bdsp-badge-coal",
+      "bdsp-badge-forest",
+      "bdsp-badge-cobble",
+      "bdsp-badge-fen",
+      "bdsp-badge-relic",
+      "bdsp-badge-mine",
+      "bdsp-badge-icicle",
+      "bdsp-badge-beacon"
+    ],
+    hallOfFameIds: ["bdsp-story-champion"],
+    postgameIds: ["bdsp-post-national-dex"]
+  },
+  pla: {
+    title: "Pokémon Legends: Arceus",
+    shortTitle: "Pokémon Legends: Arceus",
+    subtitle: "Hisui survey file tracker",
+    story: [
+      journeyItem("pla-story-galaxy", "Join the Galaxy Team"),
+      journeyItem("pla-story-kleavor", "Calm Noble Kleavor"),
+      journeyItem("pla-story-coronet", "Reach Mount Coronet"),
+      journeyItem("pla-story-finish", "Clear the main mission")
+    ],
+    columnsTitle: "Survey Milestones",
+    columns: [
+      {
+        title: "Nobles",
+        items: [
+          journeyItem("pla-noble-kleavor", "Kleavor"),
+          journeyItem("pla-noble-lilligant", "Lilligant"),
+          journeyItem("pla-noble-arcanine", "Arcanine"),
+          journeyItem("pla-noble-electrode", "Electrode"),
+          journeyItem("pla-noble-avalugg", "Avalugg")
+        ]
+      },
+      {
+        title: "Ride Pokémon",
+        items: [
+          journeyItem("pla-ride-wyrdeer", "Wyrdeer"),
+          journeyItem("pla-ride-basculegion", "Basculegion"),
+          journeyItem("pla-ride-sneasler", "Sneasler"),
+          journeyItem("pla-ride-braviary", "Braviary"),
+          journeyItem("pla-ride-ursaluna", "Ursaluna")
+        ]
+      }
+    ],
+    legendarySpecies: [480, 481, 482, 483, 484, 487, 488, 491, 493, 638, 639, 640, 641, 642, 645, 905],
+    postgame: [
+      journeyItem("pla-post-plates", "All plates hunt underway"),
+      journeyItem("pla-post-volo", "Volo finale cleared"),
+      journeyItem("pla-post-arceus", "Arceus obtained")
+    ],
+    dlc: [],
+    progressIds: [
+      "pla-noble-kleavor",
+      "pla-noble-lilligant",
+      "pla-noble-arcanine",
+      "pla-noble-electrode",
+      "pla-noble-avalugg",
+      "pla-ride-wyrdeer",
+      "pla-ride-basculegion",
+      "pla-ride-sneasler",
+      "pla-ride-braviary",
+      "pla-ride-ursaluna"
+    ],
+    hallOfFameIds: ["pla-story-finish"],
+    postgameIds: ["pla-post-plates"]
+  },
+  sv: {
+    title: "Pokémon Scarlet and Violet",
+    shortTitle: "Pokémon Scarlet and Violet",
+    subtitle: "Paldea academy tracker",
+    story: [
+      journeyItem("sv-story-academy", "Finish the academy opening"),
+      journeyItem("sv-story-paths", "Unlock all three treasure paths"),
+      journeyItem("sv-story-area-zero", "Reach Area Zero"),
+      journeyItem("sv-story-homeway", "Clear The Way Home")
+    ],
+    columnsTitle: "Treasure Paths",
+    columns: [
+      {
+        title: "Victory Road",
+        items: [
+          journeyItem("sv-gym-bug", "Cortondo Gym"),
+          journeyItem("sv-gym-grass", "Artazon Gym"),
+          journeyItem("sv-gym-electric", "Levincia Gym"),
+          journeyItem("sv-gym-water", "Cascarrafa Gym"),
+          journeyItem("sv-gym-normal", "Medali Gym"),
+          journeyItem("sv-gym-ghost", "Montenevera Gym"),
+          journeyItem("sv-gym-psychic", "Alfornada Gym"),
+          journeyItem("sv-gym-ice", "Glaseado Gym")
+        ]
+      },
+      {
+        title: "Path of Legends",
+        items: [
+          journeyItem("sv-titan-stony", "Stony Cliff Titan"),
+          journeyItem("sv-titan-open", "Open Sky Titan"),
+          journeyItem("sv-titan-lurking", "Lurking Steel Titan"),
+          journeyItem("sv-titan-quaking", "Quaking Earth Titan"),
+          journeyItem("sv-titan-false", "False Dragon Titan")
+        ]
+      },
+      {
+        title: "Starfall Street",
+        items: [
+          journeyItem("sv-star-dark", "Team Star Dark Crew"),
+          journeyItem("sv-star-fire", "Team Star Fire Crew"),
+          journeyItem("sv-star-poison", "Team Star Poison Crew"),
+          journeyItem("sv-star-fairy", "Team Star Fairy Crew"),
+          journeyItem("sv-star-fighting", "Team Star Fighting Crew")
+        ]
+      }
+    ],
+    legendarySpecies: [1001, 1002, 1003, 1004, 1007, 1008, 1017, 1018, 1020, 1021, 1024],
+    postgame: [
+      journeyItem("sv-post-ace-tournament", "Academy Ace Tournament unlocked"),
+      journeyItem("sv-post-ruinous", "Ruinous Quartet stakes resolved"),
+      journeyItem("sv-post-rematches", "Area Zero rematches or cleanup started")
+    ],
+    dlc: [
+      journeyItem("sv-dlc-teal-mask-start", "The Teal Mask started"),
+      journeyItem("sv-dlc-teal-mask-clear", "The Teal Mask cleared"),
+      journeyItem("sv-dlc-indigo-start", "The Indigo Disk started"),
+      journeyItem("sv-dlc-indigo-clear", "Blueberry League cleared"),
+      journeyItem("sv-dlc-epilogue", "Epilogue cleared")
+    ],
+    progressIds: [
+      "sv-gym-bug",
+      "sv-gym-grass",
+      "sv-gym-electric",
+      "sv-gym-water",
+      "sv-gym-normal",
+      "sv-gym-ghost",
+      "sv-gym-psychic",
+      "sv-gym-ice",
+      "sv-titan-stony",
+      "sv-titan-open",
+      "sv-titan-lurking",
+      "sv-titan-quaking",
+      "sv-titan-false",
+      "sv-star-dark",
+      "sv-star-fire",
+      "sv-star-poison",
+      "sv-star-fairy",
+      "sv-star-fighting"
+    ],
+    hallOfFameIds: ["sv-story-homeway"],
+    postgameIds: ["sv-post-ace-tournament"]
+  },
+  lza: {
+    title: "Pokémon Legends: Z-A",
+    shortTitle: "Pokémon Legends: Z-A",
+    subtitle: "Lumiose redevelopment tracker",
+    story: [
+      journeyItem("lza-story-hotel-z", "Check into Hotel Z"),
+      journeyItem("lza-story-patrol", "Finish the first wild zone patrol"),
+      journeyItem("lza-story-royale", "Unlock the Z-A Royale"),
+      journeyItem("lza-story-finish", "Clear the main campaign")
+    ],
+    columnsTitle: "City Objectives",
+    columns: [
+      {
+        title: "Wild Zones",
+        items: [
+          journeyItem("lza-zone-north", "North Wild Zone"),
+          journeyItem("lza-zone-west", "West Wild Zone"),
+          journeyItem("lza-zone-east", "East Wild Zone"),
+          journeyItem("lza-zone-south", "South Wild Zone")
+        ]
+      },
+      {
+        title: "Royale",
+        items: [
+          journeyItem("lza-royale-rank-c", "Reach Rank C"),
+          journeyItem("lza-royale-rank-b", "Reach Rank B"),
+          journeyItem("lza-royale-rank-a", "Reach Rank A"),
+          journeyItem("lza-royale-rank-z", "Reach Rank Z-A")
+        ]
+      },
+      {
+        title: "Mega Ops",
+        items: [
+          journeyItem("lza-mega-key", "Mega key item secured"),
+          journeyItem("lza-mega-boss", "Mega storyline boss cleared"),
+          journeyItem("lza-mega-cleanup", "Mega cleanup requests started")
+        ]
+      }
+    ],
+    legendarySpecies: [150, 380, 381, 382, 383, 384, 491, 638, 639, 640, 647, 648, 649, 716, 717, 718, 719, 720, 721, 807, 801],
+    postgame: [
+      journeyItem("lza-post-hotel-requests", "Hotel Z side requests opened"),
+      journeyItem("lza-post-lumiose", "Lumiose postgame cleanup started"),
+      journeyItem("lza-post-mythical", "Mythical or late-game hunts started")
+    ],
+    dlc: [
+      journeyItem("lza-dlc-hyperspace-start", "Hyperspace investigations started"),
+      journeyItem("lza-dlc-hyperspace-clear", "Hyperspace objective chain cleared"),
+      journeyItem("lza-dlc-mega-start", "Mega Dimension entered"),
+      journeyItem("lza-dlc-mega-clear", "Mega Dimension objectives cleared")
+    ],
+    progressIds: [
+      "lza-zone-north",
+      "lza-zone-west",
+      "lza-zone-east",
+      "lza-zone-south",
+      "lza-royale-rank-c",
+      "lza-royale-rank-b",
+      "lza-royale-rank-a",
+      "lza-royale-rank-z",
+      "lza-mega-key",
+      "lza-mega-boss",
+      "lza-mega-cleanup"
+    ],
+    hallOfFameIds: ["lza-story-finish"],
+    postgameIds: ["lza-post-hotel-requests"]
+  }
+};
 
 const SWITCH_GAME_AVAILABILITY = {
   lgpe: {
@@ -1032,6 +1375,8 @@ const FAVORITE_PICKER_RESULT_LIMIT = 80;
 
 const elements = {
   navTabs: [...document.querySelectorAll("[data-view]")],
+  dashboardOpenViewButtons: [...document.querySelectorAll("[data-open-view]")],
+  dashboardSoonButtons: [...document.querySelectorAll("[data-coming-soon]")],
   viewPanels: [...document.querySelectorAll("[data-view-panel]")],
   modulePanels: [...document.querySelectorAll("[data-module-view]")],
   searchForm: document.querySelector("#search-form"),
@@ -1041,6 +1386,7 @@ const elements = {
   statusText: document.querySelector("#status-text"),
   scopeButtons: [...document.querySelectorAll("[data-scope]")],
   archiveModeButtons: [...document.querySelectorAll("[data-archive-mode]")],
+  archiveViewButtons: [...document.querySelectorAll("[data-archive-view]")],
   statusButtons: [...document.querySelectorAll("[data-status]")],
   signatureButtons: [...document.querySelectorAll("[data-signature]")],
   sortSelect: document.querySelector("#sort-select"),
@@ -1053,7 +1399,16 @@ const elements = {
   landingProfileMetric: document.querySelector("#landing-profile-metric"),
   landingLivingMetric: document.querySelector("#landing-living-metric"),
   landingShinyMetric: document.querySelector("#landing-shiny-metric"),
+  landingShinyNote: document.querySelector("#landing-shiny-note"),
   landingOwnedMetric: document.querySelector("#landing-owned-metric"),
+  landingStorageMetric: document.querySelector("#landing-storage-metric"),
+  landingStorageNote: document.querySelector("#landing-storage-note"),
+  landingCurrentGameName: document.querySelector("#landing-current-game-name"),
+  landingCurrentGameNote: document.querySelector("#landing-current-game-note"),
+  landingTrainerCode: document.querySelector("#landing-trainer-code"),
+  landingBadgeTotal: document.querySelector("#landing-badge-total"),
+  landingPokedexTotal: document.querySelector("#landing-pokedex-total"),
+  landingOwnedReleaseTotal: document.querySelector("#landing-owned-release-total"),
   archiveModeIndicator: document.querySelector("#archive-mode-indicator"),
   archiveBaseCount: document.querySelector("#archive-base-count"),
   archiveFormCount: document.querySelector("#archive-form-count"),
@@ -1137,6 +1492,15 @@ const elements = {
   landingTargetRerollButton: document.querySelector("#landing-target-reroll-btn"),
   landingShinyLogButton: document.querySelector("#landing-shiny-log-btn"),
   landingShinyRerollButton: document.querySelector("#landing-shiny-reroll-btn"),
+  landingRecentList: document.querySelector("#landing-recent-list"),
+  landingCompletionRing: document.querySelector("#landing-completion-ring"),
+  landingCompletionValue: document.querySelector("#landing-completion-value"),
+  landingCompletionCount: document.querySelector("#landing-completion-count"),
+  landingCompletionBreakdown: document.querySelector("#landing-completion-breakdown"),
+  landingTaskList: document.querySelector("#landing-task-list"),
+  landingJourneyGrid: document.querySelector("#landing-journey-grid"),
+  landingSuggestionGrid: document.querySelector("#landing-suggestion-grid"),
+  landingSmartGrid: document.querySelector("#landing-smart-grid"),
   favoritesCount: document.querySelector("#favorites-count"),
   favoritesSummary: document.querySelector("#favorites-summary"),
   favoritesList: document.querySelector("#favorites-list"),
@@ -1152,7 +1516,7 @@ const elements = {
   shinyLockedSummary: document.querySelector("#shiny-locked-summary"),
   shinyLockedList: document.querySelector("#shiny-locked-list"),
   trackerSummary: document.querySelector("#tracker-summary"),
-  trackerGrid: document.querySelector("#tracker-grid"),
+  journeyShell: document.querySelector("#journey-shell"),
   expSpeciesLabel: document.querySelector("#exp-species-label"),
   expGameSelect: document.querySelector("#exp-game-select"),
   expCurrentLevel: document.querySelector("#exp-current-level"),
@@ -1246,11 +1610,14 @@ const state = {
     activeView: "landing",
     activeDetailTab: "overview",
     archiveMode: "living",
+    archiveView: "list",
+    journeySelectedGame: null,
     homeExcludedVisible: false,
     locationSurfaceTabs: {},
     locationMapZoom: {},
     selectedRandomTargetName: null,
     selectedShinyTargetName: null,
+    landingActionMode: null,
     favoritePicker: {
       open: false,
       mode: "favorites",
@@ -1331,6 +1698,8 @@ const state = {
 const uiSessionSeed = loadUiSessionState();
 state.ui.activeView = uiSessionSeed.activeView;
 state.ui.activeDetailTab = uiSessionSeed.activeDetailTab;
+state.ui.archiveView = uiSessionSeed.archiveView;
+state.ui.journeySelectedGame = uiSessionSeed.journeySelectedGame;
 state.sessionRestore.currentPokemonName = uiSessionSeed.currentPokemonName;
 
 window.__dexterState = state;
@@ -1361,6 +1730,8 @@ function createDefaultUiSessionState() {
   return {
     activeView: "landing",
     activeDetailTab: "overview",
+    archiveView: "list",
+    journeySelectedGame: null,
     currentPokemonName: null
   };
 }
@@ -1371,11 +1742,17 @@ function loadUiSessionState() {
   const activeDetailTab = VALID_DETAIL_TAB_IDS.has(loaded?.activeDetailTab)
     ? loaded.activeDetailTab
     : "overview";
+  const archiveView = VALID_ARCHIVE_VIEW_IDS.has(loaded?.archiveView) ? loaded.archiveView : "list";
+  const journeySelectedGame = GAME_CATALOG.some((game) => game.id === loaded?.journeySelectedGame)
+    ? loaded.journeySelectedGame
+    : null;
   const currentPokemonName = loaded?.currentPokemonName ? String(loaded.currentPokemonName) : null;
 
   return {
     activeView,
     activeDetailTab,
+    archiveView,
+    journeySelectedGame,
     currentPokemonName
   };
 }
@@ -1384,6 +1761,8 @@ function saveUiSessionState() {
   saveStoredObject(UI_SESSION_STORAGE_KEY, {
     activeView: state.ui.activeView,
     activeDetailTab: state.ui.activeDetailTab,
+    archiveView: state.ui.archiveView,
+    journeySelectedGame: state.ui.journeySelectedGame,
     currentPokemonName: state.currentPokemon?.name ?? state.sessionRestore.currentPokemonName ?? null
   });
 }
@@ -1548,6 +1927,89 @@ function syncTrackerGameOwnedState(game, trackerGameState) {
   return trackerGameState.owned;
 }
 
+function getJourneyConfig(gameId) {
+  return JOURNEY_GAME_DETAILS[gameId] ?? null;
+}
+
+function getJourneyManualItems(gameId) {
+  const config = getJourneyConfig(gameId);
+  if (!config) {
+    return [];
+  }
+
+  return [
+    ...(config.story ?? []),
+    ...((config.columns ?? []).flatMap((column) => column.items ?? [])),
+    ...(config.postgame ?? []),
+    ...(config.dlc ?? [])
+  ];
+}
+
+function createDefaultJourneyChecks(gameOrId) {
+  const gameId = typeof gameOrId === "string" ? gameOrId : gameOrId?.id;
+  const checks = {};
+
+  getJourneyManualItems(gameId).forEach((item) => {
+    checks[item.id] = false;
+  });
+
+  return checks;
+}
+
+function getJourneyManualFocusLabel(gameId, trackerState) {
+  const firstUnchecked = getJourneyManualItems(gameId).find((item) => !trackerState?.journeyChecks?.[item.id]);
+  return firstUnchecked?.label ?? "";
+}
+
+function deriveJourneyMilestone(game, trackerState) {
+  const config = getJourneyConfig(game.id);
+  const milestones = Array.isArray(game?.milestones) ? game.milestones : [];
+  if (!milestones.length || !config) {
+    return "Current Run";
+  }
+
+  const hasAll = (ids = []) => ids.every((id) => trackerState?.journeyChecks?.[id]);
+  const progressDone = (config.progressIds ?? []).filter((id) => trackerState?.journeyChecks?.[id]).length;
+  const progressRatio = game.progressMax ? progressDone / game.progressMax : 0;
+
+  if (trackerState?.postgame || hasAll(config.postgameIds)) {
+    return milestones[milestones.length - 1] ?? milestones[0];
+  }
+
+  if (trackerState?.hallOfFame || hasAll(config.hallOfFameIds)) {
+    return milestones[Math.min(2, milestones.length - 1)] ?? milestones[0];
+  }
+
+  if (progressRatio >= 0.4) {
+    return milestones[Math.min(1, milestones.length - 1)] ?? milestones[0];
+  }
+
+  return milestones[0];
+}
+
+function syncJourneyDerivedTrackerState(game, trackerState) {
+  const config = getJourneyConfig(game.id);
+  if (!config) {
+    return trackerState;
+  }
+
+  trackerState.journeyChecks = {
+    ...createDefaultJourneyChecks(game.id),
+    ...(trackerState.journeyChecks ?? {})
+  };
+  trackerState.hours = String(trackerState.hours ?? "");
+  trackerState.trainerId = String(trackerState.trainerId ?? "");
+
+  const progressDone = (config.progressIds ?? []).filter((id) => trackerState.journeyChecks[id]).length;
+  trackerState.progress = Math.min(progressDone, Number(game.progressMax) || progressDone);
+  trackerState.hallOfFame = (config.hallOfFameIds ?? []).every((id) => trackerState.journeyChecks[id]);
+  trackerState.postgame = (config.postgameIds ?? []).every((id) => trackerState.journeyChecks[id]);
+  trackerState.milestone = deriveJourneyMilestone(game, trackerState);
+  trackerState.focus = getJourneyManualFocusLabel(game.id, trackerState);
+
+  return trackerState;
+}
+
 function createDefaultTrackerState() {
   return {
     activeGame: "none",
@@ -1561,7 +2023,10 @@ function createDefaultTrackerState() {
           milestone: game.milestones[0],
           hallOfFame: false,
           postgame: false,
-          focus: ""
+          focus: "",
+          hours: "",
+          trainerId: "",
+          journeyChecks: createDefaultJourneyChecks(game.id)
         }
       ])
     )
@@ -2043,6 +2508,13 @@ function loadTrackerState() {
       ...loadedGameState
     };
 
+    normalizedGameState.hours = String(loadedGameState.hours ?? baseGameState.hours ?? "");
+    normalizedGameState.trainerId = String(loadedGameState.trainerId ?? baseGameState.trainerId ?? "");
+    normalizedGameState.journeyChecks = {
+      ...createDefaultJourneyChecks(game.id),
+      ...(loadedGameState.journeyChecks ?? {})
+    };
+
     if (gameHasSeparateVersions(game)) {
       normalizedGameState.versions = {
         ...baseGameState.versions,
@@ -2058,6 +2530,7 @@ function loadTrackerState() {
     }
 
     syncTrackerGameOwnedState(game, normalizedGameState);
+    syncJourneyDerivedTrackerState(game, normalizedGameState);
     accumulator[game.id] = normalizedGameState;
     return accumulator;
   }, {});
@@ -2417,6 +2890,30 @@ function isAvailableInOwnedGameSelection(baseNumber, gameId) {
   return matchingVersions.some((versionId) => Boolean(trackerGameState.versions?.[versionId]));
 }
 
+function isAvailableViaOwnedDynamaxAdventure(baseNumber) {
+  const trackerGameState = state.tracker.games.swsh;
+  if (!trackerGameState?.owned) {
+    return false;
+  }
+
+  const detail = state.gameAvailabilityDetailsByGame.get("swsh");
+  const segment = detail?.segments?.find((item) => item.id === "dynamax-adventure");
+  return Boolean(segment?.speciesSet?.has(baseNumber));
+}
+
+function isAvailableInOwnedCoverage(baseNumber) {
+  const ownedGames = getOwnedGameIds();
+
+  if (!ownedGames.length || !state.gameAvailabilityReady) {
+    return false;
+  }
+
+  return (
+    ownedGames.some((gameId) => isAvailableInOwnedGameSelection(baseNumber, gameId)) ||
+    isAvailableViaOwnedDynamaxAdventure(baseNumber)
+  );
+}
+
 function getVersionExclusiveLabel(gameId, baseNumber) {
   const matchingVersions = getVersionExclusiveVersions(gameId, baseNumber);
 
@@ -2461,17 +2958,11 @@ function getVersionExclusiveBadgeClasses(gameId, baseNumber) {
 }
 
 function getUnobtainableEntries() {
-  const ownedGames = getOwnedGameIds();
-
-  if (!ownedGames.length || !state.gameAvailabilityReady) {
+  if (!getOwnedGameIds().length || !state.gameAvailabilityReady) {
     return [];
   }
 
-  return state.entries.filter(
-    (entry) =>
-      !entry.isForm &&
-      !ownedGames.some((gameId) => isAvailableInOwnedGameSelection(entry.baseNumber, gameId))
-  );
+  return state.entries.filter((entry) => !entry.isForm && !isAvailableInOwnedCoverage(entry.baseNumber));
 }
 
 function shuffleEntries(entries) {
@@ -2487,16 +2978,25 @@ function shuffleEntries(entries) {
 
 function refreshRandomTargets() {
   const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
+  const catchPool =
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
+      : missingBaseEntries;
   const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
   const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
-  state.randomTargets = shuffleEntries(missingBaseEntries).slice(0, 8);
+  state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
   ensureSuggestedBoardSelections();
 }
 
 function rerollRandomTargetBoard() {
   const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
-  state.randomTargets = shuffleEntries(missingBaseEntries).slice(0, 8);
+  const catchPool =
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
+      : missingBaseEntries;
+  state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
+  state.ui.selectedRandomTargetName = null;
   ensureSuggestedBoardSelections();
 }
 
@@ -2505,33 +3005,34 @@ function rerollShinyTargetBoard() {
   const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
   const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
+  state.ui.selectedShinyTargetName = null;
   ensureSuggestedBoardSelections();
 }
 
 function ensureSuggestedBoardSelections() {
   if (!state.randomTargets.some((entry) => entry.name === state.ui.selectedRandomTargetName)) {
-    state.ui.selectedRandomTargetName = state.randomTargets[0]?.name ?? null;
+    state.ui.selectedRandomTargetName = null;
   }
 
   if (!state.shinyTargets.some((entry) => entry.name === state.ui.selectedShinyTargetName)) {
-    state.ui.selectedShinyTargetName = state.shinyTargets[0]?.name ?? null;
+    state.ui.selectedShinyTargetName = null;
+  }
+
+  if (state.ui.landingActionMode === "living" && !state.randomTargets.length) {
+    state.ui.landingActionMode = null;
+  }
+
+  if (state.ui.landingActionMode === "shiny" && !state.shinyTargets.length) {
+    state.ui.landingActionMode = null;
   }
 }
 
 function getSelectedSuggestedTarget(kind) {
   if (kind === "shiny") {
-    return (
-      state.shinyTargets.find((entry) => entry.name === state.ui.selectedShinyTargetName) ??
-      state.shinyTargets[0] ??
-      null
-    );
+    return state.shinyTargets.find((entry) => entry.name === state.ui.selectedShinyTargetName) ?? null;
   }
 
-  return (
-    state.randomTargets.find((entry) => entry.name === state.ui.selectedRandomTargetName) ??
-    state.randomTargets[0] ??
-    null
-  );
+  return state.randomTargets.find((entry) => entry.name === state.ui.selectedRandomTargetName) ?? null;
 }
 
 function setSelectedSuggestedTarget(kind, name) {
@@ -2545,10 +3046,26 @@ function setSelectedSuggestedTarget(kind, name) {
 function markSuggestedTargetCaught() {
   const target = getSelectedSuggestedTarget("living");
   if (!target) {
-    setStatus("Select a suggested catch target first.");
+    if (!state.randomTargets.length) {
+      setStatus("No suggested catch targets are available right now.");
+      return;
+    }
+
+    if (state.ui.landingActionMode === "living") {
+      state.ui.landingActionMode = null;
+      renderCollections();
+      setStatus("Suggested catch selection cancelled.");
+      return;
+    }
+
+    state.ui.landingActionMode = "living";
+    renderCollections();
+    setStatus("Choose a suggested catch target, or press Cancel.");
     return;
   }
 
+  state.ui.landingActionMode = null;
+  state.ui.selectedRandomTargetName = null;
   setCaughtState(target.name, true);
 
   if (state.currentPokemon?.name === target.name) {
@@ -2564,7 +3081,21 @@ function markSuggestedTargetCaught() {
 function markSuggestedTargetShiny() {
   const target = getSelectedSuggestedTarget("shiny");
   if (!target) {
-    setStatus("Select a suggested shiny target first.");
+    if (!state.shinyTargets.length) {
+      setStatus("No suggested shiny targets are available right now.");
+      return;
+    }
+
+    if (state.ui.landingActionMode === "shiny") {
+      state.ui.landingActionMode = null;
+      renderCollections();
+      setStatus("Suggested shiny selection cancelled.");
+      return;
+    }
+
+    state.ui.landingActionMode = "shiny";
+    renderCollections();
+    setStatus("Choose a suggested shiny target, or press Cancel.");
     return;
   }
 
@@ -2573,6 +3104,8 @@ function markSuggestedTargetShiny() {
     return;
   }
 
+  state.ui.landingActionMode = null;
+  state.ui.selectedShinyTargetName = null;
   setCaughtState(target.name, true);
   setShinyState(target.name, true);
 
@@ -2671,6 +3204,10 @@ function isArchiveShinyMode() {
   return state.ui.archiveMode === "shiny";
 }
 
+function isArchiveGridView() {
+  return state.ui.archiveView === "grid";
+}
+
 function getArchiveModeLabel() {
   return isArchiveShinyMode() ? "Shiny Dex" : "Living Dex";
 }
@@ -2693,6 +3230,17 @@ function setArchiveMode(mode) {
   }
 
   state.ui.archiveMode = mode;
+  saveUiSessionState();
+  refreshResults();
+}
+
+function setArchiveView(view) {
+  if (!VALID_ARCHIVE_VIEW_IDS.has(view) || state.ui.archiveView === view) {
+    return;
+  }
+
+  state.ui.archiveView = view;
+  saveUiSessionState();
   refreshResults();
 }
 
@@ -3332,6 +3880,7 @@ function setProgressBar(element, ratio) {
 function renderActiveView() {
   const activeView = state.ui.activeView;
   const systemViews = new Set(["collection", "home", "journey", "lab", "vault"]);
+  document.body.dataset.activeView = activeView;
 
   elements.navTabs.forEach((button) => {
     const isActive = button.dataset.view === activeView;
@@ -3412,6 +3961,305 @@ function createCollectionEmptyState(message) {
   return empty;
 }
 
+function createDashboardEmptyState(message) {
+  const empty = document.createElement("p");
+  empty.className = "results-summary dashboard-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+function getProfileTrainerCode(profile) {
+  const seed = `${profile?.id ?? ""}:${profile?.name ?? ""}`;
+  const checksum = Array.from(seed).reduce(
+    (sum, character) => (sum * 31 + character.charCodeAt(0)) % 10000,
+    0
+  );
+  return `#${String(checksum).padStart(4, "0")}`;
+}
+
+function getRecentCaughtEntries(limit = 4) {
+  return Object.keys(state.caughtMap)
+    .slice()
+    .reverse()
+    .map((name) => state.entriesByName.get(name))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function renderLandingRecentCatches() {
+  const recentEntries = getRecentCaughtEntries();
+  elements.landingRecentList.replaceChildren();
+
+  if (!recentEntries.length) {
+    elements.landingRecentList.appendChild(
+      createDashboardEmptyState("Nothing has been logged yet. Catch your first target to start the recent feed.")
+    );
+    return;
+  }
+
+  recentEntries.forEach((entry, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dashboard-recent-item";
+    button.addEventListener("click", () => {
+      openPokemonEntry(entry.name);
+    });
+
+    const sprite = document.createElement("img");
+    applyEntrySprite(sprite, entry, { forceShiny: isShiny(entry.name) });
+
+    const meta = document.createElement("div");
+    meta.className = "dashboard-recent-meta";
+    const title = document.createElement("strong");
+    title.textContent = entry.displayName;
+    const note = document.createElement("span");
+    note.textContent = `${getEntryVariantLabel(entry)} · ${isShiny(entry.name) ? "Shiny Logged" : "Caught"}`;
+    meta.append(title, note);
+
+    const stamp = document.createElement("span");
+    stamp.className = "dashboard-recent-stamp";
+    stamp.textContent = index === 0 ? "Latest" : index === 1 ? "Recent" : "Archive";
+
+    button.append(sprite, meta, stamp);
+    elements.landingRecentList.appendChild(button);
+  });
+}
+
+function createDashboardProgressBar(ratio) {
+  const bar = document.createElement("div");
+  bar.className = "progress-bar";
+  const fill = document.createElement("span");
+  setProgressBar(fill, ratio);
+  bar.appendChild(fill);
+  return bar;
+}
+
+function renderLandingCompletionBreakdown(games) {
+  elements.landingCompletionBreakdown.replaceChildren();
+
+  if (!games.length) {
+    elements.landingCompletionBreakdown.appendChild(
+      createDashboardEmptyState("Mark owned games in Journey to unlock regional completion slices.")
+    );
+    return;
+  }
+
+  games.forEach((game) => {
+    const entries = getGameChecklistEntries(game.id);
+    const caughtCount = entries.reduce((sum, entry) => sum + Number(isCaught(entry.name)), 0);
+    const ratio = entries.length ? caughtCount / entries.length : 0;
+
+    const item = document.createElement("article");
+    item.className = "dashboard-breakdown-item";
+
+    const copy = document.createElement("div");
+    copy.className = "dashboard-breakdown-copy";
+    const label = document.createElement("strong");
+    label.textContent = game.shortName;
+    const value = document.createElement("span");
+    value.textContent = entries.length
+      ? `${formatCount(caughtCount)} / ${formatCount(entries.length)}`
+      : "Coverage syncing";
+    copy.append(label, value);
+
+    const percent = document.createElement("strong");
+    percent.className = "dashboard-breakdown-percent";
+    percent.textContent = entries.length ? formatPercent(ratio) : "--";
+
+    item.append(copy, percent);
+    elements.landingCompletionBreakdown.appendChild(item);
+  });
+}
+
+function renderLandingTaskList(task, catchTarget, shinyTarget, currentBox) {
+  elements.landingTaskList.replaceChildren();
+
+  const tasks = [
+    {
+      title: task.title,
+      detail: task.detail,
+      tag: task.focus.replace("Focus: ", "")
+    }
+  ];
+
+  if (catchTarget) {
+    tasks.push({
+      title: `Catch ${catchTarget.displayName}`,
+      detail: `${catchTarget.displayName} is ready in the suggestion queue and can be logged from the dashboard.`,
+      tag: "Collection"
+    });
+  }
+
+  if (shinyTarget) {
+    tasks.push({
+      title: `Log ${shinyTarget.displayName} as a shiny goal`,
+      detail: `Keep the shiny pressure on with ${shinyTarget.displayName} queued in the bonus hunt lane.`,
+      tag: "Shiny"
+    });
+  }
+
+  if (currentBox) {
+    tasks.push({
+      title: `Fill ${currentBox.name}`,
+      detail: `${getFilledBoxCount(currentBox)}/${getHomeBoxTargetCount(currentBox)} slots are marked in your HOME living-form template.`,
+      tag: "Boxes"
+    });
+  }
+
+  tasks.slice(0, 3).forEach((item) => {
+    const row = document.createElement("article");
+    row.className = "dashboard-task-item";
+
+    const copy = document.createElement("div");
+    copy.className = "dashboard-task-copy";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("p");
+    detail.textContent = item.detail;
+    copy.append(title, detail);
+
+    const tag = document.createElement("span");
+    tag.className = "dashboard-task-tag";
+    tag.textContent = item.tag;
+
+    row.append(copy, tag);
+    elements.landingTaskList.appendChild(row);
+  });
+}
+
+function renderLandingJourneyCards() {
+  elements.landingJourneyGrid.replaceChildren();
+  const ownedGames = GAME_CATALOG.filter((game) => state.tracker.games[game.id]?.owned);
+
+  if (!ownedGames.length) {
+    elements.landingJourneyGrid.appendChild(
+      createDashboardEmptyState("No games are marked as owned yet. Open Journey to start tracking your saves.")
+    );
+    return;
+  }
+
+  ownedGames.slice(0, 4).forEach((game) => {
+    const trackerState = state.tracker.games[game.id];
+    const checkpoint = getGameProgressCheckpoint(game, trackerState);
+    const ratio = game.progressMax ? trackerState.progress / game.progressMax : 0;
+
+    const card = document.createElement("article");
+    card.className = "dashboard-journey-card";
+
+    const title = document.createElement("strong");
+    title.textContent = game.name;
+
+    const milestone = document.createElement("p");
+    milestone.textContent = checkpoint.currentMilestone;
+
+    const progress = document.createElement("div");
+    progress.className = "dashboard-journey-progress";
+    const counts = document.createElement("span");
+    counts.textContent = `${game.progressLabel}: ${trackerState.progress}/${game.progressMax}`;
+    progress.append(counts, createDashboardProgressBar(ratio));
+
+    card.append(title, milestone, progress);
+    elements.landingJourneyGrid.appendChild(card);
+  });
+}
+
+function renderLandingSuggestionBoard(task, shinyTarget, currentBox) {
+  elements.landingSuggestionGrid.replaceChildren();
+
+  const cards = [
+    {
+      title: "Focus Area",
+      detail: task.title,
+      note: task.focus
+    },
+    {
+      title: "Shiny Goal",
+      detail: shinyTarget ? shinyTarget.displayName : "No shiny target selected",
+      note: shinyTarget ? "Ready in the dashboard bonus lane" : "Catch more targets or reroll the shiny queue"
+    },
+    {
+      title: "Collection Goal",
+      detail: currentBox ? currentBox.name : "HOME template standby",
+      note: currentBox
+        ? `${getFilledBoxCount(currentBox)}/${getHomeBoxTargetCount(currentBox)} slots marked boxed`
+        : "Open Boxes to start your living-form layout"
+    },
+    {
+      title: "Weekly Goal",
+      detail: `${formatCount(state.randomTargets.length)} catch targets ready`,
+      note: "Reroll the dashboard board whenever you want a fresh route"
+    }
+  ];
+
+  cards.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "dashboard-suggestion-card";
+
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("p");
+    detail.textContent = item.detail;
+    const note = document.createElement("small");
+    note.textContent = item.note;
+
+    card.append(title, detail, note);
+    elements.landingSuggestionGrid.appendChild(card);
+  });
+}
+
+function renderLandingSmartSuggestions(catchTarget, shinyTarget, task) {
+  elements.landingSmartGrid.replaceChildren();
+
+  const suggestions = [
+    {
+      title: catchTarget ? `Catch ${catchTarget.displayName}` : "Open the Dex",
+      detail: catchTarget
+        ? `${catchTarget.displayName} is ready in the current suggestion queue.`
+        : "Scan the archive and build a fresh catch queue.",
+      actionLabel: catchTarget ? "Open Scan" : "Open Dex",
+      onClick: catchTarget ? () => openPokemonEntry(catchTarget.name) : () => setActiveView("archive")
+    },
+    {
+      title: shinyTarget ? `Shiny ${shinyTarget.displayName}` : "Plan a shiny push",
+      detail: shinyTarget
+        ? `${shinyTarget.displayName} is the cleanest bonus shiny follow-up right now.`
+        : "No bonus shiny call is available yet. Keep catching or reroll the lane.",
+      actionLabel: shinyTarget ? "Open Shiny" : "Open Collection",
+      onClick: shinyTarget ? () => openPokemonEntry(shinyTarget.name) : () => setActiveView("collection")
+    },
+    {
+      title: task.title,
+      detail: task.detail,
+      actionLabel: "Open Journey",
+      onClick: () => setActiveView("journey")
+    },
+    {
+      title: "Organize Your Boxes",
+      detail: "Move over to the HOME living-form template and keep your box plan in sync.",
+      actionLabel: "Go to Boxes",
+      onClick: () => setActiveView("home")
+    }
+  ];
+
+  suggestions.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "dashboard-smart-card";
+
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("p");
+    detail.textContent = item.detail;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ghost-button dashboard-link-button";
+    button.textContent = item.actionLabel;
+    button.addEventListener("click", item.onClick);
+
+    card.append(title, detail, button);
+    elements.landingSmartGrid.appendChild(card);
+  });
+}
+
 function createSuggestedHuntTile(entry, options = {}) {
   const { selected = false, forceShiny = false, onSelect = null } = options;
   const button = document.createElement("button");
@@ -3468,9 +4316,16 @@ function renderSuggestedHuntBoard(container, entries, options = {}) {
         selected: entry.name === selectedName,
         forceShiny,
         onSelect: (nextEntry) => {
+          const selectionMode =
+            kind === "shiny" ? state.ui.landingActionMode === "shiny" : state.ui.landingActionMode === "living";
           setSelectedSuggestedTarget(kind, nextEntry.name);
-          openPokemonEntry(nextEntry.name);
+          if (selectionMode) {
+            renderCollections();
+            return;
+          }
+
           renderCollections();
+          openPokemonEntry(nextEntry.name);
         }
       })
     );
@@ -6447,11 +7302,10 @@ function renderCollections() {
   const shinyEntryCount = shinyDexEntries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
   const ownedGames = getOwnedGameIds();
   const ownedReleaseCount = getOwnedReleaseCount();
+  const { clearedCount } = getOwnedSummary();
   const obtainableEntries =
     ownedGames.length && state.gameAvailabilityReady
-      ? baseEntries.filter((entry) =>
-          ownedGames.some((gameId) => isAvailableInOwnedGameSelection(entry.baseNumber, gameId))
-        )
+      ? baseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
       : [];
   const obtainableCaughtCount = obtainableEntries.reduce(
     (sum, entry) => sum + Number(isCaught(entry.name)),
@@ -6463,21 +7317,24 @@ function renderCollections() {
   const favoriteTypeEntries = getFavoriteTypeEntries();
   const favoriteTypeCount = favoriteTypeEntries.reduce((sum, item) => sum + Number(Boolean(item.entry)), 0);
   const unobtainableEntries = getUnobtainableEntries();
+  const homeEntries = getHomeBoxEntries();
+  const templateBoxes = getHomeTemplateBoxes();
+  const boxedCount = Object.keys(state.homeBoxes.boxedMap).length;
+  const latestShinyEntry = Object.keys(state.shinyMap)
+    .slice()
+    .reverse()
+    .map((name) => state.entriesByName.get(name))
+    .find(Boolean);
   const shinyLockedEntries = state.entries
     .filter((entry) => isShinyDexLocked(entry.name))
     .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
-  const currentMissingNames = new Set(baseEntries.filter((entry) => !isCaught(entry.name)).map((entry) => entry.name));
-  const currentShinyCandidateNames = new Set(
-    baseEntries
-      .filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name))
-      .map((entry) => entry.name)
-  );
+  const catchSeedPool =
+    ownedGames.length && state.gameAvailabilityReady
+      ? baseEntries.filter((entry) => !isCaught(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber))
+      : baseEntries.filter((entry) => !isCaught(entry.name));
+  const shinySeedPool = baseEntries.filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name));
 
-  if (
-    (!state.randomTargets.length && baseEntries.length) ||
-    state.randomTargets.some((entry) => !currentMissingNames.has(entry.name)) ||
-    state.shinyTargets.some((entry) => !currentShinyCandidateNames.has(entry.name))
-  ) {
+  if ((!state.randomTargets.length && catchSeedPool.length) || (!state.shinyTargets.length && shinySeedPool.length)) {
     refreshRandomTargets();
   }
 
@@ -6488,6 +7345,13 @@ function renderCollections() {
   const mainRatio = baseEntries.length ? caughtBaseCount / baseEntries.length : 0;
   const shinyRatio = shinyDexEntries.length ? shinyEntryCount / shinyDexEntries.length : 0;
   const ownedRatio = obtainableEntries.length ? obtainableCaughtCount / obtainableEntries.length : 0;
+  const activeGameId = getActiveGameId();
+  const activeGame = getGameMeta(activeGameId);
+  const activeTrackerState = activeGame ? state.tracker.games[activeGame.id] : null;
+  const activeCheckpoint = activeGame && activeTrackerState
+    ? getGameProgressCheckpoint(activeGame, activeTrackerState)
+    : null;
+  const activeGameChecklist = activeGame ? getGameChecklistProgress(activeGame.id) : null;
   const generationBreakdown = GENERATION_RANGES.map((range) => {
     const generationEntries = baseEntries.filter(
       (entry) => entry.baseNumber >= range.start && entry.baseNumber <= range.end
@@ -6509,18 +7373,39 @@ function renderCollections() {
 
   elements.landingWelcome.textContent = `Welcome back, ${profile.name}`;
   elements.landingSummary.textContent = state.randomTargets.length
-    ? `Your next hunts are ready: ${state.randomTargets.length} living dex suggestions and ${state.shinyTargets.length} shiny targets are queued up for this profile.`
+    ? `Here’s your progress at a glance. ${state.randomTargets.length} living dex suggestions and ${state.shinyTargets.length} shiny goals are queued up for this profile.`
     : ownedReleaseCount
-      ? "Your tracker is loaded. Refresh the hunt board or jump into the archive to plan the next capture."
+      ? "Your tracker is loaded. Reroll the hunt board or jump into Dex to plan the next capture."
       : "Your living form archive is online. Mark the games you own and start logging catches to build tailored hunt suggestions.";
   elements.landingProfileMetric.textContent = profile.name;
   elements.landingLivingMetric.textContent = `${formatCount(caughtBaseCount)} / ${formatCount(baseEntries.length)}`;
   elements.landingShinyMetric.textContent = `${formatCount(shinyEntryCount)} / ${formatCount(shinyDexEntries.length)}`;
+  elements.landingShinyNote.textContent = latestShinyEntry
+    ? `Latest: ${latestShinyEntry.displayName}`
+    : "No shiny logged yet";
   elements.landingOwnedMetric.textContent = obtainableEntries.length
     ? `${formatCount(obtainableCaughtCount)} / ${formatCount(obtainableEntries.length)}`
     : ownedReleaseCount
       ? "Syncing"
       : "No games";
+  elements.landingStorageMetric.textContent = `${formatCount(boxedCount)} / ${formatCount(homeEntries.length)}`;
+  elements.landingStorageNote.textContent = templateBoxes.length
+    ? `${formatCount(templateBoxes.length)} box templates ready`
+    : "HOME organizer on standby";
+  elements.landingCurrentGameName.textContent = activeGame ? activeGame.name : "No active game";
+  elements.landingCurrentGameNote.textContent = activeGame && activeTrackerState && activeCheckpoint
+    ? `${activeCheckpoint.currentMilestone} · ${activeGame.progressLabel}: ${activeTrackerState.progress}/${activeGame.progressMax}`
+    : "Choose a tracked save to anchor your dashboard.";
+  elements.landingTrainerCode.textContent = getProfileTrainerCode(profile);
+  elements.landingBadgeTotal.textContent = formatCount(clearedCount);
+  elements.landingPokedexTotal.textContent = activeGame
+    ? activeGameChecklist?.total
+      ? `${formatCount(activeGameChecklist.caughtCount)} / ${formatCount(activeGameChecklist.total)}`
+      : state.gameAvailabilityReady
+        ? "0 / 0"
+        : "Syncing"
+    : "No game";
+  elements.landingOwnedReleaseTotal.textContent = formatCount(ownedReleaseCount);
 
   elements.mainProgressText.textContent = baseEntries.length
     ? `${formatPercent(mainRatio)} · ${formatCount(caughtBaseCount)}/${formatCount(baseEntries.length)}`
@@ -6600,18 +7485,44 @@ function renderCollections() {
   ensureSuggestedBoardSelections();
   const selectedLivingTarget = getSelectedSuggestedTarget("living");
   const selectedShinyTarget = getSelectedSuggestedTarget("shiny");
+  const livingSelectionMode = state.ui.landingActionMode === "living";
+  const shinySelectionMode = state.ui.landingActionMode === "shiny";
+  const dashboardCatchTarget = getSuggestedCatchEntry();
+  const dashboardShinyTarget = getSuggestedShinyEntry();
+  const currentBox = getCurrentBox();
+  const nextTask = getNextTask();
+  const completionGames = ownedGames.length
+    ? GAME_CATALOG.filter((game) => ownedGames.includes(game.id)).slice(0, 4)
+    : GAME_CATALOG.slice(0, 4);
 
   elements.randomTargetSummary.textContent = state.randomTargets.length
-    ? `${state.randomTargets.length} living dex targets and ${state.shinyTargets.length} bonus shiny calls are ready for ${profile.name}. Click a tile to jump straight into its scan.`
+    ? `${state.randomTargets.length} living dex targets are queued up for ${profile.name}. Click a tile to inspect it, or press Catch to choose one from the board.`
     : "Everything in the base archive is already logged for this profile. Flip to a fresh profile or start a shiny push.";
   elements.landingTargetSelected.textContent = selectedLivingTarget
     ? `${selectedLivingTarget.displayName} · ${getEntryVariantLabel(selectedLivingTarget)}`
-    : "Choose a target";
+    : livingSelectionMode
+      ? "Select a target or cancel"
+      : "Choose a target";
   elements.landingShinyTargetSelected.textContent = selectedShinyTarget
     ? `${selectedShinyTarget.displayName} · Shiny Preview`
-    : "Choose a shiny target";
-  elements.landingTargetCatchButton.disabled = !selectedLivingTarget;
-  elements.landingShinyLogButton.disabled = !selectedShinyTarget;
+    : shinySelectionMode
+      ? "Select a shiny target or cancel"
+      : "Choose a shiny target";
+  elements.landingTargetCatchButton.textContent =
+    livingSelectionMode && !selectedLivingTarget ? "Cancel" : "Catch";
+  elements.landingShinyLogButton.textContent =
+    shinySelectionMode && !selectedShinyTarget ? "Cancel" : "Log Shiny";
+  elements.landingTargetCatchButton.disabled = !state.randomTargets.length;
+  elements.landingShinyLogButton.disabled = !state.shinyTargets.length;
+  elements.landingCompletionRing.style.setProperty("--completion-angle", `${Math.round(mainRatio * 360)}deg`);
+  elements.landingCompletionValue.textContent = formatPercent(mainRatio);
+  elements.landingCompletionCount.textContent = `${formatCount(caughtBaseCount)} / ${formatCount(baseEntries.length)}`;
+  renderLandingRecentCatches();
+  renderLandingCompletionBreakdown(completionGames);
+  renderLandingTaskList(nextTask, dashboardCatchTarget, dashboardShinyTarget, currentBox);
+  renderLandingJourneyCards();
+  renderLandingSuggestionBoard(nextTask, dashboardShinyTarget, currentBox);
+  renderLandingSmartSuggestions(dashboardCatchTarget, dashboardShinyTarget, nextTask);
 
   renderSuggestedHuntBoard(elements.targetList, state.randomTargets, {
     kind: "living",
@@ -7379,209 +8290,637 @@ function refreshTrackerConnectedViews() {
   });
 }
 
+function getJourneyDisplayTitle(gameId) {
+  return getJourneyConfig(gameId)?.title ?? getGameMeta(gameId)?.name ?? "Journey";
+}
+
+function getRepresentativeBaseEntry(baseNumber) {
+  const entries = getEntriesForBaseNumber(baseNumber);
+  return entries.find((entry) => !entry.isForm) ?? entries[0] ?? null;
+}
+
+function getJourneyLegendaryEntries(gameId) {
+  const config = getJourneyConfig(gameId);
+  if (!config) {
+    return [];
+  }
+
+  return (config.legendarySpecies ?? [])
+    .map((baseNumber) => getRepresentativeBaseEntry(baseNumber))
+    .filter(Boolean)
+    .map((entry) => ({ entry, caught: isCaught(entry.name) }));
+}
+
+function getJourneyVersionExclusiveRecords(gameId) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  if (!game || !trackerState) {
+    return { selectedVersions: [], unownedVersions: [], missingEntries: [], missingCount: 0, mode: "none" };
+  }
+
+  if (!gameHasSeparateVersions(game)) {
+    return { selectedVersions: [], unownedVersions: [], missingEntries: [], missingCount: 0, mode: "single" };
+  }
+
+  const versions = getGameVersions(game);
+  const selectedVersions = versions.filter((version) => Boolean(trackerState.versions?.[version.id]));
+  if (!selectedVersions.length) {
+    return { selectedVersions, unownedVersions: versions, missingEntries: [], missingCount: 0, mode: "select" };
+  }
+
+  const unownedVersions = versions.filter((version) => !trackerState.versions?.[version.id]);
+  if (!unownedVersions.length) {
+    return { selectedVersions, unownedVersions, missingEntries: [], missingCount: 0, mode: "covered" };
+  }
+
+  const versionMap = GAME_VERSION_EXCLUSIVE_SETS[gameId] ?? {};
+  const exclusiveNumbers = new Set();
+  unownedVersions.forEach((version) => {
+    versionMap[version.id]?.forEach((baseNumber) => exclusiveNumbers.add(baseNumber));
+  });
+
+  const missingEntries = [...exclusiveNumbers]
+    .sort((left, right) => left - right)
+    .map((baseNumber) => getRepresentativeBaseEntry(baseNumber))
+    .filter(Boolean)
+    .filter((entry) => !isCaught(entry.name));
+
+  return {
+    selectedVersions,
+    unownedVersions,
+    missingEntries,
+    missingCount: missingEntries.length,
+    mode: "missing"
+  };
+}
+
+function getJourneyFocusSuggestion(gameId) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  const config = getJourneyConfig(gameId);
+  if (!game || !trackerState || !config) {
+    return {
+      title: "Select a tracked game",
+      detail: "Choose a game from the Journey screen and PokéPilot will surface your next checkpoint automatically.",
+      short: "Set up Journey"
+    };
+  }
+
+  const firstStory = (config.story ?? []).find((item) => !trackerState.journeyChecks?.[item.id]);
+  if (firstStory) {
+    return {
+      title: "Main Story",
+      detail: `${getJourneyDisplayTitle(gameId)} still has a core story checkpoint open: ${firstStory.label}.`,
+      short: firstStory.label
+    };
+  }
+
+  for (const column of config.columns ?? []) {
+    const nextColumnItem = (column.items ?? []).find((item) => !trackerState.journeyChecks?.[item.id]);
+    if (nextColumnItem) {
+      return {
+        title: column.title,
+        detail: `The next progression mark in ${column.title} is ${nextColumnItem.label}.`,
+        short: nextColumnItem.label
+      };
+    }
+  }
+
+  const nextPostgame = (config.postgame ?? []).find((item) => !trackerState.journeyChecks?.[item.id]);
+  if (nextPostgame) {
+    return {
+      title: "Postgame",
+      detail: `Your next postgame objective is ${nextPostgame.label}.`,
+      short: nextPostgame.label
+    };
+  }
+
+  const nextDlc = (config.dlc ?? []).find((item) => !trackerState.journeyChecks?.[item.id]);
+  if (nextDlc) {
+    return {
+      title: "DLC",
+      detail: `There is still DLC progress waiting: ${nextDlc.label}.`,
+      short: nextDlc.label
+    };
+  }
+
+  const exclusives = getJourneyVersionExclusiveRecords(gameId);
+  if (exclusives.mode === "missing" && exclusives.missingEntries.length) {
+    return {
+      title: "Version Exclusives",
+      detail: `${exclusives.missingEntries[0].displayName} is still locked to ${
+        exclusives.unownedVersions[0]?.label ?? "the other version"
+      } in your current setup.`,
+      short: `Need ${exclusives.missingEntries[0].displayName}`
+    };
+  }
+
+  const nextLegendary = getJourneyLegendaryEntries(gameId).find((record) => !record.caught);
+  if (nextLegendary) {
+    return {
+      title: "Legendary Hunt",
+      detail: `${nextLegendary.entry.displayName} is still open in your ${getJourneyDisplayTitle(gameId)} legendary board.`,
+      short: `Catch ${nextLegendary.entry.displayName}`
+    };
+  }
+
+  return {
+    title: "Journey Complete",
+    detail: `${getJourneyDisplayTitle(gameId)} has every tracked journey objective cleared right now.`,
+    short: "All tracked objectives clear"
+  };
+}
+
+function createJourneyToggle(game, trackerState, item) {
+  const label = document.createElement("label");
+  label.className = "journey-check";
+  label.classList.toggle("checked", Boolean(trackerState.journeyChecks?.[item.id]));
+
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = Boolean(trackerState.journeyChecks?.[item.id]);
+  input.addEventListener("change", () => {
+    trackerState.journeyChecks[item.id] = input.checked;
+    syncJourneyDerivedTrackerState(game, trackerState);
+    refreshTrackerConnectedViews();
+  });
+
+  const text = document.createElement("span");
+  text.textContent = item.label;
+  label.append(input, text);
+  return label;
+}
+
+function scrollJourneyPanelIntoView() {
+  window.requestAnimationFrame(() => {
+    elements.journeyShell.closest(".tracker-panel-shell")?.scrollIntoView({ block: "start" });
+  });
+}
+
+function createJourneySelectCard(game) {
+  const trackerState = state.tracker.games[game.id];
+  const config = getJourneyConfig(game.id);
+  const progress = getGameChecklistProgress(game.id);
+  const focus = getJourneyFocusSuggestion(game.id);
+  const selectedVersionCount = getGameVersions(game).reduce(
+    (sum, version) => sum + Number(Boolean(trackerState.versions?.[version.id])),
+    0
+  );
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "journey-select-card";
+  button.addEventListener("click", () => {
+    state.ui.journeySelectedGame = game.id;
+    state.tracker.activeGame = game.id;
+    saveUiSessionState();
+    saveTrackerState();
+    renderTracker();
+    renderCollections();
+    renderSuggestors();
+    scrollJourneyPanelIntoView();
+  });
+
+  const top = document.createElement("div");
+  top.className = "journey-select-top";
+
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = config?.title ?? game.name;
+  const subtitle = document.createElement("span");
+  subtitle.textContent = config?.subtitle ?? "Open this game page";
+  titleBlock.append(title, subtitle);
+
+  const badge = document.createElement("span");
+  badge.className = "journey-select-badge";
+  badge.textContent = trackerState.owned ? "Tracked" : "Untracked";
+  top.append(titleBlock, badge);
+
+  const meta = document.createElement("div");
+  meta.className = "journey-select-meta";
+  const releases = document.createElement("span");
+  releases.textContent = gameHasSeparateVersions(game)
+    ? `${selectedVersionCount}/${getGameVersions(game).length} versions selected`
+    : trackerState.owned
+      ? "Owned"
+      : "Not marked owned";
+  const dex = document.createElement("span");
+  dex.textContent = progress.total
+    ? `Dex ${formatCount(progress.caughtCount)}/${formatCount(progress.total)}`
+    : state.gameAvailabilityReady
+      ? "Dex 0/0"
+      : "Dex syncing";
+  meta.append(releases, dex);
+
+  const focusCard = document.createElement("div");
+  focusCard.className = "journey-select-focus";
+  const focusLabel = document.createElement("small");
+  focusLabel.textContent = "Current Focus";
+  const focusText = document.createElement("strong");
+  focusText.textContent = focus.short;
+  const focusDetail = document.createElement("span");
+  focusDetail.textContent = focus.detail;
+  focusCard.append(focusLabel, focusText, focusDetail);
+
+  button.append(top, meta, focusCard);
+  return button;
+}
+
 function renderTracker() {
   const { ownedCount, clearedCount } = getOwnedSummary();
-  elements.trackerSummary.textContent =
-    ownedCount === 0 ? "No games tracked" : `${ownedCount} owned releases · ${clearedCount} cleared`;
-  elements.trackerGrid.replaceChildren();
+  const selectedGameId = state.ui.journeySelectedGame;
+  const selectedGame = selectedGameId ? getGameMeta(selectedGameId) : null;
+  elements.trackerSummary.textContent = selectedGame
+    ? getJourneyDisplayTitle(selectedGame.id)
+    : ownedCount === 0
+      ? "Choose a game"
+      : `${ownedCount} owned releases · ${clearedCount} cleared`;
+  elements.journeyShell.replaceChildren();
 
-  GAME_CATALOG.forEach((game) => {
-    const trackerState = state.tracker.games[game.id];
-    const versionOptions = getGameVersions(game);
-    const selectedVersionCount = versionOptions.reduce(
-      (sum, version) => sum + Number(Boolean(trackerState.versions?.[version.id])),
-      0
-    );
-    const card = document.createElement("article");
-    card.className = "tracker-card";
-    card.classList.toggle("active", state.tracker.activeGame === game.id);
+  if (!selectedGame) {
+    const selectShell = document.createElement("div");
+    selectShell.className = "journey-select-shell";
 
-    const head = document.createElement("div");
-    head.className = "tracker-card-head";
+    const intro = document.createElement("div");
+    intro.className = "journey-intro-card";
+    const introTitle = document.createElement("strong");
+    introTitle.textContent = "Select a game";
+    const introText = document.createElement("p");
+    introText.textContent =
+      "Open a dedicated game page to track story progress, badge or trial milestones, Pokédex completion, legendaries, postgame cleanup, DLC, and version exclusives.";
+    intro.append(introTitle, introText);
 
-    const titleBlock = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = game.shortName;
-    const subtitle = document.createElement("span");
-    subtitle.textContent = game.name;
-    titleBlock.append(title, subtitle);
-
-    const activeButton = document.createElement("button");
-    activeButton.type = "button";
-    activeButton.className = "ghost-button tracker-focus-button";
-    activeButton.textContent = state.tracker.activeGame === game.id ? "Active" : "Set Active";
-    activeButton.disabled = !trackerState.owned;
-    activeButton.addEventListener("click", () => {
-      setActiveGame(game.id);
+    const grid = document.createElement("div");
+    grid.className = "journey-select-grid";
+    GAME_CATALOG.forEach((game) => {
+      grid.appendChild(createJourneySelectCard(game));
     });
 
-    head.append(titleBlock, activeButton);
+    selectShell.append(intro, grid);
+    elements.journeyShell.appendChild(selectShell);
+    return;
+  }
 
-    const controls = document.createElement("div");
-    controls.className = "tracker-controls";
-    let versionShell = null;
+  const trackerState = state.tracker.games[selectedGame.id];
+  const config = getJourneyConfig(selectedGame.id);
+  const progress = getGameChecklistProgress(selectedGame.id);
+  const focus = getJourneyFocusSuggestion(selectedGame.id);
+  const legendaryEntries = getJourneyLegendaryEntries(selectedGame.id);
+  const legendaryCaught = legendaryEntries.reduce((sum, record) => sum + Number(record.caught), 0);
+  const versionRecords = getJourneyVersionExclusiveRecords(selectedGame.id);
+  const detailShell = document.createElement("div");
+  detailShell.className = "journey-detail-shell";
 
-    if (versionOptions.length) {
-      versionShell = document.createElement("div");
-      versionShell.className = "tracker-version-shell";
+  const hero = document.createElement("div");
+  hero.className = "journey-detail-hero";
 
-      const versionHead = document.createElement("div");
-      versionHead.className = "tracker-version-head";
+  const backButton = document.createElement("button");
+  backButton.type = "button";
+  backButton.className = "ghost-button journey-back-button";
+  backButton.textContent = "←";
+  backButton.setAttribute("aria-label", "Back to game select");
+  backButton.addEventListener("click", () => {
+    state.ui.journeySelectedGame = null;
+    saveUiSessionState();
+    renderTracker();
+    scrollJourneyPanelIntoView();
+  });
 
-      const versionTitle = document.createElement("strong");
-      versionTitle.textContent = "Version Ownership";
+  const heroCopy = document.createElement("div");
+  heroCopy.className = "journey-detail-copy";
+  const title = document.createElement("strong");
+  title.textContent = config?.title ?? selectedGame.name;
+  const subtitle = document.createElement("span");
+  subtitle.textContent = config?.subtitle ?? "Journey tracker";
+  heroCopy.append(title, subtitle);
 
-      const versionSummary = document.createElement("span");
-      versionSummary.textContent = selectedVersionCount
-        ? `${selectedVersionCount}/${versionOptions.length} selected`
-        : "Pick the releases you own";
+  const heroPill = document.createElement("span");
+  heroPill.className = "journey-detail-badge";
+  heroPill.textContent = trackerState.owned ? "Tracked Save" : "Set Up Save";
+  hero.append(backButton, heroCopy, heroPill);
 
-      versionHead.append(versionTitle, versionSummary);
+  const metaGrid = document.createElement("div");
+  metaGrid.className = "journey-meta-grid";
 
-      const versionGrid = document.createElement("div");
-      versionGrid.className = "tracker-version-grid";
+  const hoursField = document.createElement("label");
+  hoursField.className = "select-shell compact-field journey-meta-field";
+  const hoursLabel = document.createElement("span");
+  hoursLabel.textContent = "Gameplay Hours";
+  const hoursInput = document.createElement("input");
+  hoursInput.type = "text";
+  hoursInput.placeholder = "Example: 42h 18m";
+  hoursInput.value = trackerState.hours;
+  hoursInput.addEventListener("input", () => {
+    trackerState.hours = hoursInput.value;
+    saveTrackerState();
+  });
+  hoursField.append(hoursLabel, hoursInput);
 
-      versionOptions.forEach((version) => {
-        const versionLabel = document.createElement("label");
-        versionLabel.className = "tracker-version-toggle";
-        versionLabel.classList.toggle("active", Boolean(trackerState.versions?.[version.id]));
+  const trainerIdField = document.createElement("label");
+  trainerIdField.className = "select-shell compact-field journey-meta-field";
+  const trainerIdLabel = document.createElement("span");
+  trainerIdLabel.textContent = "Trainer ID";
+  const trainerIdInput = document.createElement("input");
+  trainerIdInput.type = "text";
+  trainerIdInput.placeholder = "Example: 1637";
+  trainerIdInput.value = trackerState.trainerId;
+  trainerIdInput.addEventListener("input", () => {
+    trackerState.trainerId = trainerIdInput.value;
+    saveTrackerState();
+  });
+  trainerIdField.append(trainerIdLabel, trainerIdInput);
 
-        const versionInput = document.createElement("input");
-        versionInput.type = "checkbox";
-        versionInput.checked = Boolean(trackerState.versions?.[version.id]);
-        versionInput.addEventListener("change", () => {
-          trackerState.versions[version.id] = versionInput.checked;
-          syncTrackerOwnershipSelection(game, trackerState);
-          refreshTrackerConnectedViews();
-        });
+  const activeField = document.createElement("div");
+  activeField.className = "journey-inline-card journey-inline-card--status";
+  const activeHead = document.createElement("div");
+  activeHead.className = "journey-inline-head";
+  const activeTitle = document.createElement("strong");
+  activeTitle.textContent = "File Status";
+  const activeButton = document.createElement("button");
+  activeButton.type = "button";
+  activeButton.className = "ghost-button tracker-focus-button";
+  activeButton.textContent = state.tracker.activeGame === selectedGame.id ? "Active" : "Set Active";
+  activeButton.disabled = !trackerState.owned;
+  activeButton.addEventListener("click", () => {
+    setActiveGame(selectedGame.id);
+  });
+  activeHead.append(activeTitle, activeButton);
+  const activeText = document.createElement("p");
+  activeText.className = "journey-inline-note";
+  activeText.textContent = trackerState.owned
+    ? `${trackerState.milestone} · ${selectedGame.progressLabel}: ${trackerState.progress}/${selectedGame.progressMax}`
+    : "Pick the versions you own below so this save can drive your dashboard.";
+  activeField.append(activeHead, activeText);
 
-        const versionText = document.createElement("span");
-        versionText.textContent = version.shortLabel ?? version.label;
+  metaGrid.append(hoursField, trainerIdField, activeField);
 
-        versionLabel.append(versionInput, versionText);
-        versionGrid.appendChild(versionLabel);
-      });
+  const versionCard = document.createElement("article");
+  versionCard.className = "journey-section-card journey-version-card";
+  const versionHead = document.createElement("div");
+  versionHead.className = "journey-section-head";
+  const versionTitle = document.createElement("strong");
+  versionTitle.textContent = "Version Ownership";
+  const versionSummary = document.createElement("span");
+  const versionOptions = getGameVersions(selectedGame);
+  const selectedVersionCount = versionOptions.reduce(
+    (sum, version) => sum + Number(Boolean(trackerState.versions?.[version.id])),
+    0
+  );
+  versionSummary.textContent = gameHasSeparateVersions(selectedGame)
+    ? selectedVersionCount
+      ? `${selectedVersionCount}/${versionOptions.length} selected`
+      : "Choose your release"
+    : trackerState.owned
+      ? "Owned"
+      : "Not owned";
+  versionHead.append(versionTitle, versionSummary);
+  versionCard.appendChild(versionHead);
 
-      versionShell.append(versionHead, versionGrid);
-    } else {
-      const ownedLabel = document.createElement("label");
-      ownedLabel.className = "tracker-toggle";
-      const ownedInput = document.createElement("input");
-      ownedInput.type = "checkbox";
-      ownedInput.checked = trackerState.owned;
-      ownedInput.addEventListener("change", () => {
-        trackerState.owned = ownedInput.checked;
-        syncTrackerOwnershipSelection(game, trackerState);
+  if (gameHasSeparateVersions(selectedGame)) {
+    const versionGrid = document.createElement("div");
+    versionGrid.className = "tracker-version-grid journey-version-grid";
+    versionOptions.forEach((version) => {
+      const versionLabel = document.createElement("label");
+      versionLabel.className = "tracker-version-toggle";
+      versionLabel.classList.toggle("active", Boolean(trackerState.versions?.[version.id]));
+
+      const versionInput = document.createElement("input");
+      versionInput.type = "checkbox";
+      versionInput.checked = Boolean(trackerState.versions?.[version.id]);
+      versionInput.addEventListener("change", () => {
+        trackerState.versions[version.id] = versionInput.checked;
+        syncTrackerOwnershipSelection(selectedGame, trackerState);
+        syncJourneyDerivedTrackerState(selectedGame, trackerState);
         refreshTrackerConnectedViews();
       });
-      const ownedText = document.createElement("span");
-      ownedText.textContent = "Owned";
-      ownedLabel.append(ownedInput, ownedText);
-      controls.appendChild(ownedLabel);
-    }
 
-    const hofLabel = document.createElement("label");
-    hofLabel.className = "tracker-toggle";
-    const hofInput = document.createElement("input");
-    hofInput.type = "checkbox";
-    hofInput.checked = trackerState.hallOfFame;
-    hofInput.addEventListener("change", () => {
-      preserveViewportScroll(() => {
-        trackerState.hallOfFame = hofInput.checked;
-        saveTrackerState();
-        renderTracker();
-        renderSuggestors();
-      });
+      const versionText = document.createElement("span");
+      versionText.textContent = version.label;
+      versionLabel.append(versionInput, versionText);
+      versionGrid.appendChild(versionLabel);
     });
-    const hofText = document.createElement("span");
-    hofText.textContent = "Cleared";
-    hofLabel.append(hofInput, hofText);
-
-    const postgameLabel = document.createElement("label");
-    postgameLabel.className = "tracker-toggle";
-    const postgameInput = document.createElement("input");
-    postgameInput.type = "checkbox";
-    postgameInput.checked = trackerState.postgame;
-    postgameInput.addEventListener("change", () => {
-      preserveViewportScroll(() => {
-        trackerState.postgame = postgameInput.checked;
-        saveTrackerState();
-        renderTracker();
-        renderSuggestors();
-      });
+    versionCard.appendChild(versionGrid);
+  } else {
+    const ownedLabel = document.createElement("label");
+    ownedLabel.className = "tracker-toggle";
+    const ownedInput = document.createElement("input");
+    ownedInput.type = "checkbox";
+    ownedInput.checked = trackerState.owned;
+    ownedInput.addEventListener("change", () => {
+      trackerState.owned = ownedInput.checked;
+      syncTrackerOwnershipSelection(selectedGame, trackerState);
+      syncJourneyDerivedTrackerState(selectedGame, trackerState);
+      refreshTrackerConnectedViews();
     });
-    const postgameText = document.createElement("span");
-    postgameText.textContent = "Postgame";
-    postgameLabel.append(postgameInput, postgameText);
+    const ownedText = document.createElement("span");
+    ownedText.textContent = "Owned";
+    ownedLabel.append(ownedInput, ownedText);
+    versionCard.appendChild(ownedLabel);
+  }
 
-    controls.append(hofLabel, postgameLabel);
+  const focusCard = document.createElement("article");
+  focusCard.className = "journey-focus-card journey-section-card";
+  const focusEyebrow = document.createElement("span");
+  focusEyebrow.className = "journey-focus-label";
+  focusEyebrow.textContent = "Current Focus";
+  const focusTitle = document.createElement("strong");
+  focusTitle.textContent = focus.short;
+  const focusDetail = document.createElement("p");
+  focusDetail.textContent = focus.detail;
+  focusCard.append(focusEyebrow, focusTitle, focusDetail);
 
-    const progressShell = document.createElement("div");
-    progressShell.className = "tracker-progress-shell";
+  const grid = document.createElement("div");
+  grid.className = "journey-sections-grid";
 
-    const progressTop = document.createElement("div");
-    progressTop.className = "tracker-progress-top";
-    const progressLabel = document.createElement("span");
-    progressLabel.textContent = game.progressLabel;
-    const progressValue = document.createElement("strong");
-    progressValue.textContent = `${trackerState.progress}/${game.progressMax}`;
-    progressTop.append(progressLabel, progressValue);
+  const storyCard = document.createElement("article");
+  storyCard.className = "journey-section-card journey-section-card--story";
+  const storyHead = document.createElement("div");
+  storyHead.className = "journey-section-head";
+  const storyTitle = document.createElement("strong");
+  storyTitle.textContent = "Main Story";
+  const storyCompleted = (config.story ?? []).reduce((sum, item) => sum + Number(trackerState.journeyChecks?.[item.id]), 0);
+  const storyCount = document.createElement("span");
+  storyCount.textContent = `${storyCompleted}/${config.story.length}`;
+  storyHead.append(storyTitle, storyCount);
+  const storyList = document.createElement("div");
+  storyList.className = "journey-checklist";
+  (config.story ?? []).forEach((item) => storyList.appendChild(createJourneyToggle(selectedGame, trackerState, item)));
+  storyCard.append(storyHead, storyList);
 
-    const progressInput = document.createElement("input");
-    progressInput.type = "range";
-    progressInput.min = "0";
-    progressInput.max = String(game.progressMax);
-    progressInput.value = String(trackerState.progress);
-    progressInput.addEventListener("input", () => {
-      trackerState.progress = Number(progressInput.value);
-      saveTrackerState();
-      progressValue.textContent = `${trackerState.progress}/${game.progressMax}`;
-      renderSuggestors();
-    });
-
-    progressShell.append(progressTop, progressInput);
-
-    const milestoneLabel = document.createElement("label");
-    milestoneLabel.className = "select-shell compact-field";
-    const milestoneText = document.createElement("span");
-    milestoneText.textContent = "Milestone";
-    const milestoneSelect = document.createElement("select");
-    game.milestones.forEach((milestone) => {
-      const option = document.createElement("option");
-      option.value = milestone;
-      option.textContent = milestone;
-      option.selected = trackerState.milestone === milestone;
-      milestoneSelect.appendChild(option);
-    });
-    milestoneSelect.addEventListener("change", () => {
-      trackerState.milestone = milestoneSelect.value;
-      saveTrackerState();
-      renderSuggestors();
-    });
-    milestoneLabel.append(milestoneText, milestoneSelect);
-
-    const focusLabel = document.createElement("label");
-    focusLabel.className = "select-shell compact-field";
-    const focusText = document.createElement("span");
-    focusText.textContent = "Current Focus";
-    const focusInput = document.createElement("input");
-    focusInput.type = "text";
-    focusInput.placeholder = "Example: finish Victory Road";
-    focusInput.value = trackerState.focus;
-    focusInput.addEventListener("input", () => {
-      trackerState.focus = focusInput.value.trim();
-      saveTrackerState();
-      renderSuggestors();
-    });
-    focusLabel.append(focusText, focusInput);
-
-    card.append(head);
-    if (versionShell) {
-      card.appendChild(versionShell);
-    }
-    card.append(controls, progressShell, milestoneLabel, focusLabel);
-    elements.trackerGrid.appendChild(card);
+  const columnsCard = document.createElement("article");
+  columnsCard.className = "journey-section-card journey-columns-card journey-section-card--columns";
+  const columnsHead = document.createElement("div");
+  columnsHead.className = "journey-section-head";
+  const columnsTitle = document.createElement("strong");
+  columnsTitle.textContent = config.columnsTitle ?? "Checkpoints";
+  const allColumnItems = (config.columns ?? []).flatMap((column) => column.items ?? []);
+  const columnsCompleted = allColumnItems.reduce((sum, item) => sum + Number(trackerState.journeyChecks?.[item.id]), 0);
+  const columnsCount = document.createElement("span");
+  columnsCount.textContent = `${columnsCompleted}/${allColumnItems.length}`;
+  columnsHead.append(columnsTitle, columnsCount);
+  const columnsGrid = document.createElement("div");
+  columnsGrid.className = "journey-columns-grid";
+  (config.columns ?? []).forEach((column) => {
+    const columnCard = document.createElement("section");
+    columnCard.className = "journey-column";
+    const columnTitle = document.createElement("strong");
+    columnTitle.textContent = column.title;
+    const columnList = document.createElement("div");
+    columnList.className = "journey-checklist journey-checklist--compact";
+    (column.items ?? []).forEach((item) => columnList.appendChild(createJourneyToggle(selectedGame, trackerState, item)));
+    columnCard.append(columnTitle, columnList);
+    columnsGrid.appendChild(columnCard);
   });
+  columnsCard.append(columnsHead, columnsGrid);
+
+  const pokedexCard = document.createElement("article");
+  pokedexCard.className = "journey-section-card journey-section-card--pokedex";
+  const pokedexHead = document.createElement("div");
+  pokedexHead.className = "journey-section-head";
+  const pokedexTitle = document.createElement("strong");
+  pokedexTitle.textContent = "Pokédex Progress";
+  const pokedexCount = document.createElement("span");
+  pokedexCount.textContent = progress.total
+    ? `${formatCount(progress.caughtCount)}/${formatCount(progress.total)}`
+    : state.gameAvailabilityReady
+      ? "0/0"
+      : "Syncing";
+  pokedexHead.append(pokedexTitle, pokedexCount);
+  const pokedexSummary = document.createElement("p");
+  pokedexSummary.className = "journey-card-copy";
+  pokedexSummary.textContent = progress.total
+    ? `${formatPercent(progress.ratio)} complete in the ${getJourneyDisplayTitle(selectedGame.id)} checklist from Collection.`
+    : "This game's dex coverage is still syncing in from Collection.";
+  const pokedexBar = document.createElement("div");
+  pokedexBar.className = "progress-bar";
+  const pokedexFill = document.createElement("span");
+  setProgressBar(pokedexFill, progress.ratio);
+  pokedexBar.appendChild(pokedexFill);
+  const pokedexLinkState = document.createElement("p");
+  pokedexLinkState.className = "journey-card-meta";
+  pokedexLinkState.textContent = state.gameChecklistState.links[selectedGame.id]
+    ? "This game checklist is linked to the main living dex."
+    : "This game checklist is unlinked from the main living dex right now.";
+  pokedexCard.append(pokedexHead, pokedexSummary, pokedexBar, pokedexLinkState);
+
+  const legendaryCard = document.createElement("article");
+  legendaryCard.className = "journey-section-card journey-section-card--legendary";
+  const legendaryHead = document.createElement("div");
+  legendaryHead.className = "journey-section-head";
+  const legendaryTitle = document.createElement("strong");
+  legendaryTitle.textContent = "Legendary Pokémon";
+  const legendaryCount = document.createElement("span");
+  legendaryCount.textContent = `${legendaryCaught}/${legendaryEntries.length}`;
+  legendaryHead.append(legendaryTitle, legendaryCount);
+  const legendaryList = document.createElement("div");
+  legendaryList.className = "collection-list journey-collection-list";
+  if (legendaryEntries.length) {
+    legendaryEntries.forEach(({ entry, caught }) => {
+      legendaryList.appendChild(
+        createCollectionItem(
+          entry,
+          caught ? "Caught in your collection." : "Still missing from your collection.",
+          [caught ? "Caught" : "Missing"]
+        )
+      );
+    });
+  } else {
+    legendaryList.appendChild(createCollectionEmptyState("Legendary targets will appear here once the archive is loaded."));
+  }
+  legendaryCard.append(legendaryHead, legendaryList);
+
+  const postgameCard = document.createElement("article");
+  postgameCard.className = "journey-section-card journey-section-card--postgame";
+  const postgameHead = document.createElement("div");
+  postgameHead.className = "journey-section-head";
+  const postgameTitle = document.createElement("strong");
+  postgameTitle.textContent = "Postgame";
+  const postgameCompleted = (config.postgame ?? []).reduce((sum, item) => sum + Number(trackerState.journeyChecks?.[item.id]), 0);
+  const postgameCount = document.createElement("span");
+  postgameCount.textContent = `${postgameCompleted}/${config.postgame.length}`;
+  postgameHead.append(postgameTitle, postgameCount);
+  const postgameList = document.createElement("div");
+  postgameList.className = "journey-checklist";
+  (config.postgame ?? []).forEach((item) => postgameList.appendChild(createJourneyToggle(selectedGame, trackerState, item)));
+  postgameCard.append(postgameHead, postgameList);
+
+  const dlcCard = document.createElement("article");
+  dlcCard.className = "journey-section-card journey-section-card--dlc";
+  const dlcHead = document.createElement("div");
+  dlcHead.className = "journey-section-head";
+  const dlcTitle = document.createElement("strong");
+  dlcTitle.textContent = "DLC";
+  const dlcCompleted = (config.dlc ?? []).reduce((sum, item) => sum + Number(trackerState.journeyChecks?.[item.id]), 0);
+  const dlcCount = document.createElement("span");
+  dlcCount.textContent = config.dlc.length ? `${dlcCompleted}/${config.dlc.length}` : "No DLC";
+  dlcHead.append(dlcTitle, dlcCount);
+  dlcCard.appendChild(dlcHead);
+  if (config.dlc.length) {
+    const dlcList = document.createElement("div");
+    dlcList.className = "journey-checklist";
+    config.dlc.forEach((item) => dlcList.appendChild(createJourneyToggle(selectedGame, trackerState, item)));
+    dlcCard.appendChild(dlcList);
+  } else {
+    const dlcEmpty = document.createElement("p");
+    dlcEmpty.className = "journey-card-copy";
+    dlcEmpty.textContent = "No DLC tracker section is needed for this title right now.";
+    dlcCard.appendChild(dlcEmpty);
+  }
+
+  const exclusivesCard = document.createElement("article");
+  exclusivesCard.className = "journey-section-card journey-section-card--exclusives";
+  const exclusivesHead = document.createElement("div");
+  exclusivesHead.className = "journey-section-head";
+  const exclusivesTitle = document.createElement("strong");
+  exclusivesTitle.textContent = "Version Exclusives";
+  const exclusivesCount = document.createElement("span");
+  exclusivesCount.textContent = versionRecords.mode === "missing"
+    ? `${versionRecords.missingCount} missing`
+    : versionRecords.mode === "covered"
+      ? "Covered"
+      : versionRecords.mode === "single"
+        ? "N/A"
+        : "Pending";
+  exclusivesHead.append(exclusivesTitle, exclusivesCount);
+  exclusivesCard.appendChild(exclusivesHead);
+
+  const exclusivesNote = document.createElement("p");
+  exclusivesNote.className = "journey-card-copy";
+  if (versionRecords.mode === "single") {
+    exclusivesNote.textContent = "This title does not split its journey by paired version exclusives.";
+  } else if (versionRecords.mode === "select") {
+    exclusivesNote.textContent = "Choose the release versions you own above to calculate what is exclusive to the other side.";
+  } else if (versionRecords.mode === "covered") {
+    exclusivesNote.textContent = "You already have both release versions selected, so version exclusives are fully covered.";
+  } else if (versionRecords.missingEntries.length) {
+    exclusivesNote.textContent = `Missing species that live in ${versionRecords.unownedVersions.map((version) => version.label).join(" and ")} based on your current version setup.`;
+  } else {
+    exclusivesNote.textContent = "No uncaught version-exclusive species are left for this game right now.";
+  }
+  exclusivesCard.appendChild(exclusivesNote);
+
+  if (versionRecords.mode === "missing" && versionRecords.missingEntries.length) {
+    const exclusivesList = document.createElement("div");
+    exclusivesList.className = "collection-list journey-collection-list";
+    versionRecords.missingEntries.slice(0, 18).forEach((entry) => {
+      exclusivesList.appendChild(
+        createCollectionItem(entry, "Exclusive to an unowned version in your setup.", ["Exclusive"])
+      );
+    });
+    if (versionRecords.missingEntries.length > 18) {
+      exclusivesList.appendChild(
+        createCollectionPlaceholder(
+          `+${versionRecords.missingEntries.length - 18} more exclusives`,
+          "The rest are still waiting in the other version pool."
+        )
+      );
+    }
+    exclusivesCard.appendChild(exclusivesList);
+  }
+
+  grid.append(storyCard, columnsCard, pokedexCard, legendaryCard, postgameCard, dlcCard, exclusivesCard);
+  detailShell.append(hero, metaGrid, versionCard, focusCard, grid);
+  elements.journeyShell.appendChild(detailShell);
 }
 
 async function loadGrowthRate(url) {
@@ -7909,8 +9248,14 @@ async function renderExpPlanner() {
 }
 
 function getSuggestedCatchEntry() {
-  const visible = getVisibleArchiveEntries();
-  return visible.find((entry) => !isCaught(entry.name)) ?? state.entries.find((entry) => !isCaught(entry.name)) ?? null;
+  const applyOwnedCoverageFilter = (entries) =>
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? entries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
+      : entries;
+
+  const visible = applyOwnedCoverageFilter(getVisibleArchiveEntries());
+  const archivePool = applyOwnedCoverageFilter(state.entries);
+  return visible.find((entry) => !isCaught(entry.name)) ?? archivePool.find((entry) => !isCaught(entry.name)) ?? null;
 }
 
 function getSuggestedShinyEntry() {
@@ -7950,9 +9295,10 @@ function getNextTask() {
 
   const trackerState = state.tracker.games[activeGame.id];
   const checkpoint = getGameProgressCheckpoint(activeGame, trackerState);
-  const focusNote = trackerState.focus
-    ? ` Current focus: ${trackerState.focus}.`
-    : " Add a focus note in the tracker if you want a more personal next-session prompt.";
+  const journeyFocus = getJourneyFocusSuggestion(activeGame.id);
+  const focusNote = journeyFocus.short
+    ? ` Current focus: ${journeyFocus.short}.`
+    : " Open Journey to get a suggested next checkpoint.";
 
   if (!trackerState.hallOfFame) {
     return {
@@ -7965,7 +9311,7 @@ function getNextTask() {
           ? `Next checkpoint: ${checkpoint.nextMilestone}.`
           : "You're closing in on the main-story finish."
       } ${activeGame.progressLabel}: ${checkpoint.progress}/${checkpoint.progressMax}.${focusNote}`,
-      focus: `Focus: ${activeGame.shortName}`
+      focus: `Focus: ${journeyFocus.short || activeGame.shortName}`
     };
   }
 
@@ -7975,15 +9321,15 @@ function getNextTask() {
       detail: `${activeGame.name} is cleared, but the postgame flag is still off. Push into ${
         checkpoint.nextMilestone ?? activeGame.milestones[activeGame.milestones.length - 1] ?? "postgame content"
       } next.${focusNote}`,
-      focus: `Focus: ${activeGame.shortName} Postgame`
+      focus: `Focus: ${journeyFocus.short || `${activeGame.shortName} Postgame`}`
     };
   }
 
-  if (trackerState.focus) {
+  if (journeyFocus.short && journeyFocus.short !== "All tracked objectives clear") {
     return {
       title: `Continue ${activeGame.shortName}`,
-      detail: `${activeGame.name} is in postgame now. Current checkpoint: ${checkpoint.currentMilestone}. Keep pushing your focus target: ${trackerState.focus}.`,
-      focus: `Focus: ${activeGame.shortName}`
+      detail: `${activeGame.name} is in postgame now. Current checkpoint: ${checkpoint.currentMilestone}. Keep pushing your focus target: ${journeyFocus.short}.`,
+      focus: `Focus: ${journeyFocus.short}`
     };
   }
 
@@ -7992,14 +9338,14 @@ function getNextTask() {
     return {
       title: `Push ${activeGame.shortName} deeper`,
       detail: `${activeGame.name} is already in postgame. Roll from ${checkpoint.currentMilestone} into ${nextMilestone} for your next progression checkpoint.`,
-      focus: `Focus: ${activeGame.shortName}`
+      focus: `Focus: ${journeyFocus.short || activeGame.shortName}`
     };
   }
 
   return {
     title: `Steady ${activeGame.shortName} cleanup`,
     detail: `${activeGame.name} is already sitting in late-game cleanup mode. Set a tracker focus or swap the active game when you want a new progression push.`,
-    focus: `Focus: ${activeGame.shortName}`
+    focus: `Focus: ${journeyFocus.short || activeGame.shortName}`
   };
 }
 
@@ -8506,6 +9852,9 @@ function renderFilterButtons() {
   elements.archiveModeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.archiveMode === state.ui.archiveMode);
   });
+  elements.archiveViewButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.archiveView === state.ui.archiveView);
+  });
   elements.scopeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.scope === state.filters.scope);
   });
@@ -8532,6 +9881,7 @@ function renderFilterButtons() {
   elements.archiveRegistryLabel.textContent = isArchiveShinyMode() ? "Shiny Registry" : "Registry";
   elements.statTrackedLabel.textContent = isArchiveShinyMode() ? "Shiny Logged" : "Caught";
   elements.statMissingLabel.textContent = getArchiveMissingLabel();
+  elements.dexList.classList.toggle("is-grid", isArchiveGridView());
 }
 
 function renderResultsSummary(filteredEntries) {
@@ -8594,7 +9944,7 @@ function makeTag(label, accentKey = null) {
   return chip;
 }
 
-function buildDexEntryNode(entry) {
+function buildDexEntryListNode(entry) {
   const instance = elements.dexEntryTemplate.content.cloneNode(true);
   const card = instance.querySelector(".dex-entry");
   const checkbox = instance.querySelector(".entry-checkbox");
@@ -8661,6 +10011,67 @@ function buildDexEntryNode(entry) {
   return instance;
 }
 
+function buildDexEntryGridNode(entry) {
+  const card = document.createElement("article");
+  const openButton = document.createElement("button");
+  const number = document.createElement("span");
+  const sprite = document.createElement("img");
+  const name = document.createElement("strong");
+  const catchButton = document.createElement("button");
+  const tracked = isArchiveTracked(entry.name);
+  const caught = isCaught(entry.name);
+  const shinyLocked = isShinyDexLocked(entry.name);
+
+  card.className = "archive-grid-card";
+  card.dataset.entryName = entry.name;
+  card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
+  card.classList.toggle("caught", tracked);
+  card.classList.toggle("is-form", entry.isForm);
+  card.dataset.accent = getEntryAccentKey(entry);
+
+  openButton.type = "button";
+  openButton.className = "archive-grid-open";
+  openButton.dataset.entryName = entry.name;
+
+  number.className = "archive-grid-number";
+  number.textContent = `#${formatNumber(entry.baseNumber)}`;
+
+  sprite.className = "archive-grid-sprite";
+  applyEntrySprite(sprite, entry, { forceShiny: isArchiveShinyMode() });
+
+  name.className = "archive-grid-name";
+  name.textContent = entry.displayName;
+
+  openButton.append(number, sprite, name);
+
+  catchButton.type = "button";
+  catchButton.className = "archive-grid-catch-btn";
+  catchButton.dataset.entryName = entry.name;
+  catchButton.classList.toggle("caught", tracked);
+  catchButton.disabled = isArchiveShinyMode() && shinyLocked;
+  catchButton.textContent = isArchiveShinyMode()
+    ? shinyLocked
+      ? "Locked"
+      : tracked
+        ? "Logged"
+        : "Log"
+    : caught
+      ? "Caught"
+      : "Catch";
+  catchButton.setAttribute(
+    "aria-label",
+    `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
+  );
+
+  card.append(openButton, catchButton);
+  state.archiveRender.renderedCardsByName.set(entry.name, card);
+  return card;
+}
+
+function buildDexEntryNode(entry) {
+  return isArchiveGridView() ? buildDexEntryGridNode(entry) : buildDexEntryListNode(entry);
+}
+
 function setSelectedDexEntryCard(entryName, previousName = null) {
   if (previousName && previousName !== entryName) {
     state.archiveRender.renderedCardsByName.get(previousName)?.classList.remove("selected");
@@ -8711,9 +10122,15 @@ function appendDexEntries(targetCount = state.archiveRender.renderedCount + ARCH
 
 function getTargetRenderedCount(previousScrollTop = 0) {
   const viewportHeight = elements.dexList.clientHeight || 0;
-  const estimatedVisibleCount = Math.ceil(
-    (previousScrollTop + viewportHeight + ARCHIVE_ENTRY_HEIGHT_ESTIMATE * 2) / ARCHIVE_ENTRY_HEIGHT_ESTIMATE
+  const isGrid = isArchiveGridView();
+  const entryHeightEstimate = isGrid ? ARCHIVE_GRID_ENTRY_HEIGHT_ESTIMATE : ARCHIVE_ENTRY_HEIGHT_ESTIMATE;
+  const columnCount = isGrid
+    ? Math.max(1, Math.floor((elements.dexList.clientWidth || ARCHIVE_GRID_CARD_MIN_WIDTH) / ARCHIVE_GRID_CARD_MIN_WIDTH))
+    : 1;
+  const estimatedVisibleRows = Math.ceil(
+    (previousScrollTop + viewportHeight + entryHeightEstimate * 2) / entryHeightEstimate
   );
+  const estimatedVisibleCount = estimatedVisibleRows * columnCount;
 
   return Math.max(
     ARCHIVE_INITIAL_RENDER_COUNT,
@@ -8764,6 +10181,34 @@ function refreshResults() {
 
 function getVisibleArchiveEntries() {
   return state.archiveRender.filteredEntries.length ? state.archiveRender.filteredEntries : state.entries;
+}
+
+function updateArchiveTrackedState(entry, tracked) {
+  if (isArchiveShinyMode()) {
+    setShinyState(entry.name, tracked);
+  } else {
+    setCaughtState(entry.name, tracked);
+  }
+
+  refreshResults();
+  renderCollections();
+  renderHomeOrganizer();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  setStatus(
+    `${entry.displayName} ${
+      isArchiveShinyMode()
+        ? tracked
+          ? "logged in the shiny dex."
+          : "removed from the shiny dex."
+        : tracked
+          ? "registered as caught."
+          : "marked missing."
+    }`
+  );
 }
 
 function findExactMatch(rawQuery) {
@@ -9060,6 +10505,21 @@ elements.navTabs.forEach((button) => {
     setActiveView(button.dataset.view);
   });
 });
+elements.dashboardOpenViewButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.openView);
+  });
+});
+elements.dashboardSoonButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const label = button.dataset.comingSoon || "This dashboard section";
+    const message = `${label} is scaffolded on the dashboard and ready for a later feature pass.`;
+    setStatus(message);
+    if (state.ui.activeView === "landing") {
+      elements.landingSummary.textContent = message;
+    }
+  });
+});
 elements.currentScanOpenButton.addEventListener("click", () => {
   if (!state.currentPokemon) {
     return;
@@ -9250,33 +10710,24 @@ elements.dexList.addEventListener("change", (event) => {
     return;
   }
 
-  if (isArchiveShinyMode()) {
-    setShinyState(entry.name, checkbox.checked);
-  } else {
-    setCaughtState(entry.name, checkbox.checked);
-  }
-
-  refreshResults();
-  renderCollections();
-  renderHomeOrganizer();
-
-  if (state.currentPokemon) {
-    renderCurrentPokemon(state.currentPokemon);
-  }
-
-  setStatus(
-    `${entry.displayName} ${
-      isArchiveShinyMode()
-        ? checkbox.checked
-          ? "logged in the shiny dex."
-          : "removed from the shiny dex."
-        : checkbox.checked
-          ? "registered as caught."
-          : "marked missing."
-    }`
-  );
+  updateArchiveTrackedState(entry, checkbox.checked);
 });
 elements.dexList.addEventListener("click", (event) => {
+  const catchButton = event.target.closest(".archive-grid-catch-btn");
+  if (catchButton) {
+    const entry = state.entriesByName.get(catchButton.dataset.entryName);
+    if (entry && !(isArchiveShinyMode() && isShinyDexLocked(entry.name))) {
+      updateArchiveTrackedState(entry, !isArchiveTracked(entry.name));
+    }
+    return;
+  }
+
+  const gridOpenButton = event.target.closest(".archive-grid-open");
+  if (gridOpenButton) {
+    openPokemonEntry(gridOpenButton.dataset.entryName);
+    return;
+  }
+
   const entryButton = event.target.closest(".dex-entry-button");
   if (!entryButton) {
     return;
@@ -9295,6 +10746,12 @@ elements.scopeButtons.forEach((button) => {
 elements.archiveModeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setArchiveMode(button.dataset.archiveMode);
+  });
+});
+
+elements.archiveViewButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setArchiveView(button.dataset.archiveView);
   });
 });
 

@@ -36,14 +36,14 @@
         </div>
 
         <nav class="nav-tabs" aria-label="Dex navigation">
-          <button type="button" class="nav-tab active" data-view="landing">Home</button>
-          <button type="button" class="nav-tab" data-view="archive">Archive</button>
+          <button type="button" class="nav-tab active" data-view="landing">Dashboard</button>
+          <button type="button" class="nav-tab" data-view="archive">Dex</button>
           <button type="button" class="nav-tab" data-view="scan">Scan</button>
-          <button type="button" class="nav-tab" data-view="collection">Collection</button>
-          <button type="button" class="nav-tab" data-view="home">HOME</button>
           <button type="button" class="nav-tab" data-view="journey">Journey</button>
-          <button type="button" class="nav-tab" data-view="lab">Lab</button>
-          <button type="button" class="nav-tab" data-view="vault">Vault</button>
+          <button type="button" class="nav-tab" data-view="collection">Collection</button>
+          <button type="button" class="nav-tab" data-view="lab">Tools</button>
+          <button type="button" class="nav-tab" data-view="home">Boxes</button>
+          <button type="button" class="nav-tab" data-view="vault">Settings</button>
         </nav>
 
         <div class="system-strip" aria-label="System status">
@@ -73,91 +73,316 @@
       </div>
 
       <main class="workspace-shell landing-shell app-view active" data-view-panel="landing">
-        <section class="landing-grid">
-          <article class="panel landing-hero-panel">
-            <p class="section-label">Trainer Dashboard</p>
-            <h2 class="landing-welcome" id="landing-welcome">Welcome back, Trainer</h2>
-            <p class="landing-summary" id="landing-summary">
-              Your living form archive is online. Pick up where you left off with your next suggested hunts.
-            </p>
+        <section class="dashboard-shell">
+          <aside class="panel dashboard-sidebar">
+            <div class="dashboard-sidebar-brand">
+              <div class="sensor-cluster dashboard-sidebar-sensors" aria-hidden="true">
+                <span class="sensor-main"></span>
+                <span class="sensor-dot sensor-blue"></span>
+                <span class="sensor-dot sensor-gold"></span>
+                <span class="sensor-dot sensor-green"></span>
+              </div>
+              <div class="dashboard-sidebar-copy">
+                <strong>PokéPilot</strong>
+                <span>Your journey, your creatures.</span>
+                <p>Hello, <strong id="landing-profile-metric">Guest Trainer</strong></p>
+              </div>
+            </div>
 
-            <div class="metric-grid landing-metric-grid">
-              <article class="metric-card">
-                <span>Active Profile</span>
-                <strong id="landing-profile-metric">Guest Trainer</strong>
-              </article>
-              <article class="metric-card">
-                <span>Living Dex</span>
+            <nav class="dashboard-sidebar-nav" aria-label="Dashboard navigation">
+              <button type="button" class="dashboard-nav-item active" data-view="landing">
+                <span class="dashboard-nav-icon">⌂</span>
+                <span>Dashboard</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="archive">
+                <span class="dashboard-nav-icon">▤</span>
+                <span>Dex</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="scan">
+                <span class="dashboard-nav-icon">◎</span>
+                <span>Scan</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="journey">
+                <span class="dashboard-nav-icon">🧭</span>
+                <span>Journey</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="collection">
+                <span class="dashboard-nav-icon">▣</span>
+                <span>Collection</span>
+              </button>
+              <button type="button" class="dashboard-nav-item dashboard-nav-item--placeholder" data-coming-soon="Shiny">
+                <span class="dashboard-nav-icon">✦</span>
+                <span>Shiny</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="lab">
+                <span class="dashboard-nav-icon">⚗</span>
+                <span>Tools</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="home">
+                <span class="dashboard-nav-icon">◫</span>
+                <span>Boxes</span>
+              </button>
+              <button type="button" class="dashboard-nav-item dashboard-nav-item--placeholder" data-coming-soon="Maps">
+                <span class="dashboard-nav-icon">⌖</span>
+                <span>Maps</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="vault">
+                <span class="dashboard-nav-icon">⚙</span>
+                <span>Settings</span>
+              </button>
+            </nav>
+
+            <article class="dashboard-sidecard">
+              <span class="dashboard-side-label">Current Game</span>
+              <strong id="landing-current-game-name">No active game</strong>
+              <p id="landing-current-game-note">Choose a tracked save to anchor your dashboard.</p>
+              <button type="button" class="ghost-button dashboard-side-button" data-open-view="journey">
+                Change Game
+              </button>
+            </article>
+
+            <article class="dashboard-sidecard dashboard-side-stats">
+              <div class="dashboard-side-stat">
+                <span>Trainer ID</span>
+                <strong id="landing-trainer-code">#0000</strong>
+              </div>
+              <div class="dashboard-side-stat">
+                <span>Badges</span>
+                <strong id="landing-badge-total">0</strong>
+              </div>
+              <div class="dashboard-side-stat">
+                <span>Pokédex</span>
+                <strong id="landing-pokedex-total">0 / 0</strong>
+              </div>
+              <div class="dashboard-side-stat">
+                <span>Owned Versions</span>
+                <strong id="landing-owned-release-total">0</strong>
+              </div>
+            </article>
+          </aside>
+
+          <section class="dashboard-main">
+            <article class="panel dashboard-hero-card">
+              <div class="dashboard-hero-emblem" aria-hidden="true">
+                <span class="dashboard-hero-emblem-core"></span>
+              </div>
+              <div class="dashboard-hero-copy">
+                <span class="section-label">Dashboard</span>
+                <h2 class="landing-welcome" id="landing-welcome">Welcome back, Trainer!</h2>
+                <p class="landing-summary" id="landing-summary">
+                  Here’s your progress at a glance.
+                </p>
+              </div>
+              <div class="dashboard-hero-art">
+                <img
+                  src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png"
+                  alt="Pikachu artwork"
+                />
+              </div>
+              <aside class="dashboard-hero-quote">
+                <strong>"The adventure continues!"</strong>
+                <p>Keep exploring and catch them all.</p>
+              </aside>
+            </article>
+
+            <div class="dashboard-metric-grid">
+              <article class="metric-card dashboard-metric-card dashboard-metric-card--pokedex">
+                <span>Pokédex Progress</span>
                 <strong id="landing-living-metric">0 / 0</strong>
+                <small class="dashboard-metric-note">Living Dex online</small>
               </article>
-              <article class="metric-card">
-                <span>Shiny Dex</span>
-                <strong id="landing-shiny-metric">0 / 0</strong>
-              </article>
-              <article class="metric-card">
+              <article class="metric-card dashboard-metric-card dashboard-metric-card--coverage">
                 <span>Owned Coverage</span>
                 <strong id="landing-owned-metric">No games</strong>
+                <small class="dashboard-metric-note">Tracked versions</small>
+              </article>
+              <article class="metric-card dashboard-metric-card dashboard-metric-card--shiny">
+                <span>Shinies Collected</span>
+                <strong id="landing-shiny-metric">0 / 0</strong>
+                <small class="dashboard-metric-note" id="landing-shiny-note">No shiny logged yet</small>
+              </article>
+              <article class="metric-card dashboard-metric-card dashboard-metric-card--boxes">
+                <span>Storage Boxes</span>
+                <strong id="landing-storage-metric">0 / 0</strong>
+                <small class="dashboard-metric-note" id="landing-storage-note">HOME organizer on standby</small>
               </article>
             </div>
-          </article>
 
-          <article class="panel landing-hunt-panel">
-            <div class="subcard-heading">
-              <h3>Suggested Hunt Board</h3>
-            </div>
-            <p class="results-summary" id="random-target-summary">
-              Eight uncaught targets and two bonus shiny ideas will appear here.
-            </p>
-            <div class="landing-hunt-stack">
-              <section class="suggested-board suggested-board--living">
-                <div class="suggested-board-head">
-                  <div>
-                    <p class="matchup-label">Suggested Catches</p>
-                    <span class="suggested-board-note">8 uncaught targets ready to scan</span>
-                  </div>
-                </div>
-                <div class="suggested-board-grid" id="target-list"></div>
-                <div class="suggested-board-actions">
-                  <div class="suggested-board-selection">
-                    <span>Selected Target</span>
-                    <strong id="landing-target-selected">Choose a target</strong>
-                  </div>
-                  <div class="suggested-board-button-bank">
-                    <button type="button" class="primary-action compact" id="landing-target-catch-btn">
-                      Catch
-                    </button>
-                    <button type="button" class="ghost-button detail-link-button" id="landing-target-reroll-btn">
-                      Reroll
+            <div class="dashboard-home-grid">
+              <div class="dashboard-home-main">
+                <article class="panel dashboard-feature-card dashboard-feature-card--wide dashboard-card-catches">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <h3>Suggested Catches</h3>
+                      <p class="dashboard-card-subtext" id="random-target-summary">
+                        Eight uncaught targets and two bonus shiny ideas will appear here.
+                      </p>
+                    </div>
+                    <button type="button" class="ghost-button dashboard-link-button" data-open-view="archive">
+                      View All
                     </button>
                   </div>
-                </div>
-              </section>
 
-              <section class="suggested-board suggested-board--shiny">
-                <div class="suggested-board-head">
+                  <section class="suggested-board suggested-board--living dashboard-suggested-board">
+                    <div class="suggested-board-grid" id="target-list"></div>
+                    <div class="suggested-board-actions">
+                      <div class="suggested-board-selection">
+                        <span>Selected Target</span>
+                        <strong id="landing-target-selected">Choose a target</strong>
+                      </div>
+                      <div class="suggested-board-button-bank">
+                        <button type="button" class="primary-action compact" id="landing-target-catch-btn">
+                          Catch
+                        </button>
+                        <button type="button" class="ghost-button detail-link-button" id="landing-target-reroll-btn">
+                          Reroll
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                </article>
+
+                <div class="dashboard-progress-row">
+                  <article class="panel dashboard-feature-card dashboard-card-completion">
+                    <div class="dashboard-card-head">
+                      <div>
+                        <h3>Pokédex Completion</h3>
+                        <p class="dashboard-card-subtext">Progress across your visible collection.</p>
+                      </div>
+                    </div>
+                    <div class="dashboard-completion-shell">
+                      <div class="dashboard-completion-ring" id="landing-completion-ring">
+                        <div>
+                          <strong id="landing-completion-value">0%</strong>
+                          <span id="landing-completion-count">0 / 0</span>
+                        </div>
+                      </div>
+                      <div class="dashboard-breakdown-list" id="landing-completion-breakdown"></div>
+                    </div>
+                  </article>
+
+                  <article class="panel dashboard-feature-card dashboard-card-events">
+                    <div class="dashboard-card-head">
+                      <div>
+                        <h3>Upcoming Events</h3>
+                        <p class="dashboard-card-subtext">Planned modules and next buildouts.</p>
+                      </div>
+                    </div>
+                    <div class="dashboard-event-list">
+                      <article class="dashboard-event-item">
+                        <div>
+                          <strong>Coverage Maps</strong>
+                          <p>Official route maps are parked for a later rebuild.</p>
+                        </div>
+                        <span>Soon</span>
+                      </article>
+                      <article class="dashboard-event-item">
+                        <div>
+                          <strong>Shiny Dashboard</strong>
+                          <p>Dedicated shiny overview tab is scaffolded for later.</p>
+                        </div>
+                        <span>Planned</span>
+                      </article>
+                      <article class="dashboard-event-item">
+                        <div>
+                          <strong>Settings Hub</strong>
+                          <p>Profile-wide site settings and theme controls are queued.</p>
+                        </div>
+                        <span>Later</span>
+                      </article>
+                    </div>
+                  </article>
+                </div>
+
+                <article class="panel dashboard-feature-card dashboard-feature-card--wide dashboard-card-journey">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <h3>Journey Progress</h3>
+                      <p class="dashboard-card-subtext">Your active and owned game files.</p>
+                    </div>
+                    <button type="button" class="ghost-button dashboard-link-button" data-open-view="journey">
+                      View Journey
+                    </button>
+                  </div>
+                  <div class="dashboard-journey-grid" id="landing-journey-grid"></div>
+                </article>
+
+                <article class="panel dashboard-feature-card dashboard-card-smart">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <h3>Smart Suggestions</h3>
+                      <p class="dashboard-card-subtext">Personalized prompts based on your progress.</p>
+                    </div>
+                  </div>
+                  <div class="dashboard-smart-grid" id="landing-smart-grid"></div>
+                </article>
+              </div>
+
+              <div class="dashboard-home-side">
+                <article class="panel dashboard-feature-card dashboard-card-recent">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <h3>Recent Catches</h3>
+                      <p class="dashboard-card-subtext">Your most recent local catch log.</p>
+                    </div>
+                  </div>
+                  <div class="dashboard-recent-list" id="landing-recent-list"></div>
+                </article>
+
+                <article class="panel dashboard-feature-card dashboard-card-tasks">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <h3>What To Do Next</h3>
+                      <p class="dashboard-card-subtext">Live tasks based on your current profile.</p>
+                    </div>
+                    <button type="button" class="ghost-button dashboard-link-button" data-open-view="journey">
+                      View Journey
+                    </button>
+                  </div>
+                  <div class="dashboard-task-list" id="landing-task-list"></div>
+                </article>
+
+                <article class="panel dashboard-feature-card dashboard-card-suggestion">
                   <div>
-                    <p class="matchup-label">Suggested Shiny Hunts</p>
-                    <span class="suggested-board-note">Shiny sprite previews for your next bonus hunts</span>
+                    <div class="dashboard-card-head">
+                      <div>
+                        <h3>Suggestion Board</h3>
+                        <p class="dashboard-card-subtext">Focus goals pulled from your current profile.</p>
+                      </div>
+                    </div>
+                    <div class="dashboard-suggestion-grid" id="landing-suggestion-grid"></div>
                   </div>
-                </div>
-                <div class="suggested-board-grid suggested-board-grid--shiny" id="shiny-target-list"></div>
-                <div class="suggested-board-actions">
-                  <div class="suggested-board-selection">
-                    <span>Selected Shiny Target</span>
-                    <strong id="landing-shiny-target-selected">Choose a shiny target</strong>
-                  </div>
-                  <div class="suggested-board-button-bank">
-                    <button type="button" class="primary-action compact" id="landing-shiny-log-btn">
-                      Log Shiny
-                    </button>
-                    <button type="button" class="ghost-button detail-link-button" id="landing-shiny-reroll-btn">
-                      Reroll
-                    </button>
-                  </div>
-                </div>
-              </section>
+
+                  <section class="dashboard-mini-shiny">
+                    <div class="dashboard-card-head dashboard-card-head--compact">
+                      <div>
+                        <h3>Shiny Goal</h3>
+                        <p class="dashboard-card-subtext">Quick shiny follow-up targets.</p>
+                      </div>
+                    </div>
+                    <div class="suggested-board suggested-board--shiny dashboard-suggested-board dashboard-suggested-board--mini">
+                      <div class="suggested-board-grid suggested-board-grid--shiny" id="shiny-target-list"></div>
+                      <div class="suggested-board-actions">
+                        <div class="suggested-board-selection">
+                          <span>Selected Shiny Target</span>
+                          <strong id="landing-shiny-target-selected">Choose a shiny target</strong>
+                        </div>
+                        <div class="suggested-board-button-bank">
+                          <button type="button" class="primary-action compact" id="landing-shiny-log-btn">
+                            Log Shiny
+                          </button>
+                          <button type="button" class="ghost-button detail-link-button" id="landing-shiny-reroll-btn">
+                            Reroll
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </article>
+              </div>
+
             </div>
-          </article>
+          </section>
         </section>
       </main>
 
@@ -356,8 +581,18 @@
             </div>
 
             <div class="toolbar-row">
-              <span class="toolbar-pill" id="archive-mode-indicator">Mode Living Dex - Public Access</span>
-              <span class="toolbar-pill" id="sort-indicator">Sort: ID Numeric</span>
+              <div class="toolbar-cluster">
+                <span class="toolbar-pill" id="archive-mode-indicator">Mode Living Dex - Public Access</span>
+                <span class="toolbar-pill" id="sort-indicator">Sort: ID Numeric</span>
+              </div>
+              <div class="button-bank compact archive-view-toggle" aria-label="Archive view">
+                <button type="button" class="bank-button active" data-archive-view="list">
+                  List
+                </button>
+                <button type="button" class="bank-button" data-archive-view="grid">
+                  Grid
+                </button>
+              </div>
             </div>
 
             <div class="result-list" id="dex-list"></div>
@@ -666,11 +901,11 @@
             <div class="system-head">
               <div>
                 <p class="section-label">Playthrough Tracker</p>
-                <h2 class="system-title">Switch Save Matrix</h2>
+                <h2 class="system-title">Game Journeys</h2>
               </div>
               <span class="toolbar-pill" id="tracker-summary">No games tracked</span>
             </div>
-            <div class="tracker-grid" id="tracker-grid"></div>
+            <div class="journey-shell" id="journey-shell"></div>
           </article>
 
           <article class="panel system-panel exp-panel-shell" data-module-view="lab">
