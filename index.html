@@ -41,6 +41,7 @@
           <button type="button" class="nav-tab" data-view="scan">Scan</button>
           <button type="button" class="nav-tab" data-view="journey">Journey</button>
           <button type="button" class="nav-tab" data-view="collection">Collection</button>
+          <button type="button" class="nav-tab" data-view="shiny">Shiny</button>
           <button type="button" class="nav-tab" data-view="lab">Tools</button>
           <button type="button" class="nav-tab" data-view="home">Boxes</button>
           <button type="button" class="nav-tab" data-view="vault">Settings</button>
@@ -110,7 +111,7 @@
                 <span class="dashboard-nav-icon">▣</span>
                 <span>Collection</span>
               </button>
-              <button type="button" class="dashboard-nav-item dashboard-nav-item--placeholder" data-coming-soon="Shiny">
+              <button type="button" class="dashboard-nav-item" data-view="shiny">
                 <span class="dashboard-nav-icon">✦</span>
                 <span>Shiny</span>
               </button>
@@ -199,7 +200,7 @@
               <article class="metric-card dashboard-metric-card dashboard-metric-card--shiny">
                 <span>Shinies Collected</span>
                 <strong id="landing-shiny-metric">0 / 0</strong>
-                <small class="dashboard-metric-note" id="landing-shiny-note">No shiny logged yet</small>
+                <small class="dashboard-metric-note" id="landing-shiny-note">No shiny caught yet</small>
               </article>
               <article class="metric-card dashboard-metric-card dashboard-metric-card--boxes">
                 <span>Storage Boxes</span>
@@ -369,7 +370,7 @@
                         </div>
                         <div class="suggested-board-button-bank">
                           <button type="button" class="primary-action compact" id="landing-shiny-log-btn">
-                            Log Shiny
+                            Catch Shiny
                           </button>
                           <button type="button" class="ghost-button detail-link-button" id="landing-shiny-reroll-btn">
                             Reroll
@@ -383,6 +384,242 @@
 
             </div>
           </section>
+        </section>
+      </main>
+
+      <main class="workspace-shell app-view" data-view-panel="shiny">
+        <section class="panel shiny-hub-shell">
+          <div class="system-head shiny-hub-head">
+            <div>
+              <p class="section-label">Shiny Hub</p>
+              <h2 class="system-title">Shiny Hunting Command Center</h2>
+            </div>
+            <span class="toolbar-pill" id="shiny-hub-focus">Choose a game to start a hunt grid.</span>
+          </div>
+
+          <div class="shiny-hub-summary-grid">
+            <article class="progress-card shiny-summary-card">
+              <div class="progress-head">
+                <strong>Total Shiny Caught Progress</strong>
+                <span id="shiny-total-progress-text">0%</span>
+              </div>
+              <div class="progress-bar"><span id="shiny-total-progress-bar"></span></div>
+              <p class="results-summary" id="shiny-total-progress-note">
+                Global shiny dex progress across every shiny-eligible entry in the archive.
+              </p>
+            </article>
+
+            <article class="progress-card shiny-summary-card">
+              <div class="progress-head">
+                <strong id="shiny-game-progress-title">Selected Game Shiny Progress</strong>
+                <span id="shiny-game-progress-text">Select a game</span>
+              </div>
+              <div class="progress-bar"><span id="shiny-game-progress-bar"></span></div>
+              <p class="results-summary" id="shiny-game-progress-note">
+                Pick a Switch title to unlock its shiny-huntable roster, methods, and tracker.
+              </p>
+            </article>
+          </div>
+
+          <article class="subcard shiny-game-select-card">
+            <div class="subcard-heading">
+              <div>
+                <h3>Select a Game</h3>
+                <p class="results-summary">
+                  Choose the title you are hunting in. The shiny grid, locks, odds, and tracker will all switch to that game's roster.
+                </p>
+              </div>
+            </div>
+            <div class="shiny-game-grid" id="shiny-game-grid"></div>
+          </article>
+
+          <div class="empty-state shiny-hub-empty-state" id="shiny-game-empty">
+            <p>Select a game above to open its shiny hunting dashboard.</p>
+          </div>
+
+          <div class="shiny-hub-content hidden" id="shiny-game-content">
+            <div class="shiny-hub-core-grid">
+              <article class="subcard shiny-odds-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Shiny Odds</h3>
+                    <p class="results-summary" id="shiny-odds-note">
+                      Selected-game shiny rates and the strongest repeatable lane to aim for.
+                    </p>
+                  </div>
+                </div>
+                <div class="shiny-odds-grid">
+                  <article class="signal-card shiny-odds-signal">
+                    <span>Base Odds</span>
+                    <strong id="shiny-odds-base">1 / 4096</strong>
+                  </article>
+                  <article class="signal-card shiny-odds-signal">
+                    <span>Current Hunt Odds</span>
+                    <strong id="shiny-odds-boosted">--</strong>
+                  </article>
+                  <article class="signal-card shiny-odds-signal">
+                    <span>Current Setup</span>
+                    <strong id="shiny-odds-method">Pick a game</strong>
+                  </article>
+                </div>
+                <div class="shiny-odds-checklist" id="shiny-odds-checklist"></div>
+              </article>
+
+              <article class="subcard shiny-method-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Best Hunting Method</h3>
+                    <p class="results-summary" id="shiny-method-summary">
+                      Select a game and a shiny-huntable target to get a tailored method plan.
+                    </p>
+                  </div>
+                  <span class="toolbar-pill" id="shiny-method-status">Idle</span>
+                </div>
+                <div class="shiny-method-body">
+                  <strong class="shiny-method-title" id="shiny-method-title">No target selected</strong>
+                  <p class="results-summary" id="shiny-method-detail">
+                    The method planner will explain the cleanest route for the selected game and target.
+                  </p>
+                  <div class="tag-row shiny-method-tags" id="shiny-method-tags"></div>
+                  <p class="shiny-method-note" id="shiny-method-note">
+                    Pick a target from the suggestions or search panel to fill this out.
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <div class="shiny-hub-main-grid">
+              <article class="subcard shiny-suggestions-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Suggested Shiny Hunts</h3>
+                    <p class="results-summary" id="shiny-suggest-summary">
+                      Eight shiny-huntable targets from the selected game will queue here.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="suggested-board suggested-board--shiny shiny-hub-suggested-board">
+                  <div class="suggested-board-grid suggested-board-grid--shiny" id="shiny-suggest-grid"></div>
+                  <div class="suggested-board-actions">
+                    <div class="suggested-board-selection">
+                      <span>Selected Hunt</span>
+                      <strong id="shiny-suggest-selected">Choose a shiny target</strong>
+                    </div>
+                    <div class="suggested-board-button-bank">
+                      <button type="button" class="primary-action compact" id="shiny-suggest-catch-btn">
+                        Catch Shiny
+                      </button>
+                      <button type="button" class="ghost-button detail-link-button" id="shiny-suggest-reroll-btn">
+                        Reroll
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="subcard shiny-search-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Shiny Huntable Search</h3>
+                    <p class="results-summary">
+                      Search only the Pokémon that can actually be shiny hunted inside the selected game.
+                    </p>
+                  </div>
+                </div>
+
+                <label class="select-shell compact-field">
+                  <span>Search Selected Game</span>
+                  <input
+                    id="shiny-search-input"
+                    type="text"
+                    placeholder="Search by name, form, or Dex number"
+                    autocomplete="off"
+                  />
+                </label>
+                <p class="results-summary" id="shiny-search-results-summary">
+                  Select a game first to unlock its shiny-huntable roster.
+                </p>
+                <div class="collection-list shiny-search-results" id="shiny-search-list"></div>
+              </article>
+
+              <article class="subcard shiny-locked-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Shiny-Locked In This Game</h3>
+                    <p class="results-summary" id="shiny-game-locked-summary">
+                      Game-specific locks will appear here once a title is selected.
+                    </p>
+                  </div>
+                  <span class="toolbar-pill" id="shiny-game-locked-count">0 locked</span>
+                </div>
+                <div class="collection-list shiny-locked-results" id="shiny-game-locked-list"></div>
+              </article>
+
+              <article class="subcard shiny-tracker-card">
+                <div class="subcard-heading">
+                  <div>
+                    <h3>Active Hunt Tracker</h3>
+                    <p class="results-summary">
+                      Keep encounter counts, pace, and timing for the currently selected shiny target.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="shiny-tracker-meta">
+                  <span class="toolbar-pill" id="shiny-tracker-game">No game selected</span>
+                  <span class="toolbar-pill" id="shiny-tracker-pace">Pace waiting</span>
+                </div>
+
+                <div class="shiny-tracker-shell">
+                  <button type="button" class="secondary-action shiny-tracker-step-btn" id="shiny-tracker-minus-btn">
+                    -
+                  </button>
+
+                  <div class="shiny-tracker-target-card">
+                    <img class="shiny-tracker-sprite" id="shiny-tracker-sprite" alt="" />
+                    <strong id="shiny-tracker-target">No target selected</strong>
+                    <span id="shiny-tracker-count">0 encounters</span>
+                  </div>
+
+                  <button type="button" class="primary-action shiny-tracker-step-btn" id="shiny-tracker-plus-btn">
+                    +
+                  </button>
+                </div>
+
+                <div class="shiny-tracker-adjust-grid">
+                  <label class="select-shell compact-field">
+                    <span>Plus Amount</span>
+                    <input id="shiny-tracker-inc-input" type="number" min="1" step="1" value="1" />
+                  </label>
+                  <label class="select-shell compact-field">
+                    <span>Minus Amount</span>
+                    <input id="shiny-tracker-dec-input" type="number" min="1" step="1" value="1" />
+                  </label>
+                </div>
+
+                <div class="signal-grid shiny-tracker-signal-grid">
+                  <article class="signal-card">
+                    <span>Timer</span>
+                    <strong id="shiny-tracker-timer">00:00:00</strong>
+                  </article>
+                  <article class="signal-card">
+                    <span>ETA At Current Pace</span>
+                    <strong id="shiny-tracker-eta">--</strong>
+                  </article>
+                </div>
+
+                <div class="action-row shiny-tracker-actions">
+                  <button type="button" class="primary-action compact" id="shiny-tracker-start-btn">
+                    Start Timer
+                  </button>
+                  <button type="button" class="ghost-button detail-link-button" id="shiny-tracker-reset-btn">
+                    Reset Hunt
+                  </button>
+                </div>
+              </article>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -457,12 +694,12 @@
               <span>Switch Game</span>
               <select id="game-filter-select">
                 <option value="all">All Switch Games</option>
-                <option value="lgpe">LGPE</option>
-                <option value="swsh">SWSH</option>
-                <option value="bdsp">BDSP</option>
-                <option value="pla">PLA</option>
-                <option value="sv">SV</option>
-                <option value="lza">LZA</option>
+                <option value="lgpe">Pokémon: Let's Go, Pikachu! and Let's Go, Eevee!</option>
+                <option value="swsh">Pokémon Sword and Shield</option>
+                <option value="bdsp">Pokémon Brilliant Diamond and Shining Pearl</option>
+                <option value="pla">Pokémon Legends: Arceus</option>
+                <option value="sv">Pokémon Scarlet and Violet</option>
+                <option value="lza">Pokémon Legends: Z-A</option>
               </select>
             </label>
           </section>
@@ -617,7 +854,7 @@
                   Register Caught
                 </button>
                 <button type="button" class="ghost-button detail-ghost" id="toggle-shiny-btn" disabled>
-                  Log Shiny
+                  Catch Shiny
                 </button>
                 <button
                   type="button"
@@ -635,7 +872,27 @@
             </div>
 
             <div class="detail-content hidden" id="detail-content">
-              <div class="screen-frame">
+              <div class="screen-frame" id="pokemon-visual-frame">
+                <div class="screen-visual-toggle" role="tablist" aria-label="Scan visual mode">
+                  <button
+                    type="button"
+                    class="screen-visual-button active"
+                    id="scan-visual-artwork-btn"
+                    data-scan-visual="artwork"
+                    aria-selected="true"
+                  >
+                    Artwork
+                  </button>
+                  <button
+                    type="button"
+                    class="screen-visual-button"
+                    id="scan-visual-home-btn"
+                    data-scan-visual="home"
+                    aria-selected="false"
+                  >
+                    HOME
+                  </button>
+                </div>
                 <img id="pokemon-art" alt="" src="" />
               </div>
 
@@ -1090,10 +1347,9 @@
                   <span>Active Profile</span>
                   <select id="profile-select"></select>
                 </label>
-                <div class="vault-inline">
-                  <input id="profile-name-input" type="text" placeholder="New trainer name" />
+                <div class="vault-inline vault-inline--single-action">
                   <button type="button" class="primary-action compact" id="create-profile-btn">
-                    Create
+                    Create Profile
                   </button>
                 </div>
                 <p class="results-summary">

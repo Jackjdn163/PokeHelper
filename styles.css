@@ -2571,16 +2571,72 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 .screen-frame {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 250px;
   border-radius: 24px;
+  overflow: hidden;
   background:
     radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.88), transparent 44%),
     linear-gradient(180deg, rgba(89, 200, 255, 0.3), rgba(8, 17, 39, 0.1)),
     #dff7ff;
   border: 1px solid rgba(124, 228, 255, 0.3);
   box-shadow: inset 0 0 32px rgba(47, 120, 255, 0.08);
+}
+
+.screen-visual-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(10, 18, 40, 0.7);
+  border: 1px solid rgba(164, 120, 255, 0.18);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.14);
+}
+
+.screen-visual-button {
+  appearance: none;
+  border: 0;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(238, 244, 255, 0.72);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.screen-visual-button:hover,
+.screen-visual-button:focus-visible {
+  color: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.screen-visual-button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(130, 92, 255, 0.95), rgba(63, 146, 255, 0.88));
+  box-shadow: 0 10px 20px rgba(74, 104, 255, 0.22);
+}
+
+.screen-frame.is-home-mode {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.78), transparent 44%),
+    linear-gradient(180deg, rgba(123, 164, 255, 0.2), rgba(12, 20, 42, 0.08)),
+    #edf3ff;
+}
+
+.screen-frame.is-home-mode img {
+  width: min(82%, 332px);
+  height: min(82%, 332px);
 }
 
 .screen-frame img {
@@ -4427,7 +4483,289 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   max-height: 420px;
 }
 
+.shiny-hub-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.shiny-hub-head {
+  align-items: center;
+}
+
+.shiny-hub-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shiny-summary-card {
+  min-height: 124px;
+}
+
+.shiny-game-select-card,
+.shiny-odds-card,
+.shiny-method-card,
+.shiny-suggestions-card,
+.shiny-search-card,
+.shiny-locked-card,
+.shiny-tracker-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(177, 146, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(23, 20, 54, 0.96), rgba(9, 11, 28, 0.98)),
+    var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.shiny-game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.shiny-game-button {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(145, 188, 255, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(18, 24, 50, 0.96), rgba(11, 14, 31, 0.98));
+  color: var(--text);
+  text-align: left;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.shiny-game-button strong {
+  font-size: 0.96rem;
+  line-height: 1.3;
+}
+
+.shiny-game-button span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.shiny-game-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(158, 206, 255, 0.28);
+}
+
+.shiny-game-button.active {
+  border-color: rgba(117, 222, 255, 0.42);
+  box-shadow: 0 0 0 1px rgba(117, 222, 255, 0.18);
+  background: linear-gradient(180deg, rgba(28, 39, 87, 0.98), rgba(15, 19, 47, 0.98));
+}
+
+.shiny-game-button-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shiny-hub-empty-state {
+  min-height: 150px;
+}
+
+.shiny-hub-content {
+  display: grid;
+  gap: 16px;
+}
+
+.shiny-hub-core-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.shiny-hub-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.shiny-odds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shiny-odds-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.shiny-odds-signal {
+  min-height: 86px;
+}
+
+.shiny-odds-signal strong {
+  font-size: 1.02rem;
+}
+
+.shiny-odds-option {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(145, 188, 255, 0.14);
+  background: rgba(255, 255, 255, 0.025);
+  color: #eaf1ff;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.shiny-odds-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(142, 108, 255, 0.34);
+  background: rgba(120, 88, 255, 0.08);
+}
+
+.shiny-odds-option.active {
+  border-color: rgba(128, 208, 255, 0.52);
+  background: linear-gradient(180deg, rgba(69, 58, 150, 0.48), rgba(29, 22, 74, 0.82));
+  box-shadow: 0 12px 28px rgba(30, 18, 74, 0.32);
+}
+
+.shiny-odds-option-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shiny-odds-option-head strong {
+  font-size: 0.98rem;
+  color: #f5f8ff;
+}
+
+.shiny-odds-option-value {
+  flex-shrink: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #8fd4ff;
+}
+
+.shiny-odds-option .results-summary {
+  margin: 0;
+}
+
+.shiny-method-body {
+  display: grid;
+  gap: 10px;
+}
+
+.shiny-method-title {
+  font-size: 1.08rem;
+  color: #f3f7ff;
+}
+
+.shiny-method-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.shiny-hub-suggested-board {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(145, 188, 255, 0.12);
+  border-radius: 20px;
+  padding: 14px;
+}
+
+.shiny-search-results,
+.shiny-locked-results {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.shiny-tracker-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shiny-tracker-shell {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.shiny-tracker-step-btn {
+  min-height: 156px;
+  border-radius: 20px;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.shiny-tracker-target-card {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  min-height: 156px;
+  padding: 18px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(145, 188, 255, 0.12);
+  background: linear-gradient(180deg, rgba(14, 18, 43, 0.98), rgba(8, 10, 24, 1));
+  text-align: center;
+}
+
+.shiny-tracker-target-card strong {
+  font-size: 1rem;
+  color: #f5f8ff;
+}
+
+.shiny-tracker-target-card span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.shiny-tracker-sprite {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.35));
+}
+
+.shiny-tracker-adjust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shiny-tracker-signal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shiny-tracker-actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 1160px) {
+  .shiny-hub-summary-grid,
+  .shiny-hub-core-grid,
+  .shiny-hub-main-grid,
+  .shiny-odds-grid,
+  .shiny-tracker-adjust-grid,
+  .shiny-tracker-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shiny-tracker-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .shiny-tracker-step-btn {
+    min-height: 72px;
+  }
+
   .journey-select-grid,
   .journey-meta-grid {
     grid-template-columns: 1fr;
@@ -4447,6 +4785,21 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 @media (max-width: 760px) {
+  .shiny-game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shiny-summary-card,
+  .shiny-game-select-card,
+  .shiny-odds-card,
+  .shiny-method-card,
+  .shiny-suggestions-card,
+  .shiny-search-card,
+  .shiny-locked-card,
+  .shiny-tracker-card {
+    padding: 14px;
+  }
+
   .journey-detail-hero {
     grid-template-columns: auto 1fr;
   }
@@ -5548,6 +5901,13 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   .detail-actions {
     width: 100%;
     justify-items: stretch;
+  }
+
+  .screen-visual-toggle {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    justify-content: center;
   }
 
   .detail-link-bank {
