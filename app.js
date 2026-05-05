@@ -51,6 +51,7 @@ const SEARCH_INPUT_DEBOUNCE_MS = 120;
 const VALID_VIEW_IDS = new Set([
   "landing",
   "archive",
+  "finder",
   "scan",
   "collection",
   "shiny",
@@ -391,6 +392,47 @@ const GAME_CATALOG = [
     milestones: ["Hotel Z Start", "Wild Zone Patrol", "Z-A Royale", "Postgame / DLC"]
   }
 ];
+
+function getFinderVersionLabel(game, version = null) {
+  if (!version) {
+    return game.name.startsWith("Pokémon") ? game.name : `Pokémon ${game.name}`;
+  }
+
+  const explicitLabels = {
+    "lets-go-pikachu": "Pokémon: Let's Go, Pikachu!",
+    "lets-go-eevee": "Pokémon: Let's Go, Eevee!",
+    sword: "Pokémon Sword",
+    shield: "Pokémon Shield",
+    "brilliant-diamond": "Pokémon Brilliant Diamond",
+    "shining-pearl": "Pokémon Shining Pearl",
+    scarlet: "Pokémon Scarlet",
+    violet: "Pokémon Violet"
+  };
+
+  return explicitLabels[version.id] ?? `Pokémon ${version.label}`;
+}
+
+const FINDER_VERSION_OPTIONS = GAME_CATALOG.flatMap((game) => {
+  const versions = Array.isArray(game.versions) ? game.versions : [];
+
+  if (versions.length) {
+    return versions.map((version) => ({
+      id: version.id,
+      gameId: game.id,
+      versionNames: [version.id],
+      label: getFinderVersionLabel(game, version)
+    }));
+  }
+
+  return [
+    {
+      id: game.id,
+      gameId: game.id,
+      versionNames: game.id === "pla" ? ["legends-arceus"] : [],
+      label: getFinderVersionLabel(game)
+    }
+  ];
+});
 
 const GAME_SHINY_ODDS = {
   lgpe: {
@@ -1808,6 +1850,28 @@ const elements = {
   currentScanMeta: document.querySelector("#current-scan-meta"),
   currentScanTypes: document.querySelector("#current-scan-types"),
   dexList: document.querySelector("#dex-list"),
+  finderStatus: document.querySelector("#finder-status"),
+  finderPokemonInput: document.querySelector("#finder-pokemon-input"),
+  finderVersionSelect: document.querySelector("#finder-version-select"),
+  finderSearchButton: document.querySelector("#finder-search-btn"),
+  finderClearButton: document.querySelector("#finder-clear-btn"),
+  finderSearchSummary: document.querySelector("#finder-search-summary"),
+  finderMatchList: document.querySelector("#finder-match-list"),
+  finderResultEmpty: document.querySelector("#finder-result-empty"),
+  finderResultShell: document.querySelector("#finder-result-shell"),
+  finderResultSprite: document.querySelector("#finder-result-sprite"),
+  finderResultName: document.querySelector("#finder-result-name"),
+  finderResultVersion: document.querySelector("#finder-result-version"),
+  finderOpenScanButton: document.querySelector("#finder-open-scan-btn"),
+  finderPrimaryLocation: document.querySelector("#finder-primary-location"),
+  finderTimeOfDay: document.querySelector("#finder-time-of-day"),
+  finderMethod: document.querySelector("#finder-method"),
+  finderLevelRange: document.querySelector("#finder-level-range"),
+  finderEncounterRate: document.querySelector("#finder-encounter-rate"),
+  finderRarity: document.querySelector("#finder-rarity"),
+  finderLocationList: document.querySelector("#finder-location-list"),
+  finderDetailList: document.querySelector("#finder-detail-list"),
+  finderResultNote: document.querySelector("#finder-result-note"),
   dexEntryTemplate: document.querySelector("#dex-entry-template"),
   pokemonName: document.querySelector("#pokemon-name"),
   detailEmpty: document.querySelector("#detail-empty"),
@@ -2026,6 +2090,12 @@ const state = {
   baseEntriesByName: new Map(),
   baseNamesSorted: [],
   query: "",
+  finder: {
+    query: "",
+    selectedVersionId: FINDER_VERSION_OPTIONS[0]?.id ?? "lets-go-pikachu",
+    selectedEntryName: null,
+    requestToken: 0
+  },
   ui: {
     activeView: "landing",
     activeDetailTab: "overview",
@@ -4398,6 +4468,525 @@ function setProgressBar(element, ratio) {
   element.style.width = `${normalized * 100}%`;
 }
 
+function getFinderVersionOptionMeta(versionId = state.finder.selectedVersionId) {
+  return (
+    FINDER_VERSION_OPTIONS.find((option) => option.id === versionId) ??
+    FINDER_VERSION_OPTIONS[0] ??
+    null
+  );
+}
+
+function getFinderSelectedEntry() {
+  return state.finder.selectedEntryName ? state.entriesByName.get(state.finder.selectedEntryName) ?? null : null;
+}
+
+function getFinderMatchScore(entry, normalizedQuery) {
+  if (!normalizedQuery) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const displayName = normalizeSearch(entry.displayName);
+  const slugName = normalizeSearch(entry.name.replace(/-/g, " "));
+  const dexLabel = String(entry.baseNumber);
+
+  if (normalizedQuery === displayName || normalizedQuery === slugName || normalizedQuery === dexLabel) {
+    return 0;
+  }
+  if (displayName.startsWith(normalizedQuery) || slugName.startsWith(normalizedQuery)) {
+    return 1;
+  }
+  if (displayName.includes(normalizedQuery) || slugName.includes(normalizedQuery)) {
+    return 2;
+  }
+  if (entry.searchBlob?.includes(normalizedQuery)) {
+    return 3;
+  }
+  return 99;
+}
+
+function getFinderSearchMatches(query = state.finder.query, limit = 12) {
+  const normalizedQuery = normalizeSearch(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return getBaseEntries()
+    .filter((entry) => getFinderMatchScore(entry, normalizedQuery) < 99)
+    .sort(
+      (left, right) =>
+        getFinderMatchScore(left, normalizedQuery) - getFinderMatchScore(right, normalizedQuery) ||
+        left.baseNumber - right.baseNumber ||
+        left.displayName.localeCompare(right.displayName)
+    )
+    .slice(0, limit);
+}
+
+function formatFinderEncounterMethod(methodName) {
+  const labelMap = {
+    walk: "Walking",
+    surf: "Surfing",
+    "old rod": "Old Rod",
+    "good rod": "Good Rod",
+    "super rod": "Super Rod",
+    "rock smash": "Rock Smash",
+    headbutt: "Headbutt",
+    gift: "Gift Encounter",
+    "only one": "Single Encounter",
+    special: "Special Encounter"
+  };
+  const normalized = titleCase(String(methodName || "").replace(/-/g, " "));
+  return labelMap[normalized.toLowerCase()] ?? normalized ?? "Unknown";
+}
+
+function formatFinderTimeOfDay(conditionValues = []) {
+  const timeMap = {
+    morning: "Morning",
+    day: "Day",
+    night: "Night",
+    afternoon: "Afternoon",
+    evening: "Evening",
+    dusk: "Dusk",
+    dawn: "Dawn"
+  };
+
+  const labels = [
+    ...new Set(
+      (conditionValues ?? [])
+        .map((condition) => String(condition?.name || "").toLowerCase())
+        .filter((name) => name.startsWith("time-"))
+        .map((name) => timeMap[name.replace(/^time-/, "")] ?? titleCase(name.replace(/^time-/, "")))
+    )
+  ];
+
+  return labels.length ? labels.join(" / ") : "Any Time";
+}
+
+function formatFinderSpecialConditions(conditionValues = []) {
+  const conditionMap = {
+    "swarm-yes": "Swarm",
+    radar: "Poké Radar",
+    "slot2-ruby": "GBA Insert: Ruby",
+    "slot2-sapphire": "GBA Insert: Sapphire",
+    "slot2-emerald": "GBA Insert: Emerald",
+    "slot2-firered": "GBA Insert: FireRed",
+    "slot2-leafgreen": "GBA Insert: LeafGreen",
+    radio: "Radio",
+    "radio-hoenn": "Hoenn Sound",
+    "radio-sinnoh": "Sinnoh Sound",
+    season: "Seasonal",
+    "story-progress": "Story Progress",
+    starter: "Starter Choice"
+  };
+
+  const labels = [
+    ...new Set(
+      (conditionValues ?? [])
+        .map((condition) => String(condition?.name || "").toLowerCase())
+        .filter((name) => name && !name.startsWith("time-"))
+        .map((name) => conditionMap[name] ?? titleCase(name.replace(/-/g, " ")))
+    )
+  ];
+
+  return labels.length ? labels.join(" · ") : "None";
+}
+
+function formatFinderLevelRange(minLevel, maxLevel) {
+  const min = Number(minLevel);
+  const max = Number(maxLevel);
+
+  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0) {
+    return min === max ? `Lv. ${min}` : `Lv. ${min}-${max}`;
+  }
+
+  if (Number.isFinite(min) && min > 0) {
+    return `Lv. ${min}+`;
+  }
+
+  if (Number.isFinite(max) && max > 0) {
+    return `Up to Lv. ${max}`;
+  }
+
+  return "Unknown";
+}
+
+function classifyFinderRarity(chance) {
+  const numericChance = Math.max(0, Number(chance) || 0);
+  if (numericChance >= 30) {
+    return "Common";
+  }
+  if (numericChance >= 10) {
+    return "Uncommon";
+  }
+  return "Rare";
+}
+
+function buildFinderEncounterRecords(locations, versionOption) {
+  if (!versionOption?.versionNames?.length) {
+    return [];
+  }
+
+  const allowedVersions = new Set(versionOption.versionNames);
+  const records = [];
+
+  (locations ?? []).forEach((location) => {
+    const areaName = titleCase(location.location_area?.name?.replace(/-/g, " ") || "Unknown Area");
+
+    (location.version_details ?? []).forEach((versionDetail) => {
+      const versionName = versionDetail.version?.name;
+      if (!allowedVersions.has(versionName)) {
+        return;
+      }
+
+      const encounterDetails = Array.isArray(versionDetail.encounter_details) && versionDetail.encounter_details.length
+        ? versionDetail.encounter_details
+        : [null];
+
+      encounterDetails.forEach((encounterDetail) => {
+        const chance = Number(encounterDetail?.chance ?? versionDetail.max_chance ?? 0) || 0;
+        const method = formatFinderEncounterMethod(encounterDetail?.method?.name);
+        const timeOfDay = formatFinderTimeOfDay(encounterDetail?.condition_values);
+        const specialConditions = formatFinderSpecialConditions(encounterDetail?.condition_values);
+        const minLevel = Number(encounterDetail?.min_level ?? 0) || 0;
+        const maxLevel = Number(encounterDetail?.max_level ?? 0) || 0;
+
+        records.push({
+          areaName,
+          versionName,
+          chance,
+          method,
+          timeOfDay,
+          minLevel,
+          maxLevel,
+          levelRange: formatFinderLevelRange(minLevel, maxLevel),
+          specialConditions,
+          rarity: classifyFinderRarity(chance)
+        });
+      });
+    });
+  });
+
+  return records.sort(
+    (left, right) =>
+      right.chance - left.chance ||
+      left.areaName.localeCompare(right.areaName) ||
+      left.method.localeCompare(right.method)
+  );
+}
+
+function getFinderAvailabilityState(entry, versionOption, records) {
+  if (records.length) {
+    return { state: "exact" };
+  }
+
+  if (!entry || !versionOption || !state.gameAvailabilityReady) {
+    return { state: "unknown" };
+  }
+
+  const game = getGameMeta(versionOption.gameId);
+  const availableInGame = isAvailableInGame(entry.baseNumber, versionOption.gameId);
+  if (!availableInGame) {
+    return { state: "missing", exclusiveVersions: getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber) };
+  }
+
+  if (game && gameHasSeparateVersions(game)) {
+    const exclusiveVersions = getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber);
+    if (exclusiveVersions.length === 1 && exclusiveVersions[0].id !== versionOption.id) {
+      return { state: "missing", exclusiveVersions };
+    }
+  }
+
+  return { state: "broad-only", exclusiveVersions: getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber) };
+}
+
+function createFinderMatchButton(entry) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "collection-item finder-match-item";
+  button.classList.toggle("active", entry.name === state.finder.selectedEntryName);
+
+  const art = document.createElement("div");
+  art.className = "collection-item-art";
+
+  const sprite = document.createElement("img");
+  sprite.className = "collection-item-sprite";
+  applyEntrySprite(sprite, entry);
+  art.appendChild(sprite);
+
+  const copy = document.createElement("div");
+  copy.className = "collection-item-copy";
+
+  const title = document.createElement("strong");
+  title.textContent = entry.displayName;
+
+  const note = document.createElement("p");
+  note.className = "collection-item-note";
+  note.textContent = `Dex #${formatNumber(entry.baseNumber)} · Generation ${entry.generation}`;
+
+  copy.append(title, note);
+  button.append(art, copy);
+  button.addEventListener("click", () => {
+    state.finder.selectedEntryName = entry.name;
+    state.finder.query = entry.displayName;
+    elements.finderPokemonInput.value = entry.displayName;
+    renderFinder();
+  });
+
+  return button;
+}
+
+function renderFinderVersionOptions() {
+  const currentValue =
+    FINDER_VERSION_OPTIONS.some((option) => option.id === state.finder.selectedVersionId)
+      ? state.finder.selectedVersionId
+      : FINDER_VERSION_OPTIONS[0]?.id ?? "";
+
+  elements.finderVersionSelect.replaceChildren();
+
+  FINDER_VERSION_OPTIONS.forEach((option) => {
+    const element = document.createElement("option");
+    element.value = option.id;
+    element.textContent = option.label;
+    elements.finderVersionSelect.appendChild(element);
+  });
+
+  state.finder.selectedVersionId = currentValue;
+  elements.finderVersionSelect.value = currentValue;
+}
+
+function renderFinderMatches() {
+  elements.finderMatchList.replaceChildren();
+
+  if (!state.entries.length) {
+    elements.finderSearchSummary.textContent = "Archive still syncing. Finder suggestions will come online once the dex finishes loading.";
+    return;
+  }
+
+  const normalizedQuery = normalizeSearch(state.finder.query);
+  if (!normalizedQuery) {
+    elements.finderSearchSummary.textContent = "Type a Pokémon name to surface likely matches for the selected game version.";
+    return;
+  }
+
+  const matches = getFinderSearchMatches(normalizedQuery);
+  if (!matches.length) {
+    elements.finderSearchSummary.textContent = "No Pokémon matched that search. Try a different spelling or a base species name.";
+    return;
+  }
+
+  elements.finderSearchSummary.textContent =
+    matches.length === 1
+      ? "1 likely match found. Press Find Pokémon or click the result."
+      : `${formatCount(matches.length)} likely matches found. Choose one below or press Find Pokémon if the top match is right.`;
+
+  matches.forEach((entry) => {
+    elements.finderMatchList.appendChild(createFinderMatchButton(entry));
+  });
+}
+
+function renderFinderEmptyState() {
+  elements.finderResultEmpty.hidden = false;
+  elements.finderResultShell.hidden = true;
+  elements.finderResultShell.classList.add("hidden");
+  elements.finderOpenScanButton.disabled = true;
+  elements.finderStatus.textContent = "Enter a Pokémon and choose a game version";
+}
+
+async function renderFinderResult() {
+  const entry = getFinderSelectedEntry();
+  const versionOption = getFinderVersionOptionMeta();
+
+  if (!entry || !versionOption) {
+    renderFinderEmptyState();
+    return;
+  }
+
+  const requestToken = ++state.finder.requestToken;
+  elements.finderResultEmpty.hidden = true;
+  elements.finderResultShell.hidden = false;
+  elements.finderResultShell.classList.remove("hidden");
+  elements.finderOpenScanButton.disabled = false;
+  elements.finderResultName.textContent = entry.displayName;
+  elements.finderResultVersion.textContent = versionOption.label;
+  applyEntrySprite(elements.finderResultSprite, entry);
+  elements.finderPrimaryLocation.textContent = "Scanning…";
+  elements.finderTimeOfDay.textContent = "Scanning…";
+  elements.finderMethod.textContent = "Scanning…";
+  elements.finderLevelRange.textContent = "Scanning…";
+  elements.finderEncounterRate.textContent = "Scanning…";
+  elements.finderRarity.textContent = "Scanning…";
+  elements.finderLocationList.replaceChildren();
+  elements.finderDetailList.replaceChildren();
+  elements.finderResultNote.textContent = "Checking the encounter archive for route, time, method, and rarity details.";
+  elements.finderStatus.textContent = `Finding ${entry.displayName} in ${versionOption.label}`;
+
+  try {
+    const locations = entry.encounterUrl ? await loadLocationEntries(entry.encounterUrl) : [];
+    if (requestToken !== state.finder.requestToken) {
+      return;
+    }
+
+    const records = buildFinderEncounterRecords(locations, versionOption);
+    const availability = getFinderAvailabilityState(entry, versionOption, records);
+
+    if (records.length) {
+      const primary = records[0];
+      const uniqueAreas = [...new Set(records.map((record) => record.areaName))];
+
+      elements.finderPrimaryLocation.textContent = primary.areaName;
+      elements.finderTimeOfDay.textContent = primary.timeOfDay;
+      elements.finderMethod.textContent = primary.method;
+      elements.finderLevelRange.textContent = primary.levelRange;
+      elements.finderEncounterRate.textContent = `${primary.chance}%`;
+      elements.finderRarity.textContent = primary.rarity;
+
+      uniqueAreas.forEach((area) => {
+        const chip = document.createElement("span");
+        chip.className = "finder-chip";
+        chip.textContent = area;
+        elements.finderLocationList.appendChild(chip);
+      });
+
+      records.slice(0, 8).forEach((record) => {
+        const line = document.createElement("article");
+        line.className = "finder-encounter-item";
+
+        const copy = document.createElement("div");
+        copy.className = "finder-encounter-copy";
+
+        const label = document.createElement("strong");
+        label.textContent = record.areaName;
+
+        const meta = document.createElement("span");
+        meta.textContent = `${record.method} · ${record.timeOfDay} · ${record.levelRange} · ${record.chance}%`;
+        copy.append(label, meta);
+
+        if (record.specialConditions !== "None") {
+          const conditionLine = document.createElement("span");
+          conditionLine.textContent = `Conditions: ${record.specialConditions}`;
+          copy.appendChild(conditionLine);
+        }
+
+        const rarity = document.createElement("span");
+        rarity.className = `finder-rarity-badge is-${normalizeSearch(record.rarity)}`;
+        rarity.textContent = record.rarity;
+
+        line.append(copy, rarity);
+        elements.finderDetailList.appendChild(line);
+      });
+
+      if (records.length > 8) {
+        const more = document.createElement("p");
+        more.className = "results-summary";
+        more.textContent = `+${records.length - 8} more encounter lines are available in the archive for this version.`;
+        elements.finderDetailList.appendChild(more);
+      }
+
+      elements.finderResultNote.textContent =
+        uniqueAreas.length > 1
+          ? `${entry.displayName} has ${formatCount(uniqueAreas.length)} archived locations in ${versionOption.label}. The top line shown above is the strongest recorded encounter.`
+          : `${entry.displayName} currently has one archived location line in ${versionOption.label}.`;
+      elements.finderStatus.textContent = `${uniqueAreas.length} archived location${uniqueAreas.length === 1 ? "" : "s"} found`;
+      return;
+    }
+
+    if (availability.state === "broad-only") {
+      elements.finderPrimaryLocation.textContent = "Tracked in Dex";
+      elements.finderTimeOfDay.textContent = "--";
+      elements.finderMethod.textContent = "--";
+      elements.finderLevelRange.textContent = "--";
+      elements.finderEncounterRate.textContent = "--";
+      elements.finderRarity.textContent = "--";
+      const exclusiveNote =
+        availability.exclusiveVersions?.length === 1
+          ? ` It is ${availability.exclusiveVersions[0].label} exclusive.`
+          : "";
+      elements.finderResultNote.textContent =
+        versionOption.gameId === "lza"
+          ? `${entry.displayName} is tracked in ${versionOption.label}, but exact route and encounter data is not attached in the current archive yet.${exclusiveNote}`
+          : `${entry.displayName} is confirmed in ${versionOption.label}, but the current archive does not have exact route, method, time-of-day, or level data attached for that version.${exclusiveNote}`;
+      elements.finderStatus.textContent = "Coverage only";
+      return;
+    }
+
+    elements.finderPrimaryLocation.textContent = "Not in This Version";
+    elements.finderTimeOfDay.textContent = "--";
+    elements.finderMethod.textContent = "--";
+    elements.finderLevelRange.textContent = "--";
+    elements.finderEncounterRate.textContent = "--";
+    elements.finderRarity.textContent = "--";
+    if (availability.state === "missing" && availability.exclusiveVersions?.length === 1) {
+      elements.finderResultNote.textContent = `${entry.displayName} is not tracked in ${versionOption.label}. It is ${availability.exclusiveVersions[0].label} exclusive instead.`;
+    } else {
+      elements.finderResultNote.textContent =
+        availability.state === "missing"
+          ? `${entry.displayName} is not currently tracked in ${versionOption.label}.`
+          : `The encounter archive does not have a usable ${versionOption.label} record for ${entry.displayName} yet.`;
+    }
+    elements.finderStatus.textContent = "No match found";
+  } catch {
+    if (requestToken !== state.finder.requestToken) {
+      return;
+    }
+
+    elements.finderPrimaryLocation.textContent = "Offline";
+    elements.finderTimeOfDay.textContent = "--";
+    elements.finderMethod.textContent = "--";
+    elements.finderLevelRange.textContent = "--";
+    elements.finderEncounterRate.textContent = "--";
+    elements.finderRarity.textContent = "--";
+    elements.finderResultNote.textContent = "Finder data could not be loaded right now.";
+    elements.finderStatus.textContent = "Finder offline";
+  }
+}
+
+function renderFinder() {
+  renderFinderVersionOptions();
+  elements.finderPokemonInput.value = state.finder.query;
+  renderFinderMatches();
+  void renderFinderResult();
+}
+
+function submitFinderSearch() {
+  state.finder.query = elements.finderPokemonInput.value;
+  state.finder.selectedVersionId = elements.finderVersionSelect.value;
+
+  const normalizedQuery = normalizeSearch(state.finder.query);
+  if (!normalizedQuery) {
+    state.finder.selectedEntryName = null;
+    renderFinder();
+    return;
+  }
+
+  const matches = getFinderSearchMatches(normalizedQuery);
+  const exactMatch = matches.find((entry) => getFinderMatchScore(entry, normalizedQuery) === 0);
+
+  if (exactMatch) {
+    state.finder.selectedEntryName = exactMatch.name;
+  } else if (matches.length === 1) {
+    state.finder.selectedEntryName = matches[0].name;
+  } else if (!matches.length) {
+    state.finder.selectedEntryName = null;
+  } else {
+    state.finder.selectedEntryName = null;
+    state.finder.requestToken += 1;
+    elements.finderStatus.textContent = "Choose one of the matches below";
+    renderFinderMatches();
+    renderFinderEmptyState();
+    elements.finderStatus.textContent = "Choose one of the matches below";
+    return;
+  }
+
+  renderFinder();
+}
+
+function clearFinder() {
+  state.finder.query = "";
+  state.finder.selectedEntryName = null;
+  state.finder.requestToken += 1;
+  elements.finderPokemonInput.value = "";
+  renderFinder();
+}
+
 function renderActiveView() {
   const activeView = state.ui.activeView;
   const systemViews = new Set(["collection", "home", "journey", "lab", "vault"]);
@@ -4433,6 +5022,9 @@ function setActiveView(viewId) {
   state.ui.activeView = viewId;
   saveUiSessionState();
   renderActiveView();
+  if (viewId === "finder") {
+    renderFinder();
+  }
   if (viewId === "shiny") {
     renderShinyHub();
   }
@@ -5913,6 +6505,7 @@ function commitDexIndexState(snapshot, options = {}) {
 
   if (renderUi) {
     refreshResults();
+    renderFinder();
     renderCollections();
     renderTrainerVault();
     renderHomeOrganizer();
@@ -6934,6 +7527,7 @@ async function loadSwitchGameAvailability() {
   state.gameAvailabilityError = successCount !== GAME_CATALOG.length;
   state.gameAvailabilityLoading = false;
   refreshResults();
+  renderFinder();
   renderCollections();
   renderHomeOrganizer();
 
@@ -12244,6 +12838,33 @@ elements.currentScanOpenButton.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 elements.currentScanClearButton.addEventListener("click", clearCurrentScan);
+elements.finderPokemonInput.addEventListener("input", () => {
+  state.finder.query = elements.finderPokemonInput.value;
+  renderFinderMatches();
+});
+elements.finderPokemonInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    submitFinderSearch();
+  }
+});
+elements.finderVersionSelect.addEventListener("change", () => {
+  state.finder.selectedVersionId = elements.finderVersionSelect.value;
+  if (state.finder.selectedEntryName) {
+    renderFinder();
+  }
+});
+elements.finderSearchButton.addEventListener("click", submitFinderSearch);
+elements.finderClearButton.addEventListener("click", clearFinder);
+elements.finderOpenScanButton.addEventListener("click", async () => {
+  const entry = getFinderSelectedEntry();
+  if (!entry) {
+    return;
+  }
+
+  await openPokemonEntry(entry.name);
+  setActiveView("scan");
+});
 
 elements.detailTabButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -12580,6 +13201,7 @@ const bootedFromDexCache = hydrateDexIndexFromCache();
 renderActiveView();
 renderDetailTabs();
 renderCurrentScanRibbon();
+renderFinder();
 renderCollections();
 renderTrainerVault();
 renderExpGameOptions();

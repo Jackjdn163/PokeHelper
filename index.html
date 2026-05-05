@@ -38,6 +38,7 @@
         <nav class="nav-tabs" aria-label="Dex navigation">
           <button type="button" class="nav-tab active" data-view="landing">Dashboard</button>
           <button type="button" class="nav-tab" data-view="archive">Dex</button>
+          <button type="button" class="nav-tab" data-view="finder">Finder</button>
           <button type="button" class="nav-tab" data-view="scan">Scan</button>
           <button type="button" class="nav-tab" data-view="journey">Journey</button>
           <button type="button" class="nav-tab" data-view="collection">Collection</button>
@@ -98,6 +99,10 @@
               <button type="button" class="dashboard-nav-item" data-view="archive">
                 <span class="dashboard-nav-icon">▤</span>
                 <span>Dex</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="finder">
+                <span class="dashboard-nav-icon">⌕</span>
+                <span>Finder</span>
               </button>
               <button type="button" class="dashboard-nav-item" data-view="scan">
                 <span class="dashboard-nav-icon">◎</span>
@@ -384,6 +389,127 @@
 
             </div>
           </section>
+        </section>
+      </main>
+
+      <main class="workspace-shell app-view" data-view-panel="finder">
+        <section class="panel finder-shell">
+          <div class="system-head">
+            <div>
+              <p class="section-label">Encounter Finder</p>
+              <h2 class="system-title">Where Do I Find This Pokémon?</h2>
+            </div>
+            <span class="toolbar-pill" id="finder-status">Enter a Pokémon and choose a game version</span>
+          </div>
+
+          <div class="finder-grid">
+            <article class="finder-panel finder-query-panel">
+              <div class="finder-form-grid">
+                <label class="select-shell compact-field">
+                  <span>Pokémon Name</span>
+                  <input
+                    id="finder-pokemon-input"
+                    type="search"
+                    placeholder="Type a Pokémon name"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </label>
+
+                <label class="select-shell compact-field">
+                  <span>Game Version</span>
+                  <select id="finder-version-select"></select>
+                </label>
+              </div>
+
+              <div class="finder-actions">
+                <button type="button" class="primary-action compact" id="finder-search-btn">Find Pokémon</button>
+                <button type="button" class="ghost-button detail-link-button" id="finder-clear-btn">Clear</button>
+              </div>
+
+              <p class="results-summary" id="finder-search-summary">
+                Type a Pokémon name, pick a specific release, and PokéPilot will show the best current encounter info.
+              </p>
+
+              <div class="collection-list finder-match-list" id="finder-match-list"></div>
+            </article>
+
+            <article class="finder-panel finder-result-panel">
+              <div class="empty-state finder-result-empty" id="finder-result-empty">
+                <p>Choose a Pokémon from the left and pick a version to load encounter details.</p>
+              </div>
+
+              <div class="finder-result-shell hidden" id="finder-result-shell">
+                <div class="finder-result-head">
+                  <div class="finder-result-identity">
+                    <div class="collection-item-art finder-result-art">
+                      <img class="collection-item-sprite" id="finder-result-sprite" alt="" />
+                    </div>
+                    <div class="finder-result-copy">
+                      <strong id="finder-result-name">No Pokémon selected</strong>
+                      <span id="finder-result-version">Choose a version to start</span>
+                    </div>
+                  </div>
+                  <button type="button" class="ghost-button detail-link-button" id="finder-open-scan-btn">
+                    Open Scan
+                  </button>
+                </div>
+
+                <div class="finder-metric-grid">
+                  <article class="metric-card finder-metric-card">
+                    <span>Exact Location</span>
+                    <strong id="finder-primary-location">--</strong>
+                  </article>
+                  <article class="metric-card finder-metric-card">
+                    <span>Time of Day</span>
+                    <strong id="finder-time-of-day">--</strong>
+                  </article>
+                  <article class="metric-card finder-metric-card">
+                    <span>Encounter Method</span>
+                    <strong id="finder-method">--</strong>
+                  </article>
+                  <article class="metric-card finder-metric-card">
+                    <span>Level Range</span>
+                    <strong id="finder-level-range">--</strong>
+                  </article>
+                  <article class="metric-card finder-metric-card">
+                    <span>Encounter Rate</span>
+                    <strong id="finder-encounter-rate">--</strong>
+                  </article>
+                  <article class="metric-card finder-metric-card">
+                    <span>Rarity</span>
+                    <strong id="finder-rarity">--</strong>
+                  </article>
+                </div>
+
+                <div class="finder-detail-grid">
+                  <section class="finder-detail-card">
+                    <div class="dashboard-card-head dashboard-card-head--compact">
+                      <div>
+                        <h3>Exact Locations</h3>
+                        <p class="dashboard-card-subtext">Every archived location match for this version.</p>
+                      </div>
+                    </div>
+                    <div class="finder-chip-list" id="finder-location-list"></div>
+                  </section>
+
+                  <section class="finder-detail-card">
+                    <div class="dashboard-card-head dashboard-card-head--compact">
+                      <div>
+                        <h3>Encounter Breakdown</h3>
+                        <p class="dashboard-card-subtext">Method, time, and rarity pulled from the encounter archive.</p>
+                      </div>
+                    </div>
+                    <div class="finder-encounter-list" id="finder-detail-list"></div>
+                  </section>
+                </div>
+
+                <p class="results-summary finder-result-note" id="finder-result-note">
+                  Finder results will explain whether the data is exact route intel or broader game coverage only.
+                </p>
+              </div>
+            </article>
+          </div>
         </section>
       </main>
 
