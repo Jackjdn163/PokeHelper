@@ -55,6 +55,81 @@
         <button type="button" class="ghost-button" id="session-button">Guest Session</button>
       </header>
 
+      <aside class="panel dashboard-sidebar app-rail" aria-label="Application navigation rail">
+        <div class="dashboard-sidebar-brand">
+          <div class="sensor-cluster dashboard-sidebar-sensors" aria-hidden="true">
+            <span class="sensor-main"></span>
+            <span class="sensor-dot sensor-blue"></span>
+            <span class="sensor-dot sensor-gold"></span>
+            <span class="sensor-dot sensor-green"></span>
+          </div>
+          <div class="dashboard-sidebar-copy">
+            <strong>PokéPilot</strong>
+            <span>Archive navigation rail.</span>
+            <p>Jump between modules without overloading the top bar.</p>
+          </div>
+        </div>
+
+        <nav class="dashboard-sidebar-nav" aria-label="Application navigation">
+          <button type="button" class="dashboard-nav-item" data-view="landing">
+            <span class="dashboard-nav-icon">⌂</span>
+            <span>Dashboard</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="archive">
+            <span class="dashboard-nav-icon">▤</span>
+            <span>Dex</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="finder">
+            <span class="dashboard-nav-icon">⌕</span>
+            <span>Finder</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="scan">
+            <span class="dashboard-nav-icon">◎</span>
+            <span>Scan</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="journey">
+            <span class="dashboard-nav-icon">🧭</span>
+            <span>Journey</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="collection">
+            <span class="dashboard-nav-icon">▣</span>
+            <span>Collection</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="shiny">
+            <span class="dashboard-nav-icon">✦</span>
+            <span>Shiny</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="lab">
+            <span class="dashboard-nav-icon">⚗</span>
+            <span>Tools</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="home">
+            <span class="dashboard-nav-icon">◫</span>
+            <span>Boxes</span>
+          </button>
+          <button type="button" class="dashboard-nav-item dashboard-nav-item--placeholder" data-coming-soon="Maps">
+            <span class="dashboard-nav-icon">⌖</span>
+            <span>Maps</span>
+          </button>
+          <button type="button" class="dashboard-nav-item" data-view="vault">
+            <span class="dashboard-nav-icon">⚙</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <article class="dashboard-sidecard">
+          <span class="dashboard-side-label">Current Scan</span>
+          <strong>Ribbon stays pinned</strong>
+          <p>Open any Pokémon and keep it in view while you move through the rest of the archive.</p>
+        </article>
+
+        <article class="dashboard-sidecard">
+          <span class="dashboard-side-label">Session</span>
+          <strong>Profiles + Cloud</strong>
+          <p>Use the top-right session control whenever you want to swap profiles or sync your save.</p>
+        </article>
+      </aside>
+
       <div class="current-scan-shell">
         <div class="current-scan-ribbon is-empty" id="current-scan-ribbon">
           <button type="button" class="current-scan-main" id="current-scan-open-btn">
@@ -828,6 +903,13 @@
                 <option value="lza">Pokémon Legends: Z-A</option>
               </select>
             </label>
+            <label class="tracker-toggle archive-owned-game-filter" id="owned-game-only-toggle-shell">
+              <input type="checkbox" id="owned-game-only-toggle" />
+              <span>Only in selected owned game</span>
+            </label>
+            <p class="results-summary archive-owned-game-note" id="owned-game-only-note">
+              Pick a Switch game first to compare its unique roster against your owned saves.
+            </p>
           </section>
 
           <section class="panel-section">
@@ -1636,10 +1718,10 @@
         <article class="panel system-panel modules-panel-shell" data-module-view="lab">
             <div class="system-head">
               <div>
-                <p class="section-label">Feature Queue</p>
-                <h2 class="system-title">Trainer OS Modules</h2>
+                <p class="section-label">Tools Tab</p>
+                <h2 class="system-title">Game-by-Game Tools</h2>
               </div>
-              <span class="toolbar-pill">Build Queue</span>
+              <span class="toolbar-pill">Live Tools</span>
             </div>
             <div class="module-grid" id="module-grid"></div>
         </article>

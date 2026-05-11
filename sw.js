@@ -1,9 +1,10 @@
-const CACHE_NAME = "pokepilot-shell-v18";
+const CACHE_NAME = "pokepilot-shell-v26";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./game-tools-data.js",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./icon.svg"
@@ -13,6 +14,7 @@ function shouldRuntimeCache(url) {
   return (
     url.origin === self.location.origin ||
     url.origin === "https://cdn.jsdelivr.net" ||
+    url.origin === "https://img.pokemondb.net" ||
     url.origin === "https://pokeapi.co" ||
     url.origin === "https://raw.githubusercontent.com" ||
     url.origin === "https://www.serebii.net" ||

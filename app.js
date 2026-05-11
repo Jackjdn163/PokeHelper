@@ -1,3 +1,12 @@
+import {
+  LZA_DONUT_BERRIES,
+  LZA_DONUT_FLAVOR_POWERS,
+  LZA_DONUT_PRESETS,
+  PLA_RECIPE_CATALOG,
+  SV_SHINY_ODDS,
+  SV_SHINY_SANDWICH_RECIPES
+} from "./game-tools-data.js";
+
 const STORAGE_KEY = "dexter-living-form-dex-v1";
 const SHINY_STORAGE_KEY = "dexter-shiny-dex-v1";
 const TRACKER_STORAGE_KEY = "dexter-playthrough-tracker-v1";
@@ -11,6 +20,7 @@ const FAVORITE_TYPES_STORAGE_KEY = "dexter-favorite-types-v1";
 const GAME_CHECKLIST_STORAGE_KEY = "dexter-game-checklists-v1";
 const HOME_BOX_STORAGE_KEY = "dexter-home-boxes-v1";
 const SHINY_HUB_STORAGE_KEY = "dexter-shiny-hub-v1";
+const TOOLS_STORAGE_KEY = "dexter-game-tools-v1";
 const API_CACHE_STORAGE_KEY = "dexter-api-cache-v1";
 const DEX_INDEX_CACHE_STORAGE_KEY = "dexter-dex-index-cache-v1";
 const UI_SESSION_STORAGE_KEY = "dexter-ui-session-v1";
@@ -1292,6 +1302,21 @@ const MODULE_CATALOG = [
   }
 ];
 
+const LZA_DONUT_FLAVOR_META = [
+  ["sweet", "Sweet"],
+  ["spicy", "Spicy"],
+  ["sour", "Sour"],
+  ["bitter", "Bitter"],
+  ["fresh", "Fresh"]
+];
+
+const LZA_DONUT_BERRIES_BY_NAME = new Map(LZA_DONUT_BERRIES.map((berry) => [berry.name, berry]));
+const PLA_RECIPES_BY_NAME = new Map(PLA_RECIPE_CATALOG.map((recipe) => [recipe.name, recipe]));
+const PLA_MATERIAL_NAMES = [...new Set(PLA_RECIPE_CATALOG.flatMap((recipe) => recipe.materials.map((material) => material.name)))].sort();
+const SV_SHINY_SANDWICHES_BY_TYPE = new Map(
+  SV_SHINY_SANDWICH_RECIPES.map((recipe) => [recipe.type, recipe])
+);
+
 const ALCREMIE_CREAMS = [
   { slug: "vanilla-cream", label: "Vanilla Cream" },
   { slug: "ruby-cream", label: "Ruby Cream" },
@@ -1484,6 +1509,45 @@ const UNOVA_SEASON_VARIANTS = [
   }
 ];
 
+const UNOWN_FORM_VARIANTS = [
+  ..."BCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter, index) => ({
+    id: 10001 + index,
+    name: `unown-${letter.toLowerCase()}`,
+    displayName: `Unown ${letter}`,
+    baseNumber: 201,
+    basePokemonName: "unown",
+    variantLabel: `Letter ${letter}`,
+    detailNote: `Letter ${letter} is tracked as one of Unown's alternate alphabet forms.`,
+    listSprite: buildHomeThumbnailUrl(`unown-${letter.toLowerCase()}`),
+    shinyListSprite: buildHomeThumbnailUrl(`unown-${letter.toLowerCase()}`, true),
+    extraSearchTerms: ["letter", "alphabet", "johto", "ruins-of-alph"]
+  })),
+  {
+    id: 10026,
+    name: "unown-exclamation",
+    displayName: "Unown Exclamation",
+    baseNumber: 201,
+    basePokemonName: "unown",
+    variantLabel: "Exclamation",
+    detailNote: "Exclamation is tracked as one of Unown's punctuation forms.",
+    listSprite: buildHomeThumbnailUrl("unown-exclamation"),
+    shinyListSprite: buildHomeThumbnailUrl("unown-exclamation", true),
+    extraSearchTerms: ["punctuation", "symbol", "!", "exclamation mark", "johto", "ruins-of-alph"]
+  },
+  {
+    id: 10027,
+    name: "unown-question",
+    displayName: "Unown Question",
+    baseNumber: 201,
+    basePokemonName: "unown",
+    variantLabel: "Question",
+    detailNote: "Question is tracked as one of Unown's punctuation forms.",
+    listSprite: buildHomeThumbnailUrl("unown-question"),
+    shinyListSprite: buildHomeThumbnailUrl("unown-question", true),
+    extraSearchTerms: ["punctuation", "symbol", "?", "question mark", "johto", "ruins-of-alph"]
+  }
+];
+
 const AUTHENTICITY_FORM_VARIANTS = [
   {
     name: "sinistea-antique",
@@ -1535,6 +1599,22 @@ const FEMALE_SPRITE_DIFFERENCE_IDS = [
   443, 444, 445, 449, 450, 453, 454, 456, 457, 459, 460, 461, 464, 465, 473, 521, 592, 593, 668,
   678, 876, 916
 ];
+
+const FORM_GAME_SUPPORT = {
+  none: new Set(),
+  lgpeSwshSv: new Set(["lgpe", "swsh", "sv"]),
+  swshOnly: new Set(["swsh"]),
+  plaOnly: new Set(["pla"]),
+  svOnly: new Set(["sv"]),
+  lzaOnly: new Set(["lza"]),
+  bdspPla: new Set(["bdsp", "pla"]),
+  bdspPlaSv: new Set(["bdsp", "pla", "sv"]),
+  swshSv: new Set(["swsh", "sv"]),
+  svLza: new Set(["sv", "lza"])
+};
+
+const GAME_FILTER_UNOBTAINABLE_FORM_PATTERN =
+  /^(castform-(sunny|rainy|snowy)|cherrim-sunshine|meloetta-pirouette|aegislash-blade|darmanitan-(zen|galar-zen)|greninja-(battle-bond|ash)|zygarde-(10-power-construct|50-power-construct|complete)|wishiwashi-school|mimikyu-busted|cramorant-(gulping|gorging)|eiscue-noice|morpeko-hangry|palafin-hero|eternatus-eternamax|xerneas-active|terapagos-(terastal|stellar)|pikachu-(original|hoenn|sinnoh|unova|kalos|alola|partner|world)-cap)$/;
 
 const HOME_BOX_COMPATIBILITY_RULES = [
   {
@@ -1808,6 +1888,9 @@ const elements = {
   sortCaughtOption: document.querySelector('#sort-select option[value="caught"]'),
   generationSelect: document.querySelector("#generation-select"),
   gameFilterSelect: document.querySelector("#game-filter-select"),
+  ownedGameOnlyToggleShell: document.querySelector("#owned-game-only-toggle-shell"),
+  ownedGameOnlyToggle: document.querySelector("#owned-game-only-toggle"),
+  ownedGameOnlyNote: document.querySelector("#owned-game-only-note"),
   sessionButton: document.querySelector("#session-button"),
   landingWelcome: document.querySelector("#landing-welcome"),
   landingSummary: document.querySelector("#landing-summary"),
@@ -2122,6 +2205,7 @@ const state = {
     status: "all",
     generation: "all",
     game: "all",
+    ownedGameOnly: false,
     sort: "id-asc",
     signatures: new Set()
   },
@@ -2137,6 +2221,7 @@ const state = {
   gameChecklistState: loadGameChecklistState(),
   homeBoxes: loadHomeBoxesState(),
   shinyHub: loadShinyHubState(),
+  tools: loadToolsState(),
   randomTargets: [],
   shinyTargets: [],
   companionReply: "",
@@ -2382,6 +2467,138 @@ function saveProfileStoredObject(baseKey, value) {
   saveStoredObject(getProfileStorageKey(baseKey), value);
 }
 
+function createToolRowId() {
+  return `tool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createDefaultSupplyRow() {
+  return {
+    id: createToolRowId(),
+    name: "",
+    unitCost: "",
+    quantity: "1"
+  };
+}
+
+function createDefaultToolsState() {
+  const defaultLzaSlots = Array.from({ length: 8 }, (_, index) => LZA_DONUT_PRESETS[0]?.berries?.[index] ?? "");
+
+  return {
+    lza: {
+      slots: defaultLzaSlots
+    },
+    pla: {
+      recipeName: PLA_RECIPES_BY_NAME.has("Jet Ball")
+        ? "Jet Ball"
+        : PLA_RECIPE_CATALOG[0]?.name ?? "",
+      amount: 1,
+      materialCounts: {},
+      materialCosts: {}
+    },
+    sv: {
+      type: SV_SHINY_SANDWICH_RECIPES[0]?.type ?? "Normal"
+    },
+    supply: {
+      rows: [createDefaultSupplyRow()]
+    }
+  };
+}
+
+function normalizeNonNegativeInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function normalizeNonNegativeDecimalString(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? normalized : "";
+}
+
+function normalizeToolsIntegerMap(rawValue = {}) {
+  if (!rawValue || typeof rawValue !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(rawValue)
+      .map(([name, value]) => [String(name), normalizeNonNegativeInteger(value, 0)])
+      .filter(([, value]) => value > 0)
+  );
+}
+
+function normalizeToolsDecimalMap(rawValue = {}) {
+  if (!rawValue || typeof rawValue !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(rawValue)
+      .map(([name, value]) => [String(name), normalizeNonNegativeDecimalString(value)])
+      .filter(([, value]) => value)
+  );
+}
+
+function normalizeSupplyRows(rows = []) {
+  const normalizedRows = Array.isArray(rows)
+    ? rows
+        .map((row) => ({
+          id: row?.id ? String(row.id) : createToolRowId(),
+          name: String(row?.name ?? ""),
+          unitCost: normalizeNonNegativeDecimalString(row?.unitCost),
+          quantity: String(Math.max(0, normalizeNonNegativeInteger(row?.quantity, 1)) || 1)
+        }))
+        .filter((row) => row.id)
+    : [];
+
+  return normalizedRows.length ? normalizedRows : [createDefaultSupplyRow()];
+}
+
+function loadToolsState() {
+  const fallback = createDefaultToolsState();
+  const loaded = loadProfileStoredObject(TOOLS_STORAGE_KEY, fallback);
+  const lzaSlots = Array.from({ length: 8 }, (_, index) => {
+    const slotValue = Array.isArray(loaded?.lza?.slots) ? loaded.lza.slots[index] : "";
+    return LZA_DONUT_BERRIES_BY_NAME.has(slotValue) ? slotValue : fallback.lza.slots[index] ?? "";
+  });
+  const recipeName = PLA_RECIPES_BY_NAME.has(loaded?.pla?.recipeName)
+    ? loaded.pla.recipeName
+    : fallback.pla.recipeName;
+  const amount = Math.max(1, normalizeNonNegativeInteger(loaded?.pla?.amount, fallback.pla.amount));
+  const materialCounts = normalizeToolsIntegerMap(loaded?.pla?.materialCounts);
+  const materialCosts = normalizeToolsDecimalMap(loaded?.pla?.materialCosts);
+  const svType = SV_SHINY_SANDWICHES_BY_TYPE.has(loaded?.sv?.type)
+    ? loaded.sv.type
+    : fallback.sv.type;
+
+  return {
+    lza: {
+      slots: lzaSlots
+    },
+    pla: {
+      recipeName,
+      amount,
+      materialCounts,
+      materialCosts
+    },
+    sv: {
+      type: svType
+    },
+    supply: {
+      rows: normalizeSupplyRows(loaded?.supply?.rows)
+    }
+  };
+}
+
+function saveToolsState() {
+  saveProfileStoredObject(TOOLS_STORAGE_KEY, state.tools);
+  markCloudDirty();
+}
+
 function createDefaultGameChecklistState() {
   return {
     links: Object.fromEntries(GAME_CATALOG.map((game) => [game.id, true])),
@@ -2594,6 +2811,8 @@ function getCloudProfileFieldFallback(field) {
       return createDefaultHomeBoxesState();
     case "shinyHub":
       return createDefaultShinyHubState();
+    case "tools":
+      return createDefaultToolsState();
     default:
       return {};
   }
@@ -2633,7 +2852,8 @@ function buildProfileCloudPayload(profileId) {
     favoriteTypes: readCloudFieldForProfile(profileId, FAVORITE_TYPES_STORAGE_KEY, "favoriteTypes"),
     gameChecklistState: readCloudFieldForProfile(profileId, GAME_CHECKLIST_STORAGE_KEY, "gameChecklistState"),
     homeBoxes: readCloudFieldForProfile(profileId, HOME_BOX_STORAGE_KEY, "homeBoxes"),
-    shinyHub: readCloudFieldForProfile(profileId, SHINY_HUB_STORAGE_KEY, "shinyHub")
+    shinyHub: readCloudFieldForProfile(profileId, SHINY_HUB_STORAGE_KEY, "shinyHub"),
+    tools: readCloudFieldForProfile(profileId, TOOLS_STORAGE_KEY, "tools")
   };
 }
 
@@ -2729,6 +2949,10 @@ function writeProfileCloudPayload(profileId, payload) {
     getProfileScopedStorageKey(SHINY_HUB_STORAGE_KEY, profileId),
     cloneJson(normalizedPayload.shinyHub, createDefaultShinyHubState())
   );
+  saveStoredObject(
+    getProfileScopedStorageKey(TOOLS_STORAGE_KEY, profileId),
+    cloneJson(normalizedPayload.tools, createDefaultToolsState())
+  );
 }
 
 function applyCloudSnapshot(snapshot) {
@@ -2756,6 +2980,7 @@ function applyCloudSnapshot(snapshot) {
   renderHomeOrganizer();
   renderShinyHelper();
   renderSuggestors();
+  renderModuleQueue();
 
   if (state.currentPokemon) {
     renderCurrentPokemon(state.currentPokemon);
@@ -3198,6 +3423,7 @@ function loadProfileIntoState() {
   state.gameChecklistState = loadGameChecklistState();
   state.homeBoxes = loadHomeBoxesState();
   state.shinyHub = loadShinyHubState();
+  state.tools = loadToolsState();
 }
 
 function switchProfile(profileId) {
@@ -3220,6 +3446,7 @@ function switchProfile(profileId) {
   renderHomeOrganizer();
   renderShinyHelper();
   renderSuggestors();
+  renderModuleQueue();
 
   if (state.currentPokemon) {
     renderCurrentPokemon(state.currentPokemon);
@@ -3479,6 +3706,33 @@ function isAvailableInOwnedGameSelection(baseNumber, gameId) {
   }
 
   return matchingVersions.some((versionId) => Boolean(trackerGameState.versions?.[versionId]));
+}
+
+function isEntryAvailableInOwnedGameSelection(entry, gameId) {
+  if (!entry || !gameId || gameId === "all") {
+    return true;
+  }
+
+  if (!isAvailableInOwnedGameSelection(entry.baseNumber, gameId)) {
+    return false;
+  }
+
+  const supportedGames = getEntryGameSupport(entry);
+  return supportedGames ? supportedGames.has(gameId) : true;
+}
+
+function isEntryExclusiveToOwnedGameSelection(entry, gameId) {
+  if (!entry || !gameId || gameId === "all") {
+    return false;
+  }
+
+  if (!isEntryAvailableInOwnedGameSelection(entry, gameId)) {
+    return false;
+  }
+
+  return !getOwnedGameIds()
+    .filter((ownedGameId) => ownedGameId !== gameId)
+    .some((ownedGameId) => isEntryAvailableInOwnedGameSelection(entry, ownedGameId));
 }
 
 function isAvailableViaOwnedDynamaxAdventure(baseNumber) {
@@ -3813,6 +4067,45 @@ function getArchiveMissingLabel() {
 
 function isArchiveTracked(name) {
   return isArchiveShinyMode() ? isShiny(name) : isCaught(name);
+}
+
+function getArchiveOwnedGameOnlyFilterMeta() {
+  if (state.filters.game === "all") {
+    return {
+      enabled: false,
+      selectedGame: null,
+      comparisonGameCount: 0,
+      note: "Pick a Switch game first to compare its unique roster against your owned saves."
+    };
+  }
+
+  const selectedGame = getGameMeta(state.filters.game);
+  if (!selectedGame || !state.tracker.games[selectedGame.id]?.owned) {
+    return {
+      enabled: false,
+      selectedGame,
+      comparisonGameCount: 0,
+      note: selectedGame
+        ? `Mark ${selectedGame.shortName} as owned in Journey to compare what is unique to it.`
+        : "Pick a tracked Switch game to compare its unique roster."
+    };
+  }
+
+  const comparisonGameCount = getOwnedGameIds().filter((gameId) => gameId !== selectedGame.id).length;
+  return {
+    enabled: true,
+    selectedGame,
+    comparisonGameCount,
+    note: comparisonGameCount
+      ? `Show entries that only appear in ${selectedGame.shortName} compared with your other owned games.`
+      : `${selectedGame.shortName} is your only owned game right now, so this will show everything obtainable there.`
+  };
+}
+
+function normalizeArchiveGameFilters() {
+  if (!getArchiveOwnedGameOnlyFilterMeta().enabled) {
+    state.filters.ownedGameOnly = false;
+  }
 }
 
 function setArchiveMode(mode) {
@@ -5991,7 +6284,7 @@ function addHybridImageUrlCandidate(candidates, baseNumber, formSlug = "") {
   }
 }
 
-function buildHybridImageUrlsFromIdentity(identity) {
+function buildHybridImageUrlsFromIdentity(identity, { includeBaseFallback = true } = {}) {
   const baseNumber = identity?.baseNumber ?? identity?.dexNumber ?? identity?.id;
   const baseName = normalizeHomeThumbnailSlug(identity?.basePokemonName || identity?.name);
   const name = normalizeHomeThumbnailSlug(identity?.name);
@@ -6025,7 +6318,9 @@ function buildHybridImageUrlsFromIdentity(identity) {
     }
   }
 
-  addHybridImageUrlCandidate(urls, baseNumber);
+  if (includeBaseFallback) {
+    addHybridImageUrlCandidate(urls, baseNumber);
+  }
   return urls;
 }
 
@@ -6056,7 +6351,14 @@ function addPokemonDbSlugCandidate(candidates, value) {
   candidates.push(normalizedValue);
 }
 
-function buildPokemonDbSlugCandidates(name, baseName = "") {
+const POKEMONDB_FORM_TOKEN_ALIASES = [
+  [/-alola(?=-|$)/, "-alolan"],
+  [/-galar(?=-|$)/, "-galarian"],
+  [/-hisui(?=-|$)/, "-hisuian"],
+  [/-paldea(?=-|$)/, "-paldean"]
+];
+
+function buildPokemonDbSlugCandidates(name, baseName = "", { includeBaseFallback = true } = {}) {
   const candidates = [];
   const exactAliases = {
     ogerpon: "ogerpon-teal",
@@ -6083,7 +6385,7 @@ function buildPokemonDbSlugCandidates(name, baseName = "") {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-female$/, "-f"));
     }
 
-    if (slug.endsWith("-male")) {
+    if (includeBaseFallback && slug.endsWith("-male")) {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-male$/, ""));
     }
 
@@ -6091,10 +6393,19 @@ function buildPokemonDbSlugCandidates(name, baseName = "") {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-gmax$/, "-gigantamax"));
     }
 
+    POKEMONDB_FORM_TOKEN_ALIASES.forEach(([pattern, replacement]) => {
+      const aliasedSlug = slug.replace(pattern, replacement);
+      if (aliasedSlug !== slug) {
+        addVariants(aliasedSlug);
+      }
+    });
+
     if (slug.includes("-family-of-")) {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-family-of-three$/, "-family3"));
       addPokemonDbSlugCandidate(candidates, slug.replace(/-family-of-four$/, "-family4"));
-      addPokemonDbSlugCandidate(candidates, slug.replace(/-family-of-(three|four)$/, ""));
+      if (includeBaseFallback) {
+        addPokemonDbSlugCandidate(candidates, slug.replace(/-family-of-(three|four)$/, ""));
+      }
     }
 
     if (/-sweet$/.test(slug)) {
@@ -6116,7 +6427,7 @@ function buildPokemonDbSlugCandidates(name, baseName = "") {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-(combat|aqua|blaze)-breed$/, ""));
     }
 
-    if (/(antique|artisan|masterpiece)$/.test(slug)) {
+    if (includeBaseFallback && /(antique|artisan|masterpiece)$/.test(slug)) {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-(antique|artisan|masterpiece)$/, ""));
     }
 
@@ -6124,7 +6435,7 @@ function buildPokemonDbSlugCandidates(name, baseName = "") {
       /-(altered|aria|average|incarnate|meadow|midday|natural|ordinary|plant|rapid-strike|red-striped|single-strike|spring|standard|unremarkable|west)$/,
       ""
     );
-    if (strippedDefaultSlug !== slug) {
+    if (includeBaseFallback && strippedDefaultSlug !== slug) {
       addPokemonDbSlugCandidate(candidates, strippedDefaultSlug);
       addPokemonDbSlugCandidate(candidates, exactAliases[strippedDefaultSlug]);
     }
@@ -6132,16 +6443,16 @@ function buildPokemonDbSlugCandidates(name, baseName = "") {
 
   addVariants(name);
 
-  if (baseName && baseName !== name) {
+  if (includeBaseFallback && baseName && baseName !== name) {
     addVariants(baseName);
   }
 
-  buildHomeThumbnailSlugCandidates(name, baseName).forEach(addVariants);
+  buildHomeThumbnailSlugCandidates(name, baseName, { includeBaseFallback }).forEach(addVariants);
   return candidates;
 }
 
-function getPokemonDbHomeUrlsFromIdentity(identity, shiny = false) {
-  const candidates = buildPokemonDbSlugCandidates(identity?.name, identity?.basePokemonName);
+function getPokemonDbHomeUrlsFromIdentity(identity, shiny = false, options = {}) {
+  const candidates = buildPokemonDbSlugCandidates(identity?.name, identity?.basePokemonName, options);
   return uniqUrls(candidates.map((slug) => buildPokemonDbHomeSpriteUrl(slug, shiny)));
 }
 
@@ -6163,7 +6474,7 @@ function addHomeThumbnailSlugCandidate(candidates, value) {
   candidates.push(normalizedValue);
 }
 
-function buildHomeThumbnailSlugCandidates(name, baseName = "") {
+function buildHomeThumbnailSlugCandidates(name, baseName = "", { includeBaseFallback = true } = {}) {
   const candidates = [];
   const addVariants = (value) => {
     const slug = normalizeHomeThumbnailSlug(value);
@@ -6177,7 +6488,7 @@ function buildHomeThumbnailSlugCandidates(name, baseName = "") {
       addHomeThumbnailSlugCandidate(candidates, slug.replace(/-female$/, "-f"));
     }
 
-    if (slug.endsWith("-male")) {
+    if (includeBaseFallback && slug.endsWith("-male")) {
       addHomeThumbnailSlugCandidate(candidates, slug.replace(/-male$/, ""));
     }
 
@@ -6193,7 +6504,9 @@ function buildHomeThumbnailSlugCandidates(name, baseName = "") {
     }
 
     if (slug.includes("-family-of-")) {
-      addHomeThumbnailSlugCandidate(candidates, slug.replace(/-family-of-(three|four)$/, ""));
+      if (includeBaseFallback) {
+        addHomeThumbnailSlugCandidate(candidates, slug.replace(/-family-of-(three|four)$/, ""));
+      }
     }
 
     if (slug.endsWith("-mask")) {
@@ -6204,11 +6517,12 @@ function buildHomeThumbnailSlugCandidates(name, baseName = "") {
       addHomeThumbnailSlugCandidate(candidates, slug.replace(/-(combat|aqua|blaze)-breed$/, ""));
     }
 
-    if (/(antique|artisan|masterpiece)$/.test(slug)) {
+    if (includeBaseFallback && /(antique|artisan|masterpiece)$/.test(slug)) {
       addHomeThumbnailSlugCandidate(candidates, slug.replace(/-(antique|artisan|masterpiece)$/, ""));
     }
 
     if (
+      includeBaseFallback &&
       /-(altered|aria|average|incarnate|meadow|midday|natural|ordinary|plant|rapid-strike|red-striped|single-strike|spring|standard|unremarkable|west)$/.test(
         slug
       )
@@ -6225,15 +6539,15 @@ function buildHomeThumbnailSlugCandidates(name, baseName = "") {
 
   addVariants(name);
 
-  if (baseName && baseName !== name) {
+  if (includeBaseFallback && baseName && baseName !== name) {
     addVariants(baseName);
   }
 
   return candidates;
 }
 
-function getHomeThumbnailUrlsFromIdentity(identity, shiny = false) {
-  const candidates = buildHomeThumbnailSlugCandidates(identity?.name, identity?.basePokemonName);
+function getHomeThumbnailUrlsFromIdentity(identity, shiny = false, options = {}) {
+  const candidates = buildHomeThumbnailSlugCandidates(identity?.name, identity?.basePokemonName, options);
   return uniqUrls(candidates.map((slug) => buildHomeThumbnailUrl(slug, shiny)));
 }
 
@@ -6255,102 +6569,119 @@ function uniqUrls(urls) {
   return [...new Set(urls.filter(Boolean))];
 }
 
-function getEntrySpriteUrls(entry, { forceShiny = false } = {}) {
-  const wantsShiny = forceShiny || isShiny(entry.name);
-  const pokemonDbRegular = getPokemonDbHomeUrlsFromIdentity(entry);
-  const pokemonDbShiny = getPokemonDbHomeUrlsFromIdentity(entry, true);
-  const projectPokemonRegular = buildProjectPokemonImageUrlsFromIdentity(entry);
-  const hybridRegular = buildHybridImageUrlsFromIdentity(entry);
-  const homeRegular = getHomeThumbnailUrlsFromIdentity(entry);
-  const homeShiny = getHomeThumbnailUrlsFromIdentity(entry, true);
+function shouldUseShinySprite(name, { forceShiny = false, preferTrackedShiny = true } = {}) {
+  return forceShiny || (preferTrackedShiny && isShiny(name));
+}
+
+function hasDistinctIdentitySprite(identity) {
+  const name = normalizeHomeThumbnailSlug(identity?.name);
+  const baseName = normalizeHomeThumbnailSlug(identity?.basePokemonName || identity?.name);
+  return Boolean(identity?.syntheticKind) || Boolean(identity?.isForm) || Boolean(name && baseName && name !== baseName);
+}
+
+function getIdentityApiSpriteUrl(identity, shiny = false) {
+  if (identity?.syntheticKind) {
+    return "";
+  }
+
+  const id = Number(identity?.id ?? identity?.dexNumber ?? 0);
+  return id > 0 ? buildSpriteUrl(id, shiny) : "";
+}
+
+function getEntrySpriteUrls(entry, options = {}) {
+  const wantsShiny = shouldUseShinySprite(entry.name, options);
+  const hasDistinctSprite = hasDistinctIdentitySprite(entry);
+  const formRegular = hasDistinctSprite
+    ? uniqUrls([
+        ...getPokemonDbHomeUrlsFromIdentity(entry, false, { includeBaseFallback: false }),
+        ...getHomeThumbnailUrlsFromIdentity(entry, false, { includeBaseFallback: false }),
+        entry.listSprite,
+        getIdentityApiSpriteUrl(entry),
+        ...buildHybridImageUrlsFromIdentity(entry, { includeBaseFallback: false })
+      ])
+    : [];
+  const formShiny = hasDistinctSprite
+    ? uniqUrls([
+        ...getPokemonDbHomeUrlsFromIdentity(entry, true, { includeBaseFallback: false }),
+        ...getHomeThumbnailUrlsFromIdentity(entry, true, { includeBaseFallback: false }),
+        entry.shinyListSprite,
+        getIdentityApiSpriteUrl(entry, true)
+      ])
+    : [];
+  const baseRegular = uniqUrls([
+    ...getPokemonDbHomeUrlsFromIdentity(entry),
+    ...getHomeThumbnailUrlsFromIdentity(entry),
+    ...buildProjectPokemonImageUrlsFromIdentity(entry),
+    ...buildHybridImageUrlsFromIdentity(entry),
+    entry.listSprite,
+    getIdentityApiSpriteUrl(entry),
+    buildSpriteUrl(entry.baseNumber)
+  ]);
 
   if (wantsShiny) {
     return uniqUrls([
-      ...pokemonDbShiny,
-      ...homeShiny,
+      ...formShiny,
+      ...formRegular,
+      ...getPokemonDbHomeUrlsFromIdentity(entry, true),
+      ...getHomeThumbnailUrlsFromIdentity(entry, true),
       entry.shinyListSprite,
-      buildSpriteUrl(entry.id, true),
+      getIdentityApiSpriteUrl(entry, true),
       buildSpriteUrl(entry.baseNumber, true),
-      ...pokemonDbRegular,
-      ...homeRegular,
-      ...projectPokemonRegular,
-      ...hybridRegular,
-      entry.listSprite,
-      buildSpriteUrl(entry.baseNumber)
+      ...baseRegular
     ]);
   }
 
-  return uniqUrls([
-    ...pokemonDbRegular,
-    ...homeRegular,
-    ...projectPokemonRegular,
-    ...hybridRegular,
-    entry.listSprite,
-    buildSpriteUrl(entry.id),
-    buildSpriteUrl(entry.baseNumber)
-  ]);
+  return uniqUrls([...formRegular, ...baseRegular]);
 }
 
-function getPokemonVisualUrls(pokemon, { forceShiny = false, preferArtwork = false } = {}) {
-  const wantsShiny = forceShiny || isShiny(pokemon.name);
-  const pokemonDbRegular = getPokemonDbHomeUrlsFromIdentity(pokemon);
-  const pokemonDbShiny = getPokemonDbHomeUrlsFromIdentity(pokemon, true);
-  const projectPokemonRegular = buildProjectPokemonImageUrlsFromIdentity(pokemon);
-  const hybridRegular = buildHybridImageUrlsFromIdentity(pokemon);
-  const homeRegular = getHomeThumbnailUrlsFromIdentity(pokemon);
-  const homeShiny = getHomeThumbnailUrlsFromIdentity(pokemon, true);
-  const shinyPrimary = preferArtwork
-    ? [
-        pokemon.artworkShiny,
-        ...pokemonDbShiny,
-        ...homeShiny,
-        ...pokemonDbRegular,
-        ...homeRegular,
-        ...projectPokemonRegular,
-        ...hybridRegular,
-        pokemon.spriteShiny,
-        pokemon.artwork,
-        pokemon.sprite
-      ]
-    : [
-        ...pokemonDbShiny,
-        ...homeShiny,
-        ...pokemonDbRegular,
-        ...homeRegular,
-        ...projectPokemonRegular,
-        ...hybridRegular,
-        pokemon.spriteShiny,
-        pokemon.artworkShiny,
-        pokemon.sprite,
-        pokemon.artwork
-      ];
-  const regularPrimary = preferArtwork
-    ? [
-        pokemon.artwork,
-        ...pokemonDbRegular,
-        ...homeRegular,
-        ...projectPokemonRegular,
-        ...hybridRegular,
-        pokemon.sprite,
-        pokemon.artworkShiny,
-        ...pokemonDbShiny,
-        ...homeShiny,
-        pokemon.spriteShiny
-      ]
-    : [
-        ...pokemonDbRegular,
-        ...homeRegular,
-        ...projectPokemonRegular,
-        ...hybridRegular,
-        pokemon.sprite,
-        pokemon.artwork,
-        ...pokemonDbShiny,
-        ...homeShiny,
-        pokemon.spriteShiny,
-        pokemon.artworkShiny
-      ];
+function getPokemonVisualUrls(pokemon, options = {}) {
+  const wantsShiny = shouldUseShinySprite(pokemon.name, options);
+  const { preferArtwork = false } = options;
+  const hasDistinctSprite = hasDistinctIdentitySprite(pokemon);
+  const visualRegular = preferArtwork ? [pokemon.artwork, pokemon.sprite] : [pokemon.sprite, pokemon.artwork];
+  const visualShiny = preferArtwork
+    ? [pokemon.artworkShiny, pokemon.spriteShiny]
+    : [pokemon.spriteShiny, pokemon.artworkShiny];
+  const formRegular = hasDistinctSprite
+    ? uniqUrls([
+        ...getPokemonDbHomeUrlsFromIdentity(pokemon, false, { includeBaseFallback: false }),
+        ...getHomeThumbnailUrlsFromIdentity(pokemon, false, { includeBaseFallback: false }),
+        ...visualRegular,
+        getIdentityApiSpriteUrl(pokemon),
+        ...buildHybridImageUrlsFromIdentity(pokemon, { includeBaseFallback: false })
+      ])
+    : [];
+  const formShiny = hasDistinctSprite
+    ? uniqUrls([
+        ...getPokemonDbHomeUrlsFromIdentity(pokemon, true, { includeBaseFallback: false }),
+        ...getHomeThumbnailUrlsFromIdentity(pokemon, true, { includeBaseFallback: false }),
+        ...visualShiny,
+        getIdentityApiSpriteUrl(pokemon, true)
+      ])
+    : [];
+  const baseRegular = uniqUrls([
+    ...getPokemonDbHomeUrlsFromIdentity(pokemon),
+    ...getHomeThumbnailUrlsFromIdentity(pokemon),
+    ...buildProjectPokemonImageUrlsFromIdentity(pokemon),
+    ...buildHybridImageUrlsFromIdentity(pokemon),
+    ...visualRegular,
+    getIdentityApiSpriteUrl(pokemon),
+    buildSpriteUrl(pokemon.baseNumber ?? pokemon.dexNumber ?? pokemon.id)
+  ]);
 
-  return uniqUrls(wantsShiny ? shinyPrimary : regularPrimary);
+  if (wantsShiny) {
+    return uniqUrls([
+      ...formShiny,
+      ...formRegular,
+      ...getPokemonDbHomeUrlsFromIdentity(pokemon, true),
+      ...getHomeThumbnailUrlsFromIdentity(pokemon, true),
+      ...visualShiny,
+      getIdentityApiSpriteUrl(pokemon, true),
+      ...baseRegular
+    ]);
+  }
+
+  return uniqUrls([...formRegular, ...baseRegular]);
 }
 
 function applyImageSources(image, sources, alt = "") {
@@ -6384,7 +6715,7 @@ function applyEntrySprite(image, entry, options = {}) {
   applyImageSources(
     image,
     getEntrySpriteUrls(entry, options),
-    `${entry.displayName}${options.forceShiny || isShiny(entry.name) ? " shiny" : ""} sprite`
+    `${entry.displayName}${shouldUseShinySprite(entry.name, options) ? " shiny" : ""} sprite`
   );
 }
 
@@ -6392,7 +6723,7 @@ function applyPokemonVisual(image, pokemon, options = {}) {
   applyImageSources(
     image,
     getPokemonVisualUrls(pokemon, options),
-    `${pokemon.displayName}${options.forceShiny || isShiny(pokemon.name) ? " shiny" : ""} ${
+    `${pokemon.displayName}${shouldUseShinySprite(pokemon.name, options) ? " shiny" : ""} ${
       options.preferArtwork ? "artwork" : "sprite"
     }`
   );
@@ -6438,6 +6769,7 @@ function normalizeCachedDexEntry(entry) {
   const id = Number(entry.id) || 0;
   const baseNumber = Number(entry.baseNumber) || id;
   const basePokemonName = String(entry.basePokemonName || entry.name).trim();
+  const formFlags = Array.isArray(entry.formFlags) ? entry.formFlags.map(String) : detectFormFlags(entry.name, id);
   const normalizedEntry = {
     ...entry,
     id,
@@ -6447,8 +6779,7 @@ function normalizeCachedDexEntry(entry) {
     isForm: Boolean(entry.isForm),
     basePokemonName,
     baseDisplayName: String(entry.baseDisplayName || titleCase(basePokemonName)).trim(),
-    generation: Number(entry.generation) || determineGeneration(baseNumber),
-    formFlags: Array.isArray(entry.formFlags) ? entry.formFlags.map(String) : detectFormFlags(entry.name, id),
+    formFlags,
     variantLabel: entry.variantLabel ?? null,
     detailNote: String(entry.detailNote ?? ""),
     listSprite: String(entry.listSprite ?? buildSpriteUrl(id || baseNumber)),
@@ -6456,6 +6787,7 @@ function normalizeCachedDexEntry(entry) {
     archiveVisible: entry.archiveVisible !== false,
     showInFormsTab: entry.showInFormsTab !== false
   };
+  normalizedEntry.generation = determineEntryGeneration(normalizedEntry);
   const homeMeta = getHomeBoxCompatibilityMeta(normalizedEntry);
 
   Object.assign(normalizedEntry, homeMeta, {
@@ -6634,6 +6966,68 @@ function determineGeneration(number) {
   return generation ? generation.label : "unknown";
 }
 
+function determineEntryGeneration(entry) {
+  const baseGeneration = determineGeneration(entry?.baseNumber ?? entry?.id ?? 0);
+  const name = String(entry?.name ?? "").toLowerCase();
+  const basePokemonName = String(entry?.basePokemonName ?? entry?.name ?? "").toLowerCase();
+  const formFlags = new Set(entry?.formFlags ?? []);
+  const isForm = Boolean(entry?.isForm || entry?.syntheticKind || formFlags.has("form"));
+
+  if (!isForm || !name || name === basePokemonName) {
+    return baseGeneration;
+  }
+
+  if (name.includes("-mega") || name.includes("-primal")) {
+    return "6";
+  }
+
+  if (
+    name.includes("-alola") ||
+    name === "greninja-ash" ||
+    name === "greninja-battle-bond" ||
+    (name.startsWith("zygarde-") && name !== "zygarde") ||
+    name.startsWith("necrozma-") ||
+    /pikachu-.*-cap$/.test(name)
+  ) {
+    return name.includes("world-cap") ? "8" : "7";
+  }
+
+  if (
+    name.includes("-galar") ||
+    name.includes("-hisui") ||
+    name.includes("-gmax") ||
+    name.includes("rapid-strike") ||
+    name.includes("single-strike") ||
+    name.includes("eternamax") ||
+    name === "dialga-origin" ||
+    name === "palkia-origin"
+  ) {
+    return "8";
+  }
+
+  if (
+    name.includes("-paldea") ||
+    name.includes("bloodmoon") ||
+    name.includes("combat-breed") ||
+    name.includes("aqua-breed") ||
+    name.includes("blaze-breed") ||
+    name.includes("family-of-") ||
+    name.includes("roaming") ||
+    name.includes("masterpiece") ||
+    name.includes("artisan") ||
+    name.includes("cornerstone-mask") ||
+    name.includes("hearthflame-mask") ||
+    name.includes("wellspring-mask") ||
+    name.includes("teal-mask") ||
+    name.includes("terastal") ||
+    name.includes("stellar")
+  ) {
+    return "9";
+  }
+
+  return baseGeneration;
+}
+
 function resolveBaseEntry(name, id) {
   if (id <= BASE_POKEMON_COUNT) {
     return state.baseEntriesByName.get(name) ?? null;
@@ -6739,7 +7133,6 @@ function createAppearanceEntry({
     baseNumber,
     basePokemonName,
     baseDisplayName: titleCase(basePokemonName),
-    generation: determineGeneration(baseNumber),
     formFlags,
     variantLabel,
     detailNote,
@@ -6750,6 +7143,7 @@ function createAppearanceEntry({
     shinyListSprite: shinyListSprite ?? buildFormSpriteUrl(baseNumber, spriteSlug, true)
   };
 
+  entry.generation = determineEntryGeneration(entry);
   entry.searchBlob = buildEntrySearchBlob(entry, extraSearchTerms);
   return entry;
 }
@@ -6921,6 +7315,27 @@ function buildAppearanceFormEntries(startId, existingNames = new Set(), sourceEn
         detailNote: variant.detailNote,
         spriteSlug: variant.spriteSlug,
         extraSearchTerms: ["appearance", "cosmetic", "season", "unova"]
+      })
+    );
+  });
+
+  UNOWN_FORM_VARIANTS.forEach((variant) => {
+    if (existingNames.has(variant.name)) {
+      return;
+    }
+
+    entries.push(
+      createAppearanceEntry({
+        id: variant.id,
+        name: variant.name,
+        displayName: variant.displayName,
+        baseNumber: variant.baseNumber,
+        basePokemonName: variant.basePokemonName,
+        variantLabel: variant.variantLabel,
+        detailNote: variant.detailNote,
+        listSprite: variant.listSprite,
+        shinyListSprite: variant.shinyListSprite,
+        extraSearchTerms: variant.extraSearchTerms
       })
     );
   });
@@ -7103,7 +7518,7 @@ async function repairUnresolvedFormEntries(entries) {
     entry.basePokemonName = speciesName;
     entry.baseDisplayName = titleCase(speciesName);
     entry.baseNumber = speciesId;
-    entry.generation = determineGeneration(speciesId);
+    entry.generation = determineEntryGeneration(entry);
     entry.listSprite = buildSpriteUrl(entry.id);
     entry.shinyListSprite = buildSpriteUrl(entry.id, true);
     entry.searchBlob = buildEntrySearchBlob(entry);
@@ -7216,6 +7631,106 @@ async function buildGameAvailabilityDetail(gameId) {
 
 function isAvailableInGame(baseNumber, gameId) {
   return Boolean(state.gameAvailabilityByGame.get(gameId)?.has(baseNumber));
+}
+
+function getEntryGameSupport(entry) {
+  if (!entry?.isForm) {
+    return null;
+  }
+
+  const name = String(entry.name ?? "").toLowerCase();
+  const basePokemonName = String(entry.basePokemonName ?? "").toLowerCase();
+  const formFlags = new Set(entry.formFlags ?? []);
+
+  if (entry.syntheticKind === "gender") {
+    return null;
+  }
+
+  if (GAME_FILTER_UNOBTAINABLE_FORM_PATTERN.test(name)) {
+    return FORM_GAME_SUPPORT.none;
+  }
+
+  if (name.includes("-gmax")) {
+    return FORM_GAME_SUPPORT.swshOnly;
+  }
+
+  if (name.includes("-mega")) {
+    return FORM_GAME_SUPPORT.lzaOnly;
+  }
+
+  if (name.includes("-primal")) {
+    return FORM_GAME_SUPPORT.none;
+  }
+
+  if (name === "gimmighoul-roaming" || name === "ursaluna-bloodmoon") {
+    return FORM_GAME_SUPPORT.svOnly;
+  }
+
+  if (name.startsWith("unown-")) {
+    return FORM_GAME_SUPPORT.bdspPla;
+  }
+
+  if (name === "shellos-east" || name === "gastrodon-east") {
+    return FORM_GAME_SUPPORT.bdspPlaSv;
+  }
+
+  if (
+    basePokemonName === "deerling" ||
+    basePokemonName === "sawsbuck" ||
+    basePokemonName === "vivillon"
+  ) {
+    return FORM_GAME_SUPPORT.svOnly;
+  }
+
+  if (basePokemonName === "alcremie") {
+    return FORM_GAME_SUPPORT.swshSv;
+  }
+
+  if (
+    basePokemonName === "burmy" ||
+    basePokemonName === "wormadam" ||
+    basePokemonName === "mothim"
+  ) {
+    return FORM_GAME_SUPPORT.bdspPla;
+  }
+
+  if (
+    basePokemonName === "flabebe" ||
+    basePokemonName === "floette" ||
+    basePokemonName === "florges"
+  ) {
+    return FORM_GAME_SUPPORT.svLza;
+  }
+
+  if (formFlags.has("regional")) {
+    if (name.includes("alola")) {
+      return FORM_GAME_SUPPORT.lgpeSwshSv;
+    }
+    if (name.includes("galar")) {
+      return FORM_GAME_SUPPORT.swshOnly;
+    }
+    if (name.includes("hisui")) {
+      return FORM_GAME_SUPPORT.plaOnly;
+    }
+    if (name.includes("paldea")) {
+      return FORM_GAME_SUPPORT.svOnly;
+    }
+  }
+
+  return null;
+}
+
+function isEntryAvailableInGame(entry, gameId) {
+  if (!entry || !gameId || gameId === "all") {
+    return true;
+  }
+
+  if (!isAvailableInGame(entry.baseNumber, gameId)) {
+    return false;
+  }
+
+  const supportedGames = getEntryGameSupport(entry);
+  return supportedGames ? supportedGames.has(gameId) : true;
 }
 
 function getGameDexOrderIndex(baseNumber, gameId) {
@@ -10506,26 +11021,642 @@ function renderHomeOrganizer() {
 }
 
 function renderModuleQueue() {
+  if (!elements.moduleGrid) {
+    return;
+  }
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+  const summarizeCounts = (values = []) => {
+    const counts = new Map();
+    values.filter(Boolean).forEach((value) => {
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    });
+    return [...counts.entries()].map(([name, count]) => `${name} x${count}`);
+  };
+
+  const formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`;
+  const parseMoney = (value) => {
+    const parsed = Number.parseFloat(String(value ?? "").trim());
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  };
+
+  const getLzaDonutSummary = () => {
+    const selectedBerries = state.tools.lza.slots
+      .filter((name) => LZA_DONUT_BERRIES_BY_NAME.has(name))
+      .map((name) => LZA_DONUT_BERRIES_BY_NAME.get(name));
+    const totals = {
+      sweet: 0,
+      spicy: 0,
+      sour: 0,
+      bitter: 0,
+      fresh: 0,
+      level: 0,
+      calories: 0
+    };
+
+    selectedBerries.forEach((berry) => {
+      totals.sweet += berry.sweet;
+      totals.spicy += berry.spicy;
+      totals.sour += berry.sour;
+      totals.bitter += berry.bitter;
+      totals.fresh += berry.fresh;
+      totals.level += berry.level;
+      totals.calories += berry.calories;
+    });
+
+    const flavors = LZA_DONUT_FLAVOR_META.map(([key, label]) => ({
+      key,
+      label,
+      value: totals[key]
+    })).sort((left, right) => right.value - left.value);
+    const highestFlavor = flavors[0]?.value ?? 0;
+    const dominantFlavors = highestFlavor
+      ? flavors.filter((flavor) => flavor.value === highestFlavor)
+      : [];
+    const powerPool = [
+      ...new Set(
+        dominantFlavors.flatMap((flavor) => LZA_DONUT_FLAVOR_POWERS[flavor.key] ?? [])
+      )
+    ];
+
+    return {
+      selectedBerries,
+      totals,
+      flavors,
+      dominantFlavors,
+      powerPool,
+      berryCount: selectedBerries.length,
+      flavorScore: totals.sweet + totals.spicy + totals.sour + totals.bitter + totals.fresh,
+      recipeSummary: summarizeCounts(selectedBerries.map((berry) => berry.name))
+    };
+  };
+
+  const getSelectedPlaRecipe = () =>
+    PLA_RECIPES_BY_NAME.get(state.tools.pla.recipeName) ?? PLA_RECIPE_CATALOG[0] ?? null;
+
+  const getPlaRecipeSummary = () => {
+    const recipe = getSelectedPlaRecipe();
+    const amount = Math.max(1, state.tools.pla.amount || 1);
+    if (!recipe) {
+      return {
+        recipe: null,
+        amount,
+        materialRows: [],
+        craftableNow: 0,
+        totalCost: 0,
+        missingMaterials: []
+      };
+    }
+
+    const materialRows = recipe.materials.map((material) => {
+      const owned = state.tools.pla.materialCounts[material.name] ?? 0;
+      const unitCost = parseMoney(state.tools.pla.materialCosts[material.name]);
+      const required = material.count * amount;
+      const shortfall = Math.max(0, required - owned);
+
+      return {
+        ...material,
+        owned,
+        required,
+        shortfall,
+        unitCost,
+        totalCost: required * unitCost
+      };
+    });
+
+    const craftableNow = materialRows.length
+      ? Math.min(...materialRows.map((material) => Math.floor(material.owned / material.count)))
+      : 0;
+
+    return {
+      recipe,
+      amount,
+      materialRows,
+      craftableNow,
+      totalCost: materialRows.reduce((sum, material) => sum + material.totalCost, 0),
+      missingMaterials: materialRows.filter((material) => material.shortfall > 0)
+    };
+  };
+
+  const getSelectedSvSandwich = () =>
+    SV_SHINY_SANDWICHES_BY_TYPE.get(state.tools.sv.type) ?? SV_SHINY_SANDWICH_RECIPES[0] ?? null;
+
+  const getSupplyTrackerSummary = () => {
+    const rows = state.tools.supply.rows;
+    const totalQuantity = rows.reduce(
+      (sum, row) => sum + Math.max(0, normalizeNonNegativeInteger(row.quantity, 0)),
+      0
+    );
+    const totalCost = rows.reduce(
+      (sum, row) =>
+        sum + parseMoney(row.unitCost) * Math.max(0, normalizeNonNegativeInteger(row.quantity, 0)),
+      0
+    );
+
+    return {
+      rows,
+      totalQuantity,
+      totalCost
+    };
+  };
+
+  const saveAndRefreshTools = (statusMessage = "") => {
+    saveToolsState();
+    renderModuleQueue();
+    if (statusMessage) {
+      setStatus(statusMessage);
+    }
+  };
+
+  const setLzaDonutSlot = (index, berryName) => {
+    state.tools.lza.slots[index] = LZA_DONUT_BERRIES_BY_NAME.has(berryName) ? berryName : "";
+    saveAndRefreshTools();
+  };
+
+  const applyLzaPreset = (presetId) => {
+    const preset = LZA_DONUT_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) {
+      return;
+    }
+
+    state.tools.lza.slots = Array.from({ length: 8 }, (_, index) => preset.berries[index] ?? "");
+    saveAndRefreshTools(`${preset.title} loaded into the donut mocker.`);
+  };
+
+  const clearLzaBuilder = () => {
+    state.tools.lza.slots = Array(8).fill("");
+    saveAndRefreshTools("Donut builder cleared.");
+  };
+
+  const setPlaRecipeName = (recipeName) => {
+    if (!PLA_RECIPES_BY_NAME.has(recipeName)) {
+      return;
+    }
+
+    state.tools.pla.recipeName = recipeName;
+    saveAndRefreshTools();
+  };
+
+  const setPlaRecipeAmount = (value) => {
+    state.tools.pla.amount = Math.max(1, normalizeNonNegativeInteger(value, 1));
+    saveAndRefreshTools();
+  };
+
+  const setPlaMaterialCount = (materialName, value) => {
+    const nextValue = Math.max(0, normalizeNonNegativeInteger(value, 0));
+    if (nextValue > 0) {
+      state.tools.pla.materialCounts[materialName] = nextValue;
+    } else {
+      delete state.tools.pla.materialCounts[materialName];
+    }
+    saveAndRefreshTools();
+  };
+
+  const setPlaMaterialCost = (materialName, value) => {
+    const normalized = normalizeNonNegativeDecimalString(value);
+    if (normalized) {
+      state.tools.pla.materialCosts[materialName] = normalized;
+    } else {
+      delete state.tools.pla.materialCosts[materialName];
+    }
+    saveAndRefreshTools();
+  };
+
+  const setSvSandwichType = (type) => {
+    if (!SV_SHINY_SANDWICHES_BY_TYPE.has(type)) {
+      return;
+    }
+
+    state.tools.sv.type = type;
+    saveAndRefreshTools();
+  };
+
+  const addSupplyTrackerRow = () => {
+    state.tools.supply.rows.push(createDefaultSupplyRow());
+    saveAndRefreshTools("Added a new supply line.");
+  };
+
+  const updateSupplyTrackerRow = (rowId, field, value) => {
+    const row = state.tools.supply.rows.find((entry) => entry.id === rowId);
+    if (!row) {
+      return;
+    }
+
+    if (field === "unitCost") {
+      row.unitCost = normalizeNonNegativeDecimalString(value);
+    } else if (field === "quantity") {
+      row.quantity = String(Math.max(0, normalizeNonNegativeInteger(value, 1)) || 1);
+    } else if (field === "name") {
+      row.name = String(value ?? "");
+    }
+
+    saveAndRefreshTools();
+  };
+
+  const removeSupplyTrackerRow = (rowId) => {
+    state.tools.supply.rows = state.tools.supply.rows.filter((row) => row.id !== rowId);
+    if (!state.tools.supply.rows.length) {
+      state.tools.supply.rows = [createDefaultSupplyRow()];
+    }
+    saveAndRefreshTools("Removed a supply line.");
+  };
+
+  const buildBerryOptions = (selectedValue) => {
+    const buildOptionMarkup = (berries) =>
+      berries
+        .map(
+          (berry) =>
+            `<option value="${escapeHtml(berry.name)}"${berry.name === selectedValue ? " selected" : ""}>${escapeHtml(
+              berry.name
+            )}</option>`
+        )
+        .join("");
+
+    return [
+      '<option value="">Empty Slot</option>',
+      `<optgroup label="Regular Berries">${buildOptionMarkup(
+        LZA_DONUT_BERRIES.filter((berry) => berry.tier === "regular")
+      )}</optgroup>`,
+      `<optgroup label="Hyper Berries">${buildOptionMarkup(
+        LZA_DONUT_BERRIES.filter((berry) => berry.tier === "hyper")
+      )}</optgroup>`
+    ].join("");
+  };
+
+  const buildRecipeOptions = (selectedName) =>
+    PLA_RECIPE_CATALOG.map(
+      (recipe) =>
+        `<option value="${escapeHtml(recipe.name)}"${recipe.name === selectedName ? " selected" : ""}>${escapeHtml(
+          `${recipe.category} · ${recipe.name}`
+        )}</option>`
+    ).join("");
+
+  const lzaSummary = getLzaDonutSummary();
+  const plaSummary = getPlaRecipeSummary();
+  const svRecipe = getSelectedSvSandwich();
+  const supplySummary = getSupplyTrackerSummary();
+
+  elements.moduleGrid.classList.add("is-toolbox");
   elements.moduleGrid.replaceChildren();
 
-  MODULE_CATALOG.forEach((module) => {
-    const card = document.createElement("article");
-    card.className = "module-card";
+  const lzaCard = document.createElement("article");
+  lzaCard.className = "module-card tool-station-card";
+  lzaCard.innerHTML = `
+    <div class="tool-card-head">
+      <div>
+        <span class="module-status live">Legends: Z-A</span>
+        <strong>Donut Lab</strong>
+      </div>
+      <span class="toolbar-pill">8-slot mocker</span>
+    </div>
+    <p class="results-summary">
+      Common shiny and farming bases on top, then a live mock builder underneath. This previews flavor bias and donut stats, not a guaranteed power roll.
+    </p>
+    <div class="tool-preset-grid">
+      ${LZA_DONUT_PRESETS.map(
+        (preset) => `
+          <button type="button" class="ghost-button tool-preset-button" data-lza-preset="${escapeHtml(preset.id)}">
+            <span>${escapeHtml(preset.title)}</span>
+            <small>${escapeHtml(preset.summary)}</small>
+          </button>
+        `
+      ).join("")}
+    </div>
+    <div class="tool-stat-grid">
+      <span class="tool-stat-chip">Berries ${lzaSummary.berryCount}/8</span>
+      <span class="tool-stat-chip">Flavor Score ${formatCount(lzaSummary.flavorScore)}</span>
+      <span class="tool-stat-chip">Level +${formatCount(lzaSummary.totals.level)}</span>
+      <span class="tool-stat-chip">Calories ${formatCount(lzaSummary.totals.calories)}</span>
+    </div>
+    <p class="results-summary">
+      ${
+        lzaSummary.recipeSummary.length
+          ? escapeHtml(lzaSummary.recipeSummary.join(" · "))
+          : "Pick berries in the slots below to preview the donut."
+      }
+    </p>
+    <div class="tool-slot-grid">
+      ${state.tools.lza.slots
+        .map(
+          (slot, index) => `
+            <label class="select-shell compact-field tool-input-shell">
+              <span>Slot ${index + 1}</span>
+              <select data-lza-slot="${index}">
+                ${buildBerryOptions(slot)}
+              </select>
+            </label>
+          `
+        )
+        .join("")}
+    </div>
+    <div class="tool-detail-grid">
+      <article class="tool-detail-card">
+        <span class="meta-label">Dominant Flavor</span>
+        <strong>${
+          lzaSummary.dominantFlavors.length
+            ? escapeHtml(lzaSummary.dominantFlavors.map((flavor) => flavor.label).join(" / "))
+            : "No bias yet"
+        }</strong>
+        <p class="results-summary">
+          ${
+            lzaSummary.flavors.some((flavor) => flavor.value > 0)
+              ? escapeHtml(
+                  lzaSummary.flavors
+                    .filter((flavor) => flavor.value > 0)
+                    .map((flavor) => `${flavor.label} ${flavor.value}`)
+                    .join(" · ")
+                )
+              : "Flavor totals appear here once you start filling the tray."
+          }
+        </p>
+      </article>
+      <article class="tool-detail-card">
+        <span class="meta-label">Likely Power Pool</span>
+        <strong>${
+          lzaSummary.powerPool.length
+            ? escapeHtml(lzaSummary.powerPool.slice(0, 2).join(" + "))
+            : "Waiting for a dominant flavor"
+        }</strong>
+        <p class="results-summary">
+          ${
+            lzaSummary.powerPool.length
+              ? escapeHtml(lzaSummary.powerPool.join(" · "))
+              : "Sweet aims at Sparkling and Alpha, Sour at Item and Big Haul, Fresh at Encounter and Capture."
+          }
+        </p>
+      </article>
+    </div>
+    <div class="tool-action-row">
+      <button type="button" class="ghost-button detail-link-button" data-clear-lza>Clear Builder</button>
+    </div>
+  `;
 
-    const status = document.createElement("span");
-    status.className = `module-status ${module.status.toLowerCase().replace(/\s+/g, "-")}`;
-    status.textContent = module.status;
-
-    const title = document.createElement("strong");
-    title.textContent = module.title;
-
-    const summary = document.createElement("p");
-    summary.className = "results-summary";
-    summary.textContent = module.summary;
-
-    card.append(status, title, summary);
-    elements.moduleGrid.appendChild(card);
+  lzaCard.querySelectorAll("[data-lza-preset]").forEach((button) => {
+    button.addEventListener("click", () => applyLzaPreset(button.dataset.lzaPreset));
   });
+  lzaCard.querySelectorAll("[data-lza-slot]").forEach((select) => {
+    select.addEventListener("change", () => {
+      setLzaDonutSlot(Number.parseInt(select.dataset.lzaSlot, 10), select.value);
+    });
+  });
+  lzaCard.querySelector("[data-clear-lza]")?.addEventListener("click", clearLzaBuilder);
+
+  const plaCard = document.createElement("article");
+  plaCard.className = "module-card tool-station-card";
+  plaCard.innerHTML = `
+    <div class="tool-card-head">
+      <div>
+        <span class="module-status live">Legends: Arceus</span>
+        <strong>Crafting Bench</strong>
+      </div>
+      <span class="toolbar-pill">Materials + cost</span>
+    </div>
+    <p class="results-summary">
+      Pick a recipe, set a batch size, then track owned materials and optional per-material costs to see what you can craft right now.
+    </p>
+    <div class="tool-field-grid">
+      <label class="select-shell compact-field tool-input-shell">
+        <span>Recipe</span>
+        <select data-pla-recipe>
+          ${buildRecipeOptions(state.tools.pla.recipeName)}
+        </select>
+      </label>
+      <label class="select-shell compact-field tool-input-shell">
+        <span>Batch Amount</span>
+        <input type="number" min="1" step="1" value="${escapeHtml(String(state.tools.pla.amount))}" data-pla-amount />
+      </label>
+    </div>
+    <div class="tool-stat-grid">
+      <span class="tool-stat-chip">Craftable Now ${formatCount(plaSummary.craftableNow)}</span>
+      <span class="tool-stat-chip">Materials ${plaSummary.materialRows.length}</span>
+      <span class="tool-stat-chip">Batch Cost ${formatMoney(plaSummary.totalCost)}</span>
+      <span class="tool-stat-chip">Missing ${formatCount(plaSummary.missingMaterials.length)}</span>
+    </div>
+    <p class="results-summary">
+      ${
+        plaSummary.missingMaterials.length
+          ? escapeHtml(
+              `Short on ${plaSummary.missingMaterials
+                .map((material) => `${material.name} x${material.shortfall}`)
+                .join(", ")}.`
+            )
+          : "Your current stock covers this full batch."
+      }
+    </p>
+    <div class="tool-table">
+      <div class="tool-table-head">
+        <span>Material</span>
+        <span>Need</span>
+        <span>Owned</span>
+        <span>Unit Cost</span>
+        <span>Shortfall</span>
+      </div>
+      ${plaSummary.materialRows
+        .map(
+          (material) => `
+            <div class="tool-table-row">
+              <span class="tool-table-label">${escapeHtml(material.name)}</span>
+              <span class="tool-table-value">${formatCount(material.required)}</span>
+              <input
+                class="tool-table-input"
+                type="number"
+                min="0"
+                step="1"
+                value="${escapeHtml(String(material.owned))}"
+                data-pla-owned="${escapeHtml(material.name)}"
+              />
+              <input
+                class="tool-table-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value="${escapeHtml(state.tools.pla.materialCosts[material.name] ?? "")}"
+                data-pla-cost="${escapeHtml(material.name)}"
+              />
+              <span class="tool-table-value">${material.shortfall ? formatCount(material.shortfall) : "Ready"}</span>
+            </div>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+
+  plaCard.querySelector("[data-pla-recipe]")?.addEventListener("change", (event) => {
+    setPlaRecipeName(event.currentTarget.value);
+  });
+  plaCard.querySelector("[data-pla-amount]")?.addEventListener("change", (event) => {
+    setPlaRecipeAmount(event.currentTarget.value);
+  });
+  plaCard.querySelectorAll("[data-pla-owned]").forEach((input) => {
+    input.addEventListener("change", () => {
+      setPlaMaterialCount(input.dataset.plaOwned, input.value);
+    });
+  });
+  plaCard.querySelectorAll("[data-pla-cost]").forEach((input) => {
+    input.addEventListener("change", () => {
+      setPlaMaterialCost(input.dataset.plaCost, input.value);
+    });
+  });
+
+  const svCard = document.createElement("article");
+  svCard.className = "module-card tool-station-card";
+  svCard.innerHTML = `
+    <div class="tool-card-head">
+      <div>
+        <span class="module-status live">Scarlet / Violet</span>
+        <strong>Shiny Sandwich Maker</strong>
+      </div>
+      <span class="toolbar-pill">Sparkling Lv. 3</span>
+    </div>
+    <p class="results-summary">
+      Choose a target type to get the quick shiny sandwich base plus the flexible picnic version that works with almost any pair of Herba.
+    </p>
+    <div class="tool-field-grid">
+      <label class="select-shell compact-field tool-input-shell">
+        <span>Target Type</span>
+        <select data-sv-type>
+          ${SV_SHINY_SANDWICH_RECIPES.map(
+            (recipe) =>
+              `<option value="${escapeHtml(recipe.type)}"${recipe.type === state.tools.sv.type ? " selected" : ""}>${escapeHtml(
+                recipe.type
+              )}</option>`
+          ).join("")}
+        </select>
+      </label>
+    </div>
+    <div class="tool-detail-grid">
+      <article class="tool-detail-card">
+        <span class="meta-label">Minimal Base</span>
+        <strong>${escapeHtml(svRecipe?.type ?? "Normal")} · ${escapeHtml(
+          svRecipe?.minimalIngredient ?? "Tofu"
+        )}</strong>
+        <p class="results-summary">
+          ${escapeHtml(
+            [svRecipe?.minimalIngredient, ...(svRecipe?.minimalHerba ?? [])].filter(Boolean).join(" + ")
+          )}
+        </p>
+      </article>
+      <article class="tool-detail-card">
+        <span class="meta-label">Flexible Creative Mode</span>
+        <strong>${escapeHtml((svRecipe?.flexibleIngredients ?? []).join(" + "))}</strong>
+        <p class="results-summary">
+          Avoid ${escapeHtml((svRecipe?.flexibleHerbaExceptions ?? []).join(", "))}.
+        </p>
+      </article>
+    </div>
+    <div class="tool-stat-grid">
+      ${SV_SHINY_ODDS.map(
+        (entry) => `<span class="tool-stat-chip">${escapeHtml(entry.label)} ${escapeHtml(entry.value)}</span>`
+      ).join("")}
+    </div>
+    <p class="results-summary">
+      Best route: clear 60 outbreak spawns first, save before the picnic, then stack Sparkling Lv. 3 with the Shiny Charm for the 1/512 ceiling.
+    </p>
+  `;
+
+  svCard.querySelector("[data-sv-type]")?.addEventListener("change", (event) => {
+    setSvSandwichType(event.currentTarget.value);
+  });
+
+  const supplyCard = document.createElement("article");
+  supplyCard.className = "module-card tool-station-card";
+  supplyCard.innerHTML = `
+    <div class="tool-card-head">
+      <div>
+        <span class="module-status live">Shared Utility</span>
+        <strong>Supply Cost Tracker</strong>
+      </div>
+      <span class="toolbar-pill">Any game</span>
+    </div>
+    <p class="results-summary">
+      Keep a running list of item costs and counts when you are pricing donuts, crafting batches, sandwich runs, or shopping lists.
+    </p>
+    <div class="tool-stat-grid">
+      <span class="tool-stat-chip">Lines ${formatCount(supplySummary.rows.length)}</span>
+      <span class="tool-stat-chip">Quantity ${formatCount(supplySummary.totalQuantity)}</span>
+      <span class="tool-stat-chip">Total ${formatMoney(supplySummary.totalCost)}</span>
+    </div>
+    <div class="tool-table">
+      <div class="tool-table-head tool-table-head--supply">
+        <span>Item</span>
+        <span>Unit Cost</span>
+        <span>Qty</span>
+        <span>Total</span>
+        <span></span>
+      </div>
+      ${supplySummary.rows
+        .map((row) => {
+          const quantity = Math.max(0, normalizeNonNegativeInteger(row.quantity, 0));
+          const total = parseMoney(row.unitCost) * quantity;
+          return `
+            <div class="tool-table-row tool-table-row--supply">
+              <input
+                class="tool-table-input"
+                type="text"
+                placeholder="Item name"
+                value="${escapeHtml(row.name)}"
+                data-supply-name="${escapeHtml(row.id)}"
+              />
+              <input
+                class="tool-table-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value="${escapeHtml(row.unitCost)}"
+                data-supply-cost="${escapeHtml(row.id)}"
+              />
+              <input
+                class="tool-table-input"
+                type="number"
+                min="0"
+                step="1"
+                value="${escapeHtml(row.quantity)}"
+                data-supply-qty="${escapeHtml(row.id)}"
+              />
+              <span class="tool-table-value">${formatMoney(total)}</span>
+              <button type="button" class="ghost-button tool-inline-button" data-remove-supply="${escapeHtml(row.id)}">
+                Remove
+              </button>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+    <div class="tool-action-row">
+      <button type="button" class="ghost-button detail-link-button" data-add-supply>Add Line</button>
+    </div>
+  `;
+
+  supplyCard.querySelector("[data-add-supply]")?.addEventListener("click", addSupplyTrackerRow);
+  supplyCard.querySelectorAll("[data-supply-name]").forEach((input) => {
+    input.addEventListener("change", () => {
+      updateSupplyTrackerRow(input.dataset.supplyName, "name", input.value);
+    });
+  });
+  supplyCard.querySelectorAll("[data-supply-cost]").forEach((input) => {
+    input.addEventListener("change", () => {
+      updateSupplyTrackerRow(input.dataset.supplyCost, "unitCost", input.value);
+    });
+  });
+  supplyCard.querySelectorAll("[data-supply-qty]").forEach((input) => {
+    input.addEventListener("change", () => {
+      updateSupplyTrackerRow(input.dataset.supplyQty, "quantity", input.value);
+    });
+  });
+  supplyCard.querySelectorAll("[data-remove-supply]").forEach((button) => {
+    button.addEventListener("click", () => removeSupplyTrackerRow(button.dataset.removeSupply));
+  });
+
+  elements.moduleGrid.append(lzaCard, plaCard, svCard, supplyCard);
 }
 
 function preserveViewportScroll(callback) {
@@ -10585,7 +11716,7 @@ function refreshTrackerConnectedViews() {
     renderCollections();
     renderHomeOrganizer();
     renderShinyHelper();
-    renderSuggestors();
+    refreshResults();
     renderExpGameOptions();
     renderTrainerVault();
     if (state.currentPokemon) {
@@ -11728,6 +12859,7 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
   const familyEntries = getEntriesForBaseNumber(knownEntry?.baseNumber ?? species.id);
   const basePokemonName = knownEntry?.basePokemonName ?? species.name;
   const baseDisplayName = knownEntry?.baseDisplayName ?? titleCase(basePokemonName);
+  const preferKnownEntrySprite = hasDistinctIdentitySprite(knownEntry);
   const types = [...apiPokemon.types]
     .sort((left, right) => left.slot - right.slot)
     .map((entry) => entry.type.name);
@@ -11750,33 +12882,34 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
     baseNumber: knownEntry?.baseNumber ?? species.id,
     basePokemonName,
     baseDisplayName,
+    syntheticKind: knownEntry?.syntheticKind ?? null,
     sprite:
-      apiPokemon.sprites.other.home.front_default ||
-      knownEntry?.listSprite ||
+      (preferKnownEntrySprite ? knownEntry?.listSprite : apiPokemon.sprites.other.home.front_default) ||
+      (preferKnownEntrySprite ? apiPokemon.sprites.other.home.front_default : knownEntry?.listSprite) ||
       apiPokemon.sprites.front_default ||
       apiPokemon.sprites.other["official-artwork"].front_default ||
       "",
     spriteShiny:
-      apiPokemon.sprites.other.home.front_shiny ||
-      knownEntry?.shinyListSprite ||
+      (preferKnownEntrySprite ? knownEntry?.shinyListSprite : apiPokemon.sprites.other.home.front_shiny) ||
+      (preferKnownEntrySprite ? apiPokemon.sprites.other.home.front_shiny : knownEntry?.shinyListSprite) ||
       apiPokemon.sprites.front_shiny ||
       apiPokemon.sprites.other["official-artwork"].front_shiny ||
-      apiPokemon.sprites.other.home.front_default ||
-      knownEntry?.listSprite ||
+      (preferKnownEntrySprite ? knownEntry?.listSprite : apiPokemon.sprites.other.home.front_default) ||
+      (preferKnownEntrySprite ? apiPokemon.sprites.other.home.front_default : knownEntry?.listSprite) ||
       apiPokemon.sprites.front_default ||
       "",
     artwork:
-      apiPokemon.sprites.other["official-artwork"].front_default ||
+      (preferKnownEntrySprite ? knownEntry?.listSprite : apiPokemon.sprites.other["official-artwork"].front_default) ||
+      (preferKnownEntrySprite ? apiPokemon.sprites.other["official-artwork"].front_default : knownEntry?.listSprite) ||
       apiPokemon.sprites.other.home.front_default ||
-      knownEntry?.listSprite ||
       apiPokemon.sprites.front_default ||
       knownEntry?.shinyListSprite ||
       apiPokemon.sprites.front_shiny ||
       "",
     artworkShiny:
-      apiPokemon.sprites.other["official-artwork"].front_shiny ||
+      (preferKnownEntrySprite ? knownEntry?.shinyListSprite : apiPokemon.sprites.other["official-artwork"].front_shiny) ||
+      (preferKnownEntrySprite ? apiPokemon.sprites.other["official-artwork"].front_shiny : knownEntry?.shinyListSprite) ||
       apiPokemon.sprites.other.home.front_shiny ||
-      knownEntry?.shinyListSprite ||
       apiPokemon.sprites.front_shiny ||
       knownEntry?.listSprite ||
       apiPokemon.sprites.other["official-artwork"].front_default ||
@@ -11795,7 +12928,9 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
     pokedexEntryScope: pokedexEntriesState.scopeLabel,
     genus: genusEntry?.genus || "Unknown",
     habitat: species.habitat ? titleCase(species.habitat.name) : "Unknown",
-    generation: `Generation ${determineGeneration(species.id)}`.replace("Generation unknown", "Unknown"),
+    generation: `Generation ${
+      knownEntry?.generation ?? determineEntryGeneration(knownEntry ?? { baseNumber: species.id, name: species.name })
+    }`.replace("Generation unknown", "Unknown"),
     eggGroups: species.egg_groups.map((entry) => titleCase(entry.name)),
     isLegendary: species.is_legendary,
     isMythical: species.is_mythical,
@@ -11839,19 +12974,38 @@ function renderStats(stats) {
 }
 
 function renderForms(varieties) {
-  elements.formList.replaceChildren();
-  elements.formCount.textContent = `${varieties.length} forms`;
+  const highlightedGameId =
+    state.filters.game !== "all"
+      ? state.filters.game
+      : state.tracker.activeGame !== "none"
+        ? state.tracker.activeGame
+        : null;
+  const visibleVarieties =
+    highlightedGameId && state.gameAvailabilityReady
+      ? varieties.filter((form) =>
+          isEntryAvailableInGame(state.entriesByName.get(form.name) ?? form, highlightedGameId)
+        )
+      : varieties;
 
-  if (!varieties.length) {
+  elements.formList.replaceChildren();
+  elements.formCount.textContent =
+    highlightedGameId && state.gameAvailabilityReady && visibleVarieties.length !== varieties.length
+      ? `${visibleVarieties.length}/${varieties.length} forms`
+      : `${visibleVarieties.length} forms`;
+
+  if (!visibleVarieties.length) {
     const empty = document.createElement("span");
     empty.className = "matchup-chip";
-    empty.textContent = "No alternate forms";
+    empty.textContent =
+      highlightedGameId && state.gameAvailabilityReady
+        ? "No obtainable variants in the highlighted game"
+        : "No alternate forms";
     empty.style.background = "rgba(89, 200, 255, 0.1)";
     elements.formList.appendChild(empty);
     return;
   }
 
-  varieties.forEach((form) => {
+  visibleVarieties.forEach((form) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "form-chip";
@@ -12107,7 +13261,9 @@ function getFilteredEntries() {
     const gameMatches =
       state.filters.game === "all" ||
       (!state.gameAvailabilityReady && state.gameAvailabilityLoading) ||
-      isAvailableInGame(entry.baseNumber, state.filters.game);
+      (state.filters.ownedGameOnly
+        ? isEntryExclusiveToOwnedGameSelection(entry, state.filters.game)
+        : isEntryAvailableInGame(entry, state.filters.game));
     const signaturesMatches =
       state.filters.signatures.size === 0 ||
       entry.formFlags.some((flag) => state.filters.signatures.has(flag));
@@ -12185,6 +13341,11 @@ function renderFilterButtons() {
   elements.generationSelect.value = state.filters.generation;
   elements.gameFilterSelect.value = state.filters.game;
   elements.gameFilterSelect.disabled = state.gameAvailabilityLoading && !state.gameAvailabilityReady;
+  const ownedGameOnlyMeta = getArchiveOwnedGameOnlyFilterMeta();
+  elements.ownedGameOnlyToggle.checked = state.filters.ownedGameOnly;
+  elements.ownedGameOnlyToggle.disabled = !ownedGameOnlyMeta.enabled;
+  elements.ownedGameOnlyToggleShell.classList.toggle("disabled", !ownedGameOnlyMeta.enabled);
+  elements.ownedGameOnlyNote.textContent = ownedGameOnlyMeta.note;
   elements.sortIndicator.textContent = labelSort(state.filters.sort);
   elements.archiveModeIndicator.textContent = `Mode ${getArchiveModeLabel()} - Public Access`;
   elements.archiveRegistryLabel.textContent = isArchiveShinyMode() ? "Shiny Registry" : "Registry";
@@ -12231,10 +13392,17 @@ function renderResultsSummary(filteredEntries) {
   setProgressBar(elements.archiveShinyProgressBar, shinyCompletionRatio);
   elements.resultsCount.textContent = formatCount(filteredEntries.length);
   const activeGameFilter = state.filters.game === "all" ? null : getGameMeta(state.filters.game);
-  if (activeGameFilter && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
+  const ownedGameOnlyMeta = getArchiveOwnedGameOnlyFilterMeta();
+  if (activeGameFilter && state.filters.ownedGameOnly && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
+    elements.resultsSummary.textContent = `Syncing ${activeGameFilter.shortName} unique owned-game coverage now.`;
+  } else if (activeGameFilter && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
     elements.resultsSummary.textContent = `Syncing ${activeGameFilter.shortName} game coverage now.`;
   } else if (filteredEntries.length === total && state.filters.game === "all") {
     elements.resultsSummary.textContent = `Guest mode active. Full ${modeLabel.toLowerCase()} archive signal online.`;
+  } else if (activeGameFilter && state.filters.ownedGameOnly) {
+    elements.resultsSummary.textContent = ownedGameOnlyMeta.comparisonGameCount
+      ? `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities are unique to ${activeGameFilter.shortName} within your owned games.`
+      : `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities are obtainable in your only owned game, ${activeGameFilter.shortName}.`;
   } else if (activeGameFilter) {
     elements.resultsSummary.textContent = `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities match the ${activeGameFilter.shortName} game filter.`;
   } else {
@@ -12282,7 +13450,10 @@ function buildDexEntryListNode(entry) {
     `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
   );
 
-  applyEntrySprite(entrySprite, entry, { forceShiny: isArchiveShinyMode() });
+  applyEntrySprite(entrySprite, entry, {
+    forceShiny: isArchiveShinyMode(),
+    preferTrackedShiny: isArchiveShinyMode()
+  });
   entryNumber.textContent = `#${formatNumber(entry.baseNumber)}`;
   entryName.textContent = entry.displayName;
   entryStatus.textContent = `${
@@ -12346,7 +13517,10 @@ function buildDexEntryGridNode(entry) {
   number.textContent = `#${formatNumber(entry.baseNumber)}`;
 
   sprite.className = "archive-grid-sprite";
-  applyEntrySprite(sprite, entry, { forceShiny: isArchiveShinyMode() });
+  applyEntrySprite(sprite, entry, {
+    forceShiny: isArchiveShinyMode(),
+    preferTrackedShiny: isArchiveShinyMode()
+  });
 
   name.className = "archive-grid-name";
   name.textContent = entry.displayName;
@@ -12481,6 +13655,7 @@ function maybeRenderMoreDexEntries() {
 }
 
 function refreshResults() {
+  normalizeArchiveGameFilters();
   const filteredEntries = getFilteredEntries();
   renderFilterButtons();
   renderResultsSummary(filteredEntries);
@@ -12635,7 +13810,6 @@ async function fetchDexIndex() {
         const baseEntry = resolveBaseEntry(entry.name, id);
         const baseNumber = baseEntry?.id ?? id;
         const baseDisplayName = titleCase(baseEntry?.name ?? entry.name);
-        const generation = determineGeneration(baseNumber);
         const formFlags = detectFormFlags(entry.name, id);
         const normalizedEntry = {
           id,
@@ -12645,7 +13819,6 @@ async function fetchDexIndex() {
           baseNumber,
           basePokemonName: baseEntry?.name ?? entry.name,
           baseDisplayName,
-          generation,
           formFlags,
           variantLabel: variantMeta?.variantLabel,
           detailNote: variantMeta?.detailNote ?? "",
@@ -12653,6 +13826,7 @@ async function fetchDexIndex() {
           shinyListSprite: buildSpriteUrl(id, true)
         };
 
+        normalizedEntry.generation = determineEntryGeneration(normalizedEntry);
         normalizedEntry.searchBlob = buildEntrySearchBlob(normalizedEntry);
         return normalizedEntry;
       })
@@ -13167,6 +14341,11 @@ elements.generationSelect.addEventListener("change", () => {
 
 elements.gameFilterSelect.addEventListener("change", () => {
   state.filters.game = elements.gameFilterSelect.value;
+  refreshResults();
+});
+
+elements.ownedGameOnlyToggle.addEventListener("change", () => {
+  state.filters.ownedGameOnly = elements.ownedGameOnlyToggle.checked;
   refreshResults();
 });
 
