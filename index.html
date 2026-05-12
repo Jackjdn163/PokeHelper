@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=59" />
   </head>
   <body>
     <div class="app-shell">
@@ -38,7 +38,6 @@
         <nav class="nav-tabs" aria-label="Dex navigation">
           <button type="button" class="nav-tab active" data-view="landing">Dashboard</button>
           <button type="button" class="nav-tab" data-view="archive">Dex</button>
-          <button type="button" class="nav-tab" data-view="finder">Finder</button>
           <button type="button" class="nav-tab" data-view="scan">Scan</button>
           <button type="button" class="nav-tab" data-view="journey">Journey</button>
           <button type="button" class="nav-tab" data-view="collection">Collection</button>
@@ -49,7 +48,7 @@
         </nav>
 
         <div class="system-strip" aria-label="System status">
-          <span class="system-chip online">Archive Net Online</span>
+          <span class="system-chip online">Dex Net Online</span>
         </div>
 
         <button type="button" class="ghost-button" id="session-button">Guest Session</button>
@@ -65,7 +64,7 @@
           </div>
           <div class="dashboard-sidebar-copy">
             <strong>PokéPilot</strong>
-            <span>Archive navigation rail.</span>
+            <span>Dex navigation rail.</span>
             <p>Jump between modules without overloading the top bar.</p>
           </div>
         </div>
@@ -78,10 +77,6 @@
           <button type="button" class="dashboard-nav-item" data-view="archive">
             <span class="dashboard-nav-icon">▤</span>
             <span>Dex</span>
-          </button>
-          <button type="button" class="dashboard-nav-item" data-view="finder">
-            <span class="dashboard-nav-icon">⌕</span>
-            <span>Finder</span>
           </button>
           <button type="button" class="dashboard-nav-item" data-view="scan">
             <span class="dashboard-nav-icon">◎</span>
@@ -120,7 +115,7 @@
         <article class="dashboard-sidecard">
           <span class="dashboard-side-label">Current Scan</span>
           <strong>Ribbon stays pinned</strong>
-          <p>Open any Pokémon and keep it in view while you move through the rest of the archive.</p>
+          <p>Open any Pokémon and keep it in view while you move through the rest of the app.</p>
         </article>
 
         <article class="dashboard-sidecard">
@@ -174,10 +169,6 @@
               <button type="button" class="dashboard-nav-item" data-view="archive">
                 <span class="dashboard-nav-icon">▤</span>
                 <span>Dex</span>
-              </button>
-              <button type="button" class="dashboard-nav-item" data-view="finder">
-                <span class="dashboard-nav-icon">⌕</span>
-                <span>Finder</span>
               </button>
               <button type="button" class="dashboard-nav-item" data-view="scan">
                 <span class="dashboard-nav-icon">◎</span>
@@ -467,127 +458,6 @@
         </section>
       </main>
 
-      <main class="workspace-shell app-view" data-view-panel="finder">
-        <section class="panel finder-shell">
-          <div class="system-head">
-            <div>
-              <p class="section-label">Encounter Finder</p>
-              <h2 class="system-title">Where Do I Find This Pokémon?</h2>
-            </div>
-            <span class="toolbar-pill" id="finder-status">Enter a Pokémon and choose a game version</span>
-          </div>
-
-          <div class="finder-grid">
-            <article class="finder-panel finder-query-panel">
-              <div class="finder-form-grid">
-                <label class="select-shell compact-field">
-                  <span>Pokémon Name</span>
-                  <input
-                    id="finder-pokemon-input"
-                    type="search"
-                    placeholder="Type a Pokémon name"
-                    autocomplete="off"
-                    spellcheck="false"
-                  />
-                </label>
-
-                <label class="select-shell compact-field">
-                  <span>Game Version</span>
-                  <select id="finder-version-select"></select>
-                </label>
-              </div>
-
-              <div class="finder-actions">
-                <button type="button" class="primary-action compact" id="finder-search-btn">Find Pokémon</button>
-                <button type="button" class="ghost-button detail-link-button" id="finder-clear-btn">Clear</button>
-              </div>
-
-              <p class="results-summary" id="finder-search-summary">
-                Type a Pokémon name, pick a specific release, and PokéPilot will show the best current encounter info.
-              </p>
-
-              <div class="collection-list finder-match-list" id="finder-match-list"></div>
-            </article>
-
-            <article class="finder-panel finder-result-panel">
-              <div class="empty-state finder-result-empty" id="finder-result-empty">
-                <p>Choose a Pokémon from the left and pick a version to load encounter details.</p>
-              </div>
-
-              <div class="finder-result-shell hidden" id="finder-result-shell">
-                <div class="finder-result-head">
-                  <div class="finder-result-identity">
-                    <div class="collection-item-art finder-result-art">
-                      <img class="collection-item-sprite" id="finder-result-sprite" alt="" />
-                    </div>
-                    <div class="finder-result-copy">
-                      <strong id="finder-result-name">No Pokémon selected</strong>
-                      <span id="finder-result-version">Choose a version to start</span>
-                    </div>
-                  </div>
-                  <button type="button" class="ghost-button detail-link-button" id="finder-open-scan-btn">
-                    Open Scan
-                  </button>
-                </div>
-
-                <div class="finder-metric-grid">
-                  <article class="metric-card finder-metric-card">
-                    <span>Exact Location</span>
-                    <strong id="finder-primary-location">--</strong>
-                  </article>
-                  <article class="metric-card finder-metric-card">
-                    <span>Time of Day</span>
-                    <strong id="finder-time-of-day">--</strong>
-                  </article>
-                  <article class="metric-card finder-metric-card">
-                    <span>Encounter Method</span>
-                    <strong id="finder-method">--</strong>
-                  </article>
-                  <article class="metric-card finder-metric-card">
-                    <span>Level Range</span>
-                    <strong id="finder-level-range">--</strong>
-                  </article>
-                  <article class="metric-card finder-metric-card">
-                    <span>Encounter Rate</span>
-                    <strong id="finder-encounter-rate">--</strong>
-                  </article>
-                  <article class="metric-card finder-metric-card">
-                    <span>Rarity</span>
-                    <strong id="finder-rarity">--</strong>
-                  </article>
-                </div>
-
-                <div class="finder-detail-grid">
-                  <section class="finder-detail-card">
-                    <div class="dashboard-card-head dashboard-card-head--compact">
-                      <div>
-                        <h3>Exact Locations</h3>
-                        <p class="dashboard-card-subtext">Every archived location match for this version.</p>
-                      </div>
-                    </div>
-                    <div class="finder-chip-list" id="finder-location-list"></div>
-                  </section>
-
-                  <section class="finder-detail-card">
-                    <div class="dashboard-card-head dashboard-card-head--compact">
-                      <div>
-                        <h3>Encounter Breakdown</h3>
-                        <p class="dashboard-card-subtext">Method, time, and rarity pulled from the encounter archive.</p>
-                      </div>
-                    </div>
-                    <div class="finder-encounter-list" id="finder-detail-list"></div>
-                  </section>
-                </div>
-
-                <p class="results-summary finder-result-note" id="finder-result-note">
-                  Finder results will explain whether the data is exact route intel or broader game coverage only.
-                </p>
-              </div>
-            </article>
-          </div>
-        </section>
-      </main>
-
       <main class="workspace-shell app-view" data-view-panel="shiny">
         <section class="panel shiny-hub-shell">
           <div class="system-head shiny-hub-head">
@@ -847,7 +717,7 @@
                 </button>
               </div>
             </form>
-            <p class="status-text" id="status-text">Connecting to archive...</p>
+            <p class="status-text" id="status-text">Connecting to Dex...</p>
           </section>
 
           <section class="panel-section">
@@ -903,17 +773,30 @@
                 <option value="lza">Pokémon Legends: Z-A</option>
               </select>
             </label>
-            <label class="tracker-toggle archive-owned-game-filter" id="owned-game-only-toggle-shell">
+            <label class="tracker-toggle archive-feature-toggle archive-owned-game-filter" id="owned-game-only-toggle-shell">
               <input type="checkbox" id="owned-game-only-toggle" />
-              <span>Only in selected owned game</span>
+              <span class="archive-feature-toggle-switch" aria-hidden="true"></span>
+              <span class="archive-feature-toggle-copy">
+                <span class="archive-feature-toggle-title">Only in selected owned game</span>
+                <span class="archive-feature-toggle-note archive-owned-game-note" id="owned-game-only-note">
+                  Pick a Switch game first to compare its unique roster against your owned saves.
+                </span>
+              </span>
             </label>
-            <p class="results-summary archive-owned-game-note" id="owned-game-only-note">
-              Pick a Switch game first to compare its unique roster against your owned saves.
-            </p>
+            <label class="tracker-toggle archive-feature-toggle archive-duplicate-filter" id="archive-duplicate-mode-shell">
+              <input type="checkbox" id="archive-duplicate-mode-toggle" />
+              <span class="archive-feature-toggle-switch" aria-hidden="true"></span>
+              <span class="archive-feature-toggle-copy">
+                <span class="archive-feature-toggle-title">Count Duplicates</span>
+                <span class="archive-feature-toggle-note archive-duplicate-note" id="archive-duplicate-note">
+                  Switch living-dex catch controls into copy counters for duplicate tracking.
+                </span>
+              </span>
+            </label>
           </section>
 
           <section class="panel-section">
-            <p class="section-label">Archive Mode</p>
+            <p class="section-label">Dex Mode</p>
             <div class="button-bank">
               <button type="button" class="bank-button active" data-archive-mode="living">
                 Living Dex
@@ -955,7 +838,7 @@
           </section>
 
           <section class="panel-section">
-            <p class="section-label">Archive Health</p>
+            <p class="section-label">Dex Health</p>
             <div class="signal-grid">
               <article class="signal-card">
                 <span>Base Index</span>
@@ -1030,7 +913,7 @@
                 <span class="toolbar-pill" id="archive-mode-indicator">Mode Living Dex - Public Access</span>
                 <span class="toolbar-pill" id="sort-indicator">Sort: ID Numeric</span>
               </div>
-              <div class="button-bank compact archive-view-toggle" aria-label="Archive view">
+              <div class="button-bank compact archive-view-toggle" aria-label="Dex view">
                 <button type="button" class="bank-button active" data-archive-view="list">
                   List
                 </button>
@@ -1061,6 +944,18 @@
                 >
                   Register Caught
                 </button>
+                <div class="detail-counter-shell hidden" id="scan-caught-stepper-shell">
+                  <span class="detail-counter-label">Owned Count</span>
+                  <div class="caught-count-stepper caught-count-stepper--scan" id="scan-caught-stepper">
+                    <button type="button" class="caught-count-button" id="scan-caught-minus-btn" disabled>
+                      -
+                    </button>
+                    <span class="caught-count-value" id="scan-caught-count">0</span>
+                    <button type="button" class="caught-count-button" id="scan-caught-plus-btn" disabled>
+                      +
+                    </button>
+                  </div>
+                </div>
                 <button type="button" class="ghost-button detail-ghost" id="toggle-shiny-btn" disabled>
                   Catch Shiny
                 </button>
@@ -1350,6 +1245,31 @@
               </article>
             </div>
 
+            <article class="subcard collection-card collection-card--duplicate-board">
+              <div class="subcard-heading">
+                <h3>Duplicate Planner</h3>
+                <span id="duplicate-planner-count">0</span>
+              </div>
+              <p class="results-summary" id="duplicate-planner-summary">
+                Track extra living-dex copies here and sort them by evolve, wonder trade, or release routes.
+              </p>
+              <div class="button-bank compact duplicate-filter-bank" aria-label="Duplicate planner filters">
+                <button type="button" class="bank-button active" data-duplicate-filter="all">
+                  All
+                </button>
+                <button type="button" class="bank-button" data-duplicate-filter="evolve">
+                  Evolve
+                </button>
+                <button type="button" class="bank-button" data-duplicate-filter="trade">
+                  Wonder Trade
+                </button>
+                <button type="button" class="bank-button" data-duplicate-filter="release">
+                  Release
+                </button>
+              </div>
+              <div class="collection-list" id="duplicate-planner-list"></div>
+            </article>
+
             <article class="subcard collection-card">
               <div class="subcard-heading">
                 <h3>Shiny-Locked Entries</h3>
@@ -1494,7 +1414,7 @@
             <div class="system-head">
               <div>
                 <p class="section-label">Trainer Vault</p>
-                <h2 class="system-title">Profiles, Notes & AI</h2>
+                <h2 class="system-title">Profiles, Notes & Cloud</h2>
               </div>
               <span class="toolbar-pill" id="profile-pill">Guest Trainer</span>
             </div>
@@ -1526,10 +1446,11 @@
                   </button>
                   <button
                     type="button"
-                    class="ghost-button detail-link-button provider-button provider-button-google"
-                    id="account-google-sign-in-btn"
+                    class="ghost-button detail-link-button account-auto-sync-button"
+                    id="account-auto-sync-btn"
+                    aria-pressed="true"
                   >
-                    Continue with Google
+                    Auto Sync On
                   </button>
                   <button type="button" class="ghost-button detail-link-button" id="account-sign-out-btn">
                     Sign Out
@@ -1546,83 +1467,49 @@
                 </p>
               </article>
 
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Trainer Accounts</h3>
-                  <span id="profile-count">1 profile</span>
-                </div>
-                <label class="select-shell compact-field">
-                  <span>Active Profile</span>
-                  <select id="profile-select"></select>
-                </label>
-                <div class="vault-inline vault-inline--single-action">
-                  <button type="button" class="primary-action compact" id="create-profile-btn">
-                    Create Profile
-                  </button>
-                </div>
-                <p class="results-summary">
-                  Local trainer profiles switch your saved notes, trackers, boxes, favorites, and checklists.
-                </p>
-              </article>
+              <div class="vault-stack vault-stack-primary">
+                <article class="subcard collection-card">
+                  <div class="subcard-heading">
+                    <h3>Favorite Pokemon</h3>
+                    <span id="favorites-count">0</span>
+                  </div>
+                  <div class="vault-inline vault-inline--single-action">
+                    <button type="button" class="primary-action compact" id="favorite-picker-open-btn">
+                      Add New Favorite
+                    </button>
+                  </div>
+                  <p class="results-summary" id="favorites-summary">
+                    Build a cosmetic showcase of your favorite Pokémon here in the Vault.
+                  </p>
+                  <div class="collection-list" id="favorites-list"></div>
+                </article>
 
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Favorite Pokemon</h3>
-                  <span id="favorites-count">0</span>
-                </div>
-                <div class="vault-inline vault-inline--single-action">
-                  <button type="button" class="primary-action compact" id="favorite-picker-open-btn">
-                    Add New Favorite
-                  </button>
-                </div>
-                <p class="results-summary" id="favorites-summary">
-                  Build a cosmetic showcase of your favorite Pokémon here in the Vault.
-                </p>
-                <div class="collection-list" id="favorites-list"></div>
-              </article>
+                <article class="subcard collection-card">
+                  <div class="subcard-heading">
+                    <h3>Notebook</h3>
+                    <span id="notebook-status">Autosaved</span>
+                  </div>
+                  <textarea
+                    id="trainer-notebook"
+                    class="trainer-notebook"
+                    placeholder="Write hunt notes, route reminders, sandwich ideas, trade plans, or anything else here..."
+                  ></textarea>
+                </article>
+              </div>
 
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Favorite Pokemon by Type</h3>
-                  <span id="favorite-types-count">0/18</span>
-                </div>
-                <p class="results-summary" id="favorite-types-summary">
-                  Pick one showcase favorite for each type. Choose or change them from this Vault screen.
-                </p>
-                <div class="collection-list" id="favorite-types-list"></div>
-              </article>
+              <div class="vault-stack vault-stack-secondary">
+                <article class="subcard collection-card">
+                  <div class="subcard-heading">
+                    <h3>Favorite Pokemon by Type</h3>
+                    <span id="favorite-types-count">0/18</span>
+                  </div>
+                  <p class="results-summary" id="favorite-types-summary">
+                    Pick one showcase favorite for each type. Choose or change them from this Vault screen.
+                  </p>
+                  <div class="collection-list" id="favorite-types-list"></div>
+                </article>
+              </div>
 
-              <article class="subcard collection-card">
-                <div class="subcard-heading">
-                  <h3>Notebook</h3>
-                  <span id="notebook-status">Autosaved</span>
-                </div>
-                <textarea
-                  id="trainer-notebook"
-                  class="trainer-notebook"
-                  placeholder="Write hunt notes, route reminders, sandwich ideas, trade plans, or anything else here..."
-                ></textarea>
-              </article>
-
-              <article class="subcard collection-card vault-wide">
-                <div class="subcard-heading">
-                  <h3>PokéPilot Companion</h3>
-                  <span id="companion-status">Offline Helper</span>
-                </div>
-                <div class="vault-inline">
-                  <input
-                    id="companion-input"
-                    type="text"
-                    placeholder="Ask about evolutions, shiny methods, owned games, favorites, or the open Pokémon..."
-                  />
-                  <button type="button" class="primary-action compact" id="companion-ask-btn">
-                    Ask
-                  </button>
-                </div>
-                <div class="companion-answer" id="companion-answer">
-                  Ask a question and PokéPilot will answer from your current archive, trackers, and Pokémon data.
-                </div>
-              </article>
             </div>
           </article>
 
@@ -1721,8 +1608,11 @@
                 <p class="section-label">Tools Tab</p>
                 <h2 class="system-title">Game-by-Game Tools</h2>
               </div>
-              <span class="toolbar-pill">Live Tools</span>
+              <span class="toolbar-pill">Workbench Live</span>
             </div>
+            <p class="system-summary tool-shell-summary">
+              Tune donuts, crafting batches, shiny sandwich bases, and shared shopping totals from one save-linked workbench.
+            </p>
             <div class="module-grid" id="module-grid"></div>
         </article>
       </section>
@@ -1787,6 +1677,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=59"></script>
   </body>
 </html>

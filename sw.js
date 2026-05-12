@@ -1,9 +1,9 @@
-const CACHE_NAME = "pokepilot-shell-v26";
+const CACHE_NAME = "pokepilot-shell-v59";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
+  "./styles.css?v=59",
+  "./app.js?v=59",
   "./game-tools-data.js",
   "./supabase-config.js",
   "./manifest.webmanifest",

@@ -11,7 +11,7 @@ const STORAGE_KEY = "dexter-living-form-dex-v1";
 const SHINY_STORAGE_KEY = "dexter-shiny-dex-v1";
 const TRACKER_STORAGE_KEY = "dexter-playthrough-tracker-v1";
 const EXP_STORAGE_KEY = "dexter-exp-planner-v1";
-const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v6";
+const GAME_AVAILABILITY_STORAGE_KEY = "dexter-switch-game-availability-v8";
 const PROFILE_META_STORAGE_KEY = "dexter-profile-meta-v1";
 const NOTEBOOK_STORAGE_KEY = "dexter-notebook-v1";
 const FAVORITES_STORAGE_KEY = "dexter-favorites-v1";
@@ -27,6 +27,11 @@ const UI_SESSION_STORAGE_KEY = "dexter-ui-session-v1";
 const ACCOUNT_SYNC_STORAGE_KEY = "dexter-account-sync-v1";
 const POKEARTH_BASE_URL = "https://www.serebii.net";
 const POKEMONDB_HOME_SPRITE_BASE_URL = "https://img.pokemondb.net/sprites/home";
+const POKEAPI_HOME_SPRITE_BASE_URL =
+  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home";
+const POKEAPI_HOME_SPRITE_ID_ALIASES = {
+  "floette-eternal": 10061
+};
 const PROJECTPOKEMON_SV_HOME_BASE_URL =
   "https://projectpokemon.org/images/sprites-models/sv-sprites-home";
 const HYBRIDSHIVAM_HQ_IMAGE_BASE_URL =
@@ -52,6 +57,7 @@ const DEFAULT_PROFILE_ID = "guest-trainer";
 const CLOUD_SAVE_TABLE = "cloud_saves";
 const CLOUD_SAVE_VERSION = 1;
 const CLOUD_SYNC_DEBOUNCE_MS = 1200;
+const CLOUD_AUTO_PULL_INTERVAL_MS = 45000;
 const ARCHIVE_INITIAL_RENDER_COUNT = 120;
 const ARCHIVE_RENDER_BATCH_COUNT = 120;
 const ARCHIVE_ENTRY_HEIGHT_ESTIMATE = 92;
@@ -61,7 +67,6 @@ const SEARCH_INPUT_DEBOUNCE_MS = 120;
 const VALID_VIEW_IDS = new Set([
   "landing",
   "archive",
-  "finder",
   "scan",
   "collection",
   "shiny",
@@ -73,6 +78,7 @@ const VALID_VIEW_IDS = new Set([
 const VALID_DETAIL_TAB_IDS = new Set(["overview", "battle", "field"]);
 const VALID_ARCHIVE_VIEW_IDS = new Set(["list", "grid"]);
 const VALID_SCAN_VISUAL_MODE_IDS = new Set(["artwork", "home"]);
+const VALID_DUPLICATE_FILTER_IDS = new Set(["all", "evolve", "trade", "release"]);
 const EXCLUDED_API_ENTRY_NAMES = new Set([
   "minior-red-meteor",
   "minior-orange-meteor",
@@ -402,47 +408,6 @@ const GAME_CATALOG = [
     milestones: ["Hotel Z Start", "Wild Zone Patrol", "Z-A Royale", "Postgame / DLC"]
   }
 ];
-
-function getFinderVersionLabel(game, version = null) {
-  if (!version) {
-    return game.name.startsWith("Pokémon") ? game.name : `Pokémon ${game.name}`;
-  }
-
-  const explicitLabels = {
-    "lets-go-pikachu": "Pokémon: Let's Go, Pikachu!",
-    "lets-go-eevee": "Pokémon: Let's Go, Eevee!",
-    sword: "Pokémon Sword",
-    shield: "Pokémon Shield",
-    "brilliant-diamond": "Pokémon Brilliant Diamond",
-    "shining-pearl": "Pokémon Shining Pearl",
-    scarlet: "Pokémon Scarlet",
-    violet: "Pokémon Violet"
-  };
-
-  return explicitLabels[version.id] ?? `Pokémon ${version.label}`;
-}
-
-const FINDER_VERSION_OPTIONS = GAME_CATALOG.flatMap((game) => {
-  const versions = Array.isArray(game.versions) ? game.versions : [];
-
-  if (versions.length) {
-    return versions.map((version) => ({
-      id: version.id,
-      gameId: game.id,
-      versionNames: [version.id],
-      label: getFinderVersionLabel(game, version)
-    }));
-  }
-
-  return [
-    {
-      id: game.id,
-      gameId: game.id,
-      versionNames: game.id === "pla" ? ["legends-arceus"] : [],
-      label: getFinderVersionLabel(game)
-    }
-  ];
-});
 
 const GAME_SHINY_ODDS = {
   lgpe: {
@@ -1600,6 +1565,42 @@ const FEMALE_SPRITE_DIFFERENCE_IDS = [
   678, 876, 916
 ];
 
+const FEMALE_VARIANT_BASE_NUMBER_SET = new Set(FEMALE_SPRITE_DIFFERENCE_IDS);
+
+function stripTrackedGenderSuffix(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/-(male|female)$/i, "");
+}
+
+function applyTrackedGenderPairIdentity(entry) {
+  if (!entry) {
+    return entry;
+  }
+
+  const baseNumber = Number(entry.baseNumber ?? entry.id) || 0;
+  const hasTrackedFemaleVariant = FEMALE_VARIANT_BASE_NUMBER_SET.has(baseNumber);
+  const isGenderVariant = entry.syntheticKind === "gender";
+  if (!hasTrackedFemaleVariant && !isGenderVariant) {
+    return entry;
+  }
+
+  const rootName = stripTrackedGenderSuffix(entry.basePokemonName || entry.name);
+  const baseDisplayName = titleCase(rootName || entry.basePokemonName || entry.name);
+  entry.basePokemonName = rootName || entry.basePokemonName;
+  entry.baseDisplayName = baseDisplayName;
+
+  if (!entry.isForm && hasTrackedFemaleVariant) {
+    entry.displayName = `${baseDisplayName} Male`;
+    entry.variantLabel = "Male";
+  } else if (isGenderVariant) {
+    entry.displayName = `${baseDisplayName} Female`;
+    entry.variantLabel = "Female";
+  }
+
+  return entry;
+}
+
 const FORM_GAME_SUPPORT = {
   none: new Set(),
   lgpeSwshSv: new Set(["lgpe", "swsh", "sv"]),
@@ -1608,13 +1609,67 @@ const FORM_GAME_SUPPORT = {
   svOnly: new Set(["sv"]),
   lzaOnly: new Set(["lza"]),
   bdspPla: new Set(["bdsp", "pla"]),
+  bdspPlaSwshSv: new Set(["bdsp", "pla", "swsh", "sv"]),
   bdspPlaSv: new Set(["bdsp", "pla", "sv"]),
+  plaSv: new Set(["pla", "sv"]),
   swshSv: new Set(["swsh", "sv"]),
   svLza: new Set(["sv", "lza"])
 };
 
+const GAME_BASE_FORM_UNAVAILABLE_SPECIES = {
+  pla: new Set([
+    "arcanine",
+    "avalugg",
+    "basculin",
+    "braviary",
+    "decidueye",
+    "electrode",
+    "goodra",
+    "growlithe",
+    "lilligant",
+    "qwilfish",
+    "samurott",
+    "sliggoo",
+    "typhlosion",
+    "voltorb",
+    "zorua",
+    "zoroark"
+  ]),
+  swsh: new Set([
+    "gastrodon",
+    "shellos"
+  ])
+};
+
 const GAME_FILTER_UNOBTAINABLE_FORM_PATTERN =
   /^(castform-(sunny|rainy|snowy)|cherrim-sunshine|meloetta-pirouette|aegislash-blade|darmanitan-(zen|galar-zen)|greninja-(battle-bond|ash)|zygarde-(10-power-construct|50-power-construct|complete)|wishiwashi-school|mimikyu-busted|cramorant-(gulping|gorging)|eiscue-noice|morpeko-hangry|palafin-hero|eternatus-eternamax|xerneas-active|terapagos-(terastal|stellar)|pikachu-(original|hoenn|sinnoh|unova|kalos|alola|partner|world)-cap)$/;
+
+const DEFAULT_GAME_VARIANT_BASE_NAME_PATTERN =
+  /-(altered|aria|average|incarnate|meadow|midday|natural|ordinary|plant|rapid-strike|red-striped|single-strike|spring|standard|unremarkable|west)$/;
+
+const SPECIES_ORDER_DEFAULT_FORM_SUFFIXES = [
+  "male",
+  "ordinary",
+  "aria",
+  "average",
+  "amped",
+  "shield",
+  "50",
+  "full-belly",
+  "green-plumage",
+  "curly",
+  "red-striped",
+  "west",
+  "spring",
+  "plant",
+  "natural",
+  "meadow",
+  "midday",
+  "incarnate",
+  "altered",
+  "standard",
+  "disguised"
+];
 
 const HOME_BOX_COMPATIBILITY_RULES = [
   {
@@ -1891,6 +1946,9 @@ const elements = {
   ownedGameOnlyToggleShell: document.querySelector("#owned-game-only-toggle-shell"),
   ownedGameOnlyToggle: document.querySelector("#owned-game-only-toggle"),
   ownedGameOnlyNote: document.querySelector("#owned-game-only-note"),
+  archiveDuplicateModeShell: document.querySelector("#archive-duplicate-mode-shell"),
+  archiveDuplicateModeToggle: document.querySelector("#archive-duplicate-mode-toggle"),
+  archiveDuplicateNote: document.querySelector("#archive-duplicate-note"),
   sessionButton: document.querySelector("#session-button"),
   landingWelcome: document.querySelector("#landing-welcome"),
   landingSummary: document.querySelector("#landing-summary"),
@@ -1933,33 +1991,15 @@ const elements = {
   currentScanMeta: document.querySelector("#current-scan-meta"),
   currentScanTypes: document.querySelector("#current-scan-types"),
   dexList: document.querySelector("#dex-list"),
-  finderStatus: document.querySelector("#finder-status"),
-  finderPokemonInput: document.querySelector("#finder-pokemon-input"),
-  finderVersionSelect: document.querySelector("#finder-version-select"),
-  finderSearchButton: document.querySelector("#finder-search-btn"),
-  finderClearButton: document.querySelector("#finder-clear-btn"),
-  finderSearchSummary: document.querySelector("#finder-search-summary"),
-  finderMatchList: document.querySelector("#finder-match-list"),
-  finderResultEmpty: document.querySelector("#finder-result-empty"),
-  finderResultShell: document.querySelector("#finder-result-shell"),
-  finderResultSprite: document.querySelector("#finder-result-sprite"),
-  finderResultName: document.querySelector("#finder-result-name"),
-  finderResultVersion: document.querySelector("#finder-result-version"),
-  finderOpenScanButton: document.querySelector("#finder-open-scan-btn"),
-  finderPrimaryLocation: document.querySelector("#finder-primary-location"),
-  finderTimeOfDay: document.querySelector("#finder-time-of-day"),
-  finderMethod: document.querySelector("#finder-method"),
-  finderLevelRange: document.querySelector("#finder-level-range"),
-  finderEncounterRate: document.querySelector("#finder-encounter-rate"),
-  finderRarity: document.querySelector("#finder-rarity"),
-  finderLocationList: document.querySelector("#finder-location-list"),
-  finderDetailList: document.querySelector("#finder-detail-list"),
-  finderResultNote: document.querySelector("#finder-result-note"),
   dexEntryTemplate: document.querySelector("#dex-entry-template"),
   pokemonName: document.querySelector("#pokemon-name"),
   detailEmpty: document.querySelector("#detail-empty"),
   detailContent: document.querySelector("#detail-content"),
   toggleCaughtButton: document.querySelector("#toggle-caught-btn"),
+  scanCaughtStepperShell: document.querySelector("#scan-caught-stepper-shell"),
+  scanCaughtMinusButton: document.querySelector("#scan-caught-minus-btn"),
+  scanCaughtCount: document.querySelector("#scan-caught-count"),
+  scanCaughtPlusButton: document.querySelector("#scan-caught-plus-btn"),
   toggleShinyButton: document.querySelector("#toggle-shiny-btn"),
   clearScanButton: document.querySelector("#clear-scan-btn"),
   pokemonVisualFrame: document.querySelector("#pokemon-visual-frame"),
@@ -2074,6 +2114,10 @@ const elements = {
   favoritesList: document.querySelector("#favorites-list"),
   bookmarksCount: document.querySelector("#bookmarks-count"),
   bookmarksList: document.querySelector("#bookmarks-list"),
+  duplicatePlannerCount: document.querySelector("#duplicate-planner-count"),
+  duplicatePlannerSummary: document.querySelector("#duplicate-planner-summary"),
+  duplicatePlannerFilterButtons: [...document.querySelectorAll("[data-duplicate-filter]")],
+  duplicatePlannerList: document.querySelector("#duplicate-planner-list"),
   favoriteTypesCount: document.querySelector("#favorite-types-count"),
   favoriteTypesSummary: document.querySelector("#favorite-types-summary"),
   favoriteTypesList: document.querySelector("#favorite-types-list"),
@@ -2120,16 +2164,12 @@ const elements = {
   accountPasswordInput: document.querySelector("#account-password-input"),
   accountSignInButton: document.querySelector("#account-sign-in-btn"),
   accountSignUpButton: document.querySelector("#account-sign-up-btn"),
-  accountGoogleSignInButton: document.querySelector("#account-google-sign-in-btn"),
+  accountAutoSyncButton: document.querySelector("#account-auto-sync-btn"),
   accountSignOutButton: document.querySelector("#account-sign-out-btn"),
   cloudPushButton: document.querySelector("#cloud-push-btn"),
   cloudSyncButton: document.querySelector("#cloud-sync-btn"),
   notebookStatus: document.querySelector("#notebook-status"),
   trainerNotebook: document.querySelector("#trainer-notebook"),
-  companionStatus: document.querySelector("#companion-status"),
-  companionInput: document.querySelector("#companion-input"),
-  companionAskButton: document.querySelector("#companion-ask-btn"),
-  companionAnswer: document.querySelector("#companion-answer"),
   favoritePickerOverlay: document.querySelector("#favorite-picker-overlay"),
   favoritePickerTitle: document.querySelector("#favorite-picker-title"),
   favoritePickerNote: document.querySelector("#favorite-picker-note"),
@@ -2173,19 +2213,15 @@ const state = {
   baseEntriesByName: new Map(),
   baseNamesSorted: [],
   query: "",
-  finder: {
-    query: "",
-    selectedVersionId: FINDER_VERSION_OPTIONS[0]?.id ?? "lets-go-pikachu",
-    selectedEntryName: null,
-    requestToken: 0
-  },
   ui: {
     activeView: "landing",
     activeDetailTab: "overview",
     archiveMode: "living",
     archiveView: "list",
-    scanVisualMode: "artwork",
+    archiveDuplicateMode: false,
+    scanVisualMode: "home",
     journeySelectedGame: null,
+    duplicatePlannerFilter: "all",
     homeExcludedVisible: false,
     locationSurfaceTabs: {},
     locationMapZoom: {},
@@ -2222,9 +2258,11 @@ const state = {
   homeBoxes: loadHomeBoxesState(),
   shinyHub: loadShinyHubState(),
   tools: loadToolsState(),
+  duplicatePlannerRecords: [],
+  duplicatePlannerDirty: true,
+  duplicatePlannerRequestToken: 0,
   randomTargets: [],
   shinyTargets: [],
-  companionReply: "",
   growthRateCache: new Map(),
   speciesCache: new Map(),
   detailCache: new Map(),
@@ -2268,6 +2306,8 @@ const state = {
     busy: false,
     ready: false,
     autoSyncTimer: null,
+    autoPullIntervalId: null,
+    forcePullOnNextHydration: false,
     remoteSave: null,
     messageTone: "neutral",
     message: "",
@@ -2279,8 +2319,10 @@ const uiSessionSeed = loadUiSessionState();
 state.ui.activeView = uiSessionSeed.activeView;
 state.ui.activeDetailTab = uiSessionSeed.activeDetailTab;
 state.ui.archiveView = uiSessionSeed.archiveView;
+state.ui.archiveDuplicateMode = uiSessionSeed.archiveDuplicateMode;
 state.ui.scanVisualMode = uiSessionSeed.scanVisualMode;
 state.ui.journeySelectedGame = uiSessionSeed.journeySelectedGame;
+state.ui.duplicatePlannerFilter = uiSessionSeed.duplicatePlannerFilter;
 state.sessionRestore.currentPokemonName = uiSessionSeed.currentPokemonName;
 
 window.__dexterState = state;
@@ -2312,8 +2354,10 @@ function createDefaultUiSessionState() {
     activeView: "landing",
     activeDetailTab: "overview",
     archiveView: "list",
-    scanVisualMode: "artwork",
+    archiveDuplicateMode: false,
+    scanVisualMode: "home",
     journeySelectedGame: null,
+    duplicatePlannerFilter: "all",
     currentPokemonName: null
   };
 }
@@ -2325,20 +2369,24 @@ function loadUiSessionState() {
     ? loaded.activeDetailTab
     : "overview";
   const archiveView = VALID_ARCHIVE_VIEW_IDS.has(loaded?.archiveView) ? loaded.archiveView : "list";
-  const scanVisualMode = VALID_SCAN_VISUAL_MODE_IDS.has(loaded?.scanVisualMode)
-    ? loaded.scanVisualMode
-    : "artwork";
+  const archiveDuplicateMode = Boolean(loaded?.archiveDuplicateMode);
+  const scanVisualMode = "home";
   const journeySelectedGame = GAME_CATALOG.some((game) => game.id === loaded?.journeySelectedGame)
     ? loaded.journeySelectedGame
     : null;
+  const duplicatePlannerFilter = VALID_DUPLICATE_FILTER_IDS.has(loaded?.duplicatePlannerFilter)
+    ? loaded.duplicatePlannerFilter
+    : "all";
   const currentPokemonName = loaded?.currentPokemonName ? String(loaded.currentPokemonName) : null;
 
   return {
     activeView,
     activeDetailTab,
     archiveView,
+    archiveDuplicateMode,
     scanVisualMode,
     journeySelectedGame,
+    duplicatePlannerFilter,
     currentPokemonName
   };
 }
@@ -2348,8 +2396,10 @@ function saveUiSessionState() {
     activeView: state.ui.activeView,
     activeDetailTab: state.ui.activeDetailTab,
     archiveView: state.ui.archiveView,
+    archiveDuplicateMode: state.ui.archiveDuplicateMode,
     scanVisualMode: state.ui.scanVisualMode,
     journeySelectedGame: state.ui.journeySelectedGame,
+    duplicatePlannerFilter: state.ui.duplicatePlannerFilter,
     currentPokemonName: state.currentPokemon?.name ?? state.sessionRestore.currentPokemonName ?? null
   });
 }
@@ -2375,6 +2425,7 @@ function loadCloudConfig() {
 
 function createDefaultAccountSyncState() {
   return {
+    autoSyncEnabled: true,
     linkedUserId: null,
     pendingUserId: null,
     pendingResolution: false,
@@ -2964,7 +3015,6 @@ function applyCloudSnapshot(snapshot) {
   });
 
   state.profileMeta = normalizedMeta;
-  state.companionReply = "";
   saveStoredObject(PROFILE_META_STORAGE_KEY, state.profileMeta);
   loadProfileIntoState();
 
@@ -2990,7 +3040,21 @@ function applyCloudSnapshot(snapshot) {
 }
 
 function loadCaughtMap() {
-  return loadProfileStoredObject(STORAGE_KEY, {});
+  const loaded = loadProfileStoredObject(STORAGE_KEY, {});
+  const normalized = {};
+
+  if (!loaded || typeof loaded !== "object") {
+    return normalized;
+  }
+
+  Object.entries(loaded).forEach(([name, value]) => {
+    const count = normalizeCaughtCount(value);
+    if (count > 0) {
+      normalized[name] = count;
+    }
+  });
+
+  return normalized;
 }
 
 function loadShinyMap() {
@@ -3158,25 +3222,52 @@ function cloneGameAvailabilityDetail(detail, gameId) {
   return clone;
 }
 
+function hasCompleteGameAvailabilityOrder(order, speciesSet) {
+  const requiredSpecies = speciesSet instanceof Set ? speciesSet : new Set(speciesSet ?? []);
+  if (!requiredSpecies.size) {
+    return true;
+  }
+
+  if (!Array.isArray(order) || !order.length) {
+    return false;
+  }
+
+  const orderedSpecies = new Set(order.map(Number).filter(Number.isFinite));
+  if (orderedSpecies.size < requiredSpecies.size) {
+    return false;
+  }
+
+  for (const speciesNumber of requiredSpecies) {
+    if (!orderedSpecies.has(speciesNumber)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function hasCompleteGameAvailabilityBreakdown(detailsMap) {
   return GAME_CATALOG.every((game) => {
+    const detail = detailsMap.get(game.id);
+    if (!detail || !hasCompleteGameAvailabilityOrder(detail.order, detail.all)) {
+      return false;
+    }
+
     const expectedSegments = getAvailabilitySegmentSpecs(game.id);
     if (!expectedSegments.length) {
       return true;
     }
 
-    const detail = detailsMap.get(game.id);
     if (!detail?.segments?.length) {
       return false;
     }
 
-    const segmentIds = new Set(
-      detail.segments
-        .filter((segment) => segment.speciesSet instanceof Set)
-        .map((segment) => segment.id)
-    );
-
-    return expectedSegments.every((segment) => segmentIds.has(segment.id));
+    const segmentsById = new Map(detail.segments.map((segment) => [segment.id, segment]));
+    return expectedSegments.every((segment) => {
+      const cachedSegment = segmentsById.get(segment.id);
+      return Boolean(cachedSegment?.speciesSet instanceof Set) &&
+        hasCompleteGameAvailabilityOrder(cachedSegment.order, cachedSegment.speciesSet);
+    });
   });
 }
 
@@ -3413,6 +3504,8 @@ function saveShinyHubState() {
 
 function loadProfileIntoState() {
   state.caughtMap = loadCaughtMap();
+  state.duplicatePlannerDirty = true;
+  state.duplicatePlannerRecords = [];
   state.shinyMap = loadShinyMap();
   state.tracker = loadTrackerState();
   state.expPlan = loadExpPlanState();
@@ -3432,7 +3525,6 @@ function switchProfile(profileId) {
   }
 
   state.profileMeta.activeProfileId = profileId;
-  state.companionReply = "";
   saveProfileMeta();
   loadProfileIntoState();
   if (state.entries.length) {
@@ -3471,7 +3563,6 @@ function createProfile(name) {
   const id = `trainer-${Date.now()}`;
   state.profileMeta.profiles.push({ id, name: normalized });
   state.profileMeta.activeProfileId = id;
-  state.companionReply = "";
   saveProfileMeta();
   loadProfileIntoState();
   if (state.entries.length) {
@@ -3543,7 +3634,45 @@ function registerOfflineSupport() {
 }
 
 function isCaught(name) {
-  return Boolean(state.caughtMap[name]);
+  return getCaughtCount(name) > 0;
+}
+
+function normalizeCaughtCount(value) {
+  if (value === true) {
+    return 1;
+  }
+
+  const numeric = Math.floor(Number(value) || 0);
+  return numeric > 0 ? numeric : 0;
+}
+
+function getCaughtCount(name) {
+  return normalizeCaughtCount(state.caughtMap[name]);
+}
+
+function getDuplicateCount(name) {
+  return Math.max(0, getCaughtCount(name) - 1);
+}
+
+function getCaughtStatusLabel(name) {
+  const count = getCaughtCount(name);
+  if (count <= 0) {
+    return "Missing";
+  }
+  if (count === 1) {
+    return "Caught";
+  }
+  return `Owned x${formatCount(count)}`;
+}
+
+function getCaughtCountSummary(count) {
+  if (count <= 0) {
+    return "No copies tracked";
+  }
+  if (count === 1) {
+    return "1 living copy tracked";
+  }
+  return `${formatCount(count)} living copies tracked`;
 }
 
 function isShiny(name) {
@@ -3597,13 +3726,29 @@ function setFavoriteTypeState(typeName, pokemonName) {
 }
 
 function setCaughtState(name, value) {
-  if (value) {
-    state.caughtMap[name] = true;
+  setCaughtCount(name, value ? Math.max(1, getCaughtCount(name)) : 0);
+}
+
+function setCaughtCount(name, value) {
+  const count = normalizeCaughtCount(value);
+  const previousCount = getCaughtCount(name);
+
+  if (count > 0) {
+    state.caughtMap[name] = count;
   } else {
     delete state.caughtMap[name];
   }
 
+  if (count !== previousCount) {
+    state.duplicatePlannerDirty = true;
+  }
+
   saveCaughtMap();
+  return count;
+}
+
+function changeCaughtCount(name, delta) {
+  return setCaughtCount(name, getCaughtCount(name) + delta);
 }
 
 function setShinyState(name, value) {
@@ -4116,6 +4261,10 @@ function setArchiveMode(mode) {
   state.ui.archiveMode = mode;
   saveUiSessionState();
   refreshResults();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
 }
 
 function setArchiveView(view) {
@@ -4126,6 +4275,35 @@ function setArchiveView(view) {
   state.ui.archiveView = view;
   saveUiSessionState();
   refreshResults();
+}
+
+function isArchiveDuplicateMode() {
+  return state.ui.archiveDuplicateMode && !isArchiveShinyMode();
+}
+
+function setArchiveDuplicateMode(enabled) {
+  const nextValue = Boolean(enabled);
+  if (state.ui.archiveDuplicateMode === nextValue) {
+    return;
+  }
+
+  state.ui.archiveDuplicateMode = nextValue;
+  saveUiSessionState();
+  refreshResults();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+}
+
+function setDuplicatePlannerFilter(filterId) {
+  if (!VALID_DUPLICATE_FILTER_IDS.has(filterId) || state.ui.duplicatePlannerFilter === filterId) {
+    return;
+  }
+
+  state.ui.duplicatePlannerFilter = filterId;
+  saveUiSessionState();
+  renderDuplicatePlanner();
 }
 
 function getPrimaryGameEntry(baseNumber) {
@@ -4172,6 +4350,10 @@ function setCloudMessage(message, tone = "neutral") {
   state.cloud.messageTone = tone;
 }
 
+function isCloudAutoSyncEnabled() {
+  return Boolean(state.accountSync.autoSyncEnabled);
+}
+
 function formatCloudError(error, fallback = "Cloud account action failed.") {
   const rawMessage = String(error?.message || error || fallback).trim();
   const normalized = rawMessage.toLowerCase();
@@ -4181,11 +4363,11 @@ function formatCloudError(error, fallback = "Cloud account action failed.") {
   }
 
   if (normalized.includes("oauth") && normalized.includes("email")) {
-    return "That trainer account uses a social login provider like Google. Use the Google button instead of email/password.";
+    return "That trainer account uses a social login provider that is not available in this build.";
   }
 
   if (normalized.includes("provider is not enabled")) {
-    return "Google sign-in is not enabled in your Supabase project yet.";
+    return "That sign-in provider is not enabled in your Supabase project yet.";
   }
 
   if (normalized.includes("email not confirmed")) {
@@ -4205,6 +4387,11 @@ function formatCloudError(error, fallback = "Cloud account action failed.") {
   }
 
   return rawMessage || fallback;
+}
+
+function getCloudTimestampValue(value) {
+  const parsed = Date.parse(value ?? "");
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function hasUnsyncedLocalChanges() {
@@ -4227,6 +4414,62 @@ function isCloudLinkedToCurrentUser() {
   );
 }
 
+function canRunCloudAutoSync() {
+  return Boolean(
+    isCloudAutoSyncEnabled() &&
+      state.cloud.configured &&
+      state.cloud.user &&
+      isCloudLinkedToCurrentUser() &&
+      !state.accountSync.pendingResolution
+  );
+}
+
+function clearCloudAutoPushTimer() {
+  if (!state.cloud.autoSyncTimer) {
+    return;
+  }
+
+  window.clearTimeout(state.cloud.autoSyncTimer);
+  state.cloud.autoSyncTimer = null;
+}
+
+function clearCloudAutoPullLoop() {
+  if (!state.cloud.autoPullIntervalId) {
+    return;
+  }
+
+  window.clearInterval(state.cloud.autoPullIntervalId);
+  state.cloud.autoPullIntervalId = null;
+}
+
+function syncCloudAutomationState() {
+  if (!canRunCloudAutoSync()) {
+    clearCloudAutoPushTimer();
+    clearCloudAutoPullLoop();
+    return;
+  }
+
+  if (!state.cloud.autoPullIntervalId) {
+    state.cloud.autoPullIntervalId = window.setInterval(() => {
+      if (state.cloud.busy) {
+        return;
+      }
+
+      void maybeAutoPullCloudSnapshot({ quiet: true, source: "auto" });
+    }, CLOUD_AUTO_PULL_INTERVAL_MS);
+  }
+}
+
+function markCloudSyncChoiceRequired(message) {
+  state.accountSync.pendingResolution = true;
+  state.accountSync.pendingUserId = state.cloud.user?.id ?? null;
+  if (state.cloud.remoteSave?.updated_at) {
+    state.accountSync.lastRemoteUpdatedAt = state.cloud.remoteSave.updated_at;
+  }
+  saveAccountSyncState();
+  setCloudMessage(message, "warn");
+}
+
 function markCloudDirty() {
   state.accountSync.lastLocalChangeAt = new Date().toISOString();
   saveAccountSyncState();
@@ -4235,23 +4478,59 @@ function markCloudDirty() {
 
 function scheduleCloudAutoSync() {
   if (
-    !state.cloud.configured ||
-    !state.cloud.user ||
-    !isCloudLinkedToCurrentUser() ||
+    !canRunCloudAutoSync() ||
     state.cloud.busy ||
-    state.accountSync.pendingResolution
+    hasUnsyncedLocalChanges() === false
   ) {
     return;
   }
 
-  if (state.cloud.autoSyncTimer) {
-    window.clearTimeout(state.cloud.autoSyncTimer);
-  }
+  clearCloudAutoPushTimer();
 
   state.cloud.autoSyncTimer = window.setTimeout(() => {
     state.cloud.autoSyncTimer = null;
     void pushLocalSnapshotToCloud({ quiet: true, source: "auto" });
   }, CLOUD_SYNC_DEBOUNCE_MS);
+}
+
+function setCloudAutoSyncEnabled(enabled) {
+  const nextValue = Boolean(enabled);
+  if (state.accountSync.autoSyncEnabled === nextValue) {
+    return;
+  }
+
+  state.accountSync.autoSyncEnabled = nextValue;
+  saveAccountSyncState();
+
+  if (!nextValue) {
+    clearCloudAutoPushTimer();
+    clearCloudAutoPullLoop();
+    setCloudMessage(
+      "Auto Sync is off. Use Push to Cloud and Sync with Cloud whenever you want to move data manually.",
+      "neutral"
+    );
+    renderTrainerVault();
+    return;
+  }
+
+  setCloudMessage(
+    state.cloud.user
+      ? "Auto Sync is on. This device will push local changes and pull newer cloud saves when it is safe."
+      : "Auto Sync is on. It will start syncing once this device is linked to a cloud account.",
+    "success"
+  );
+
+  if (state.cloud.user && !isCloudLinkedToCurrentUser()) {
+    state.cloud.forcePullOnNextHydration = true;
+    renderTrainerVault();
+    void hydrateCloudSession("AUTO_SYNC_ENABLED");
+    return;
+  }
+
+  syncCloudAutomationState();
+  renderTrainerVault();
+  scheduleCloudAutoSync();
+  void maybeAutoPullCloudSnapshot({ quiet: true, source: "auto" });
 }
 
 function scheduleSwitchGameAvailabilityLoad() {
@@ -4355,12 +4634,92 @@ async function fetchCloudSaveForCurrentUser() {
   return Array.isArray(data) ? data[0] ?? null : null;
 }
 
+async function hasRemoteCloudConflictForAutoPush() {
+  try {
+    if (!canRunCloudAutoSync() || !state.cloud.user) {
+      return false;
+    }
+
+    const row = await fetchCloudSaveForCurrentUser();
+    state.cloud.remoteSave = row;
+
+    if (!row?.updated_at) {
+      return false;
+    }
+
+    if (getCloudTimestampValue(row.updated_at) <= getCloudTimestampValue(state.accountSync.lastRemoteUpdatedAt)) {
+      return false;
+    }
+
+    markCloudSyncChoiceRequired(
+      "Auto Sync paused because the cloud save changed on another device. Push to Cloud to keep this device, or Sync with Cloud to load the newer cloud save."
+    );
+    renderTrainerVault();
+    return true;
+  } catch (error) {
+    setCloudMessage(formatCloudError(error, "Auto Sync could not compare the cloud save."), "error");
+    renderTrainerVault();
+    return true;
+  }
+}
+
+async function applyCloudSnapshotRowToDevice(row, { quiet = false, source = "manual" } = {}) {
+  state.cloud.busy = true;
+  renderTrainerVault();
+
+  try {
+    if (!row?.snapshot) {
+      setCloudMessage("No cloud save exists for this trainer account yet.", "warn");
+      return false;
+    }
+
+    applyCloudSnapshot(row.snapshot);
+
+    const syncedAt = new Date().toISOString();
+    state.cloud.remoteSave = row;
+    state.accountSync.linkedUserId = state.cloud.user?.id ?? null;
+    state.accountSync.pendingUserId = null;
+    state.accountSync.pendingResolution = false;
+    state.accountSync.lastSyncedAt = syncedAt;
+    state.accountSync.lastRemoteUpdatedAt = row.updated_at ?? syncedAt;
+    state.accountSync.lastDirection = "pull";
+    saveAccountSyncState();
+
+    setCloudMessage(
+      source === "auto"
+        ? "This device auto-pulled the latest trainer cloud save."
+        : "This device was synced from the trainer cloud save.",
+      "success"
+    );
+    if (!quiet) {
+      setStatus("Cloud save pulled onto this device.");
+    }
+    return true;
+  } catch (error) {
+    setCloudMessage(formatCloudError(error, "Sync with cloud failed."), "error");
+    if (!quiet) {
+      setStatus("Sync with cloud failed.");
+    }
+    return false;
+  } finally {
+    state.cloud.busy = false;
+    renderTrainerVault();
+  }
+}
+
 async function pushLocalSnapshotToCloud({ quiet = false, source = "manual" } = {}) {
   const client = await ensureCloudClient();
   if (!client || !state.cloud.user) {
     setCloudMessage("Sign in to a trainer account before pushing this device to the cloud.", "warn");
     renderTrainerVault();
     return false;
+  }
+
+  if (source === "auto") {
+    const hasConflict = await hasRemoteCloudConflictForAutoPush();
+    if (hasConflict) {
+      return false;
+    }
   }
 
   state.cloud.busy = true;
@@ -4423,43 +4782,54 @@ async function pushLocalSnapshotToCloud({ quiet = false, source = "manual" } = {
 }
 
 async function pullCloudSnapshotToDevice({ quiet = false } = {}) {
-  state.cloud.busy = true;
-  renderTrainerVault();
-
   try {
     const row = await fetchCloudSaveForCurrentUser();
-
-    if (!row?.snapshot) {
-      setCloudMessage("No cloud save exists for this trainer account yet.", "warn");
-      return false;
-    }
-
-    applyCloudSnapshot(row.snapshot);
-
-    const syncedAt = new Date().toISOString();
-    state.cloud.remoteSave = row;
-    state.accountSync.linkedUserId = state.cloud.user?.id ?? null;
-    state.accountSync.pendingUserId = null;
-    state.accountSync.pendingResolution = false;
-    state.accountSync.lastSyncedAt = syncedAt;
-    state.accountSync.lastRemoteUpdatedAt = row.updated_at ?? syncedAt;
-    state.accountSync.lastDirection = "pull";
-    saveAccountSyncState();
-
-    setCloudMessage("This device was synced from the trainer cloud save.", "success");
-    if (!quiet) {
-      setStatus("Cloud save pulled onto this device.");
-    }
-    return true;
+    return await applyCloudSnapshotRowToDevice(row, { quiet });
   } catch (error) {
     setCloudMessage(formatCloudError(error, "Sync with cloud failed."), "error");
     if (!quiet) {
       setStatus("Sync with cloud failed.");
     }
     return false;
-  } finally {
-    state.cloud.busy = false;
+  }
+}
+
+async function maybeAutoPullCloudSnapshot({ quiet = true, source = "auto" } = {}) {
+  try {
+    if (!canRunCloudAutoSync() || state.cloud.busy) {
+      return false;
+    }
+
+    const row = await fetchCloudSaveForCurrentUser();
+    state.cloud.remoteSave = row;
+
+    if (!row?.snapshot) {
+      return false;
+    }
+
+    const remoteUpdatedAt = getCloudTimestampValue(row.updated_at);
+    const knownRemoteUpdatedAt = Math.max(
+      getCloudTimestampValue(state.accountSync.lastRemoteUpdatedAt),
+      getCloudTimestampValue(state.accountSync.lastSyncedAt)
+    );
+
+    if (remoteUpdatedAt <= knownRemoteUpdatedAt) {
+      return false;
+    }
+
+    if (hasUnsyncedLocalChanges()) {
+      markCloudSyncChoiceRequired(
+        "Auto Sync paused because both this device and the cloud save changed. Push to Cloud to keep local data, or Sync with Cloud to load the newer cloud save."
+      );
+      renderTrainerVault();
+      return false;
+    }
+
+    return applyCloudSnapshotRowToDevice(row, { quiet, source });
+  } catch (error) {
+    setCloudMessage(formatCloudError(error, "Auto Sync pull check failed."), "error");
     renderTrainerVault();
+    return false;
   }
 }
 
@@ -4475,14 +4845,32 @@ async function hydrateCloudSession(event = "INITIAL_SESSION") {
   try {
     const row = await fetchCloudSaveForCurrentUser();
     state.cloud.remoteSave = row;
+    const autoSyncEnabled = isCloudAutoSyncEnabled();
+    const shouldForcePullOnLogin = autoSyncEnabled && (event === "SIGNED_IN" || state.cloud.forcePullOnNextHydration);
+    state.cloud.forcePullOnNextHydration = false;
 
     if (!row) {
-      await pushLocalSnapshotToCloud({ quiet: true, source: "bootstrap" });
+      if (autoSyncEnabled) {
+        await pushLocalSnapshotToCloud({ quiet: true, source: "bootstrap" });
+      } else {
+        setCloudMessage(
+          "No cloud save exists for this trainer account yet. Auto Sync is off, so use Push to Cloud to create the first save.",
+          "warn"
+        );
+      }
       return;
     }
 
     state.accountSync.lastRemoteUpdatedAt = row.updated_at ?? state.accountSync.lastRemoteUpdatedAt;
     const linkedToThisUser = state.accountSync.linkedUserId === state.cloud.user.id;
+
+    if (shouldForcePullOnLogin) {
+      const pulled = await applyCloudSnapshotRowToDevice(row, { quiet: true, source: "auto" });
+      if (pulled) {
+        setCloudMessage(`Welcome back, ${getCloudUserLabel()}. Your trainer cloud save was pulled automatically.`, "success");
+      }
+      return;
+    }
 
     if (!linkedToThisUser) {
       state.accountSync.pendingResolution = true;
@@ -4495,14 +4883,19 @@ async function hydrateCloudSession(event = "INITIAL_SESSION") {
       return;
     }
 
-    if (hasUnsyncedLocalChanges()) {
-      state.accountSync.pendingResolution = true;
-      state.accountSync.pendingUserId = state.cloud.user.id;
+    if (!autoSyncEnabled) {
+      state.accountSync.pendingResolution = false;
+      state.accountSync.pendingUserId = null;
       saveAccountSyncState();
       setCloudMessage(
-        "This device has unsynced local changes. Sync with Cloud to pull the cloud save here, or Push to Cloud to upload this device's local data.",
-        "warn"
+        `${getCloudUserLabel()} is signed in. Auto Sync is off, so use Push to Cloud or Sync with Cloud when you want to move data manually.`,
+        "neutral"
       );
+      return;
+    }
+
+    if (hasUnsyncedLocalChanges()) {
+      await pushLocalSnapshotToCloud({ quiet: true, source: "auto" });
       return;
     }
 
@@ -4536,6 +4929,7 @@ async function signInCloudAccount() {
   }
 
   state.cloud.busy = true;
+  state.cloud.forcePullOnNextHydration = isCloudAutoSyncEnabled();
   renderTrainerVault();
 
   try {
@@ -4547,6 +4941,7 @@ async function signInCloudAccount() {
     elements.accountPasswordInput.value = "";
     setCloudMessage(`Signed in as ${email}. Checking your cloud save…`, "success");
   } catch (error) {
+    state.cloud.forcePullOnNextHydration = false;
     state.cloud.busy = false;
     setCloudMessage(formatCloudError(error, "Sign in failed."), "error");
     renderTrainerVault();
@@ -4686,12 +5081,22 @@ async function syncCloudNow() {
   await pullCloudSnapshotToDevice();
 }
 
+function requestCloudAutoSyncRefresh() {
+  if (!isCloudAutoSyncEnabled()) {
+    return;
+  }
+
+  scheduleCloudAutoSync();
+  void maybeAutoPullCloudSnapshot({ quiet: true, source: "auto" });
+}
+
 function renderCloudAccountCard() {
   const configured = state.cloud.configured;
   const signedIn = Boolean(state.cloud.user);
   const pending = state.accountSync.pendingResolution;
   const linked = isCloudLinkedToCurrentUser();
   const unsynced = hasUnsyncedLocalChanges();
+  const autoSyncEnabled = isCloudAutoSyncEnabled();
 
   let badge = "Offline Only";
   let summary =
@@ -4706,21 +5111,25 @@ function renderCloudAccountCard() {
       ? `Working with ${getCloudUserLabel()}'s cloud save.`
       : "Checking cloud account status.";
   } else if (!signedIn) {
-    badge = "Ready";
+    badge = autoSyncEnabled ? "Auto Sync Ready" : "Ready";
     summary =
-      "Create a trainer account, sign in with email, or use Google to link this browser with your cloud save and carry progress across devices.";
+      "Create a trainer account and sign in with email to link this browser with your cloud save across devices.";
   } else if (pending) {
-    badge = "Needs Choice";
+    badge = autoSyncEnabled ? "Auto Sync Paused" : "Needs Choice";
     summary =
       "A cloud save was found, and this device needs a clear direction: push this device upward or sync from the cloud downward.";
   } else if (linked) {
-    badge = unsynced ? "Pending Sync" : "Linked";
-    summary = unsynced
-      ? `${getCloudUserLabel()} is linked. Push to Cloud to upload this device, or Sync with Cloud to replace it with the stored cloud save.`
-      : `${getCloudUserLabel()} is linked, and this device is in sync across sessions.`;
+    badge = autoSyncEnabled ? (unsynced ? "Pending Sync" : "Auto Sync On") : "Manual Sync";
+    summary = autoSyncEnabled
+      ? unsynced
+        ? `${getCloudUserLabel()} is linked. Local changes are queued to push, and newer cloud saves will auto-pull when it is safe.`
+        : `${getCloudUserLabel()} is linked, and this device is auto-pushing and auto-pulling across sessions.`
+      : `${getCloudUserLabel()} is linked. Auto Sync is off, so use Push to Cloud or Sync with Cloud when you want to move data.`;
   } else {
-    badge = "Signed In";
-    summary = `${getCloudUserLabel()} is signed in. Push to Cloud to upload this device, or Sync with Cloud to pull down the trainer save.`;
+    badge = autoSyncEnabled ? "Auto Sync Ready" : "Signed In";
+    summary = autoSyncEnabled
+      ? `${getCloudUserLabel()} is signed in. Auto Sync will pull the trainer cloud save on login and keep future changes moving automatically.`
+      : `${getCloudUserLabel()} is signed in. Push to Cloud uploads this device, and Sync with Cloud pulls down the trainer save.`;
   }
 
   elements.accountBadge.textContent = badge;
@@ -4730,8 +5139,10 @@ function renderCloudAccountCard() {
     (!configured
       ? "Add your Supabase URL and publishable key to supabase-config.js, then create the cloud_saves table from supabase/schema.sql."
       : signedIn
-        ? `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}. Push to Cloud uploads local device data. Sync with Cloud checks the trainer cloud save and pulls it onto this device.`
-        : "Email/password and Google auth are ready once Supabase is configured.");
+        ? autoSyncEnabled
+          ? `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}. Auto Sync is on, so login pulls the trainer cloud save automatically and later local changes can sync on their own.`
+          : `Signed in as ${state.cloud.user.email ?? getCloudUserLabel()}. Auto Sync is off. Push to Cloud uploads local device data, and Sync with Cloud pulls the trainer save onto this device.`
+        : `Email/password cloud accounts are ready once Supabase is configured. Auto Sync is ${autoSyncEnabled ? "on" : "off"}.`);
   elements.accountDetail.className = `results-summary account-detail${
     state.cloud.messageTone === "error"
       ? " is-error"
@@ -4746,10 +5157,14 @@ function renderCloudAccountCard() {
   elements.accountPasswordInput.disabled = !configured || state.cloud.busy;
   elements.accountSignInButton.disabled = !configured || state.cloud.busy || signedIn;
   elements.accountSignUpButton.disabled = !configured || state.cloud.busy || signedIn;
-  elements.accountGoogleSignInButton.disabled = !configured || state.cloud.busy || signedIn;
+  elements.accountAutoSyncButton.textContent = autoSyncEnabled ? "Auto Sync On" : "Auto Sync Off";
+  elements.accountAutoSyncButton.classList.toggle("active", autoSyncEnabled);
+  elements.accountAutoSyncButton.setAttribute("aria-pressed", String(autoSyncEnabled));
+  elements.accountAutoSyncButton.disabled = state.cloud.busy;
   elements.accountSignOutButton.disabled = !configured || state.cloud.busy || !signedIn;
   elements.cloudPushButton.disabled = !configured || state.cloud.busy || !signedIn;
   elements.cloudSyncButton.disabled = !configured || state.cloud.busy || !signedIn;
+  syncCloudAutomationState();
 }
 
 function getBaseEntries() {
@@ -4759,525 +5174,6 @@ function getBaseEntries() {
 function setProgressBar(element, ratio) {
   const normalized = Math.max(0, Math.min(ratio || 0, 1));
   element.style.width = `${normalized * 100}%`;
-}
-
-function getFinderVersionOptionMeta(versionId = state.finder.selectedVersionId) {
-  return (
-    FINDER_VERSION_OPTIONS.find((option) => option.id === versionId) ??
-    FINDER_VERSION_OPTIONS[0] ??
-    null
-  );
-}
-
-function getFinderSelectedEntry() {
-  return state.finder.selectedEntryName ? state.entriesByName.get(state.finder.selectedEntryName) ?? null : null;
-}
-
-function getFinderMatchScore(entry, normalizedQuery) {
-  if (!normalizedQuery) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const displayName = normalizeSearch(entry.displayName);
-  const slugName = normalizeSearch(entry.name.replace(/-/g, " "));
-  const dexLabel = String(entry.baseNumber);
-
-  if (normalizedQuery === displayName || normalizedQuery === slugName || normalizedQuery === dexLabel) {
-    return 0;
-  }
-  if (displayName.startsWith(normalizedQuery) || slugName.startsWith(normalizedQuery)) {
-    return 1;
-  }
-  if (displayName.includes(normalizedQuery) || slugName.includes(normalizedQuery)) {
-    return 2;
-  }
-  if (entry.searchBlob?.includes(normalizedQuery)) {
-    return 3;
-  }
-  return 99;
-}
-
-function getFinderSearchMatches(query = state.finder.query, limit = 12) {
-  const normalizedQuery = normalizeSearch(query);
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  return getBaseEntries()
-    .filter((entry) => getFinderMatchScore(entry, normalizedQuery) < 99)
-    .sort(
-      (left, right) =>
-        getFinderMatchScore(left, normalizedQuery) - getFinderMatchScore(right, normalizedQuery) ||
-        left.baseNumber - right.baseNumber ||
-        left.displayName.localeCompare(right.displayName)
-    )
-    .slice(0, limit);
-}
-
-function formatFinderEncounterMethod(methodName) {
-  const labelMap = {
-    walk: "Walking",
-    surf: "Surfing",
-    "old rod": "Old Rod",
-    "good rod": "Good Rod",
-    "super rod": "Super Rod",
-    "rock smash": "Rock Smash",
-    headbutt: "Headbutt",
-    gift: "Gift Encounter",
-    "only one": "Single Encounter",
-    special: "Special Encounter"
-  };
-  const normalized = titleCase(String(methodName || "").replace(/-/g, " "));
-  return labelMap[normalized.toLowerCase()] ?? normalized ?? "Unknown";
-}
-
-function formatFinderTimeOfDay(conditionValues = []) {
-  const timeMap = {
-    morning: "Morning",
-    day: "Day",
-    night: "Night",
-    afternoon: "Afternoon",
-    evening: "Evening",
-    dusk: "Dusk",
-    dawn: "Dawn"
-  };
-
-  const labels = [
-    ...new Set(
-      (conditionValues ?? [])
-        .map((condition) => String(condition?.name || "").toLowerCase())
-        .filter((name) => name.startsWith("time-"))
-        .map((name) => timeMap[name.replace(/^time-/, "")] ?? titleCase(name.replace(/^time-/, "")))
-    )
-  ];
-
-  return labels.length ? labels.join(" / ") : "Any Time";
-}
-
-function formatFinderSpecialConditions(conditionValues = []) {
-  const conditionMap = {
-    "swarm-yes": "Swarm",
-    radar: "Poké Radar",
-    "slot2-ruby": "GBA Insert: Ruby",
-    "slot2-sapphire": "GBA Insert: Sapphire",
-    "slot2-emerald": "GBA Insert: Emerald",
-    "slot2-firered": "GBA Insert: FireRed",
-    "slot2-leafgreen": "GBA Insert: LeafGreen",
-    radio: "Radio",
-    "radio-hoenn": "Hoenn Sound",
-    "radio-sinnoh": "Sinnoh Sound",
-    season: "Seasonal",
-    "story-progress": "Story Progress",
-    starter: "Starter Choice"
-  };
-
-  const labels = [
-    ...new Set(
-      (conditionValues ?? [])
-        .map((condition) => String(condition?.name || "").toLowerCase())
-        .filter((name) => name && !name.startsWith("time-"))
-        .map((name) => conditionMap[name] ?? titleCase(name.replace(/-/g, " ")))
-    )
-  ];
-
-  return labels.length ? labels.join(" · ") : "None";
-}
-
-function formatFinderLevelRange(minLevel, maxLevel) {
-  const min = Number(minLevel);
-  const max = Number(maxLevel);
-
-  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0) {
-    return min === max ? `Lv. ${min}` : `Lv. ${min}-${max}`;
-  }
-
-  if (Number.isFinite(min) && min > 0) {
-    return `Lv. ${min}+`;
-  }
-
-  if (Number.isFinite(max) && max > 0) {
-    return `Up to Lv. ${max}`;
-  }
-
-  return "Unknown";
-}
-
-function classifyFinderRarity(chance) {
-  const numericChance = Math.max(0, Number(chance) || 0);
-  if (numericChance >= 30) {
-    return "Common";
-  }
-  if (numericChance >= 10) {
-    return "Uncommon";
-  }
-  return "Rare";
-}
-
-function buildFinderEncounterRecords(locations, versionOption) {
-  if (!versionOption?.versionNames?.length) {
-    return [];
-  }
-
-  const allowedVersions = new Set(versionOption.versionNames);
-  const records = [];
-
-  (locations ?? []).forEach((location) => {
-    const areaName = titleCase(location.location_area?.name?.replace(/-/g, " ") || "Unknown Area");
-
-    (location.version_details ?? []).forEach((versionDetail) => {
-      const versionName = versionDetail.version?.name;
-      if (!allowedVersions.has(versionName)) {
-        return;
-      }
-
-      const encounterDetails = Array.isArray(versionDetail.encounter_details) && versionDetail.encounter_details.length
-        ? versionDetail.encounter_details
-        : [null];
-
-      encounterDetails.forEach((encounterDetail) => {
-        const chance = Number(encounterDetail?.chance ?? versionDetail.max_chance ?? 0) || 0;
-        const method = formatFinderEncounterMethod(encounterDetail?.method?.name);
-        const timeOfDay = formatFinderTimeOfDay(encounterDetail?.condition_values);
-        const specialConditions = formatFinderSpecialConditions(encounterDetail?.condition_values);
-        const minLevel = Number(encounterDetail?.min_level ?? 0) || 0;
-        const maxLevel = Number(encounterDetail?.max_level ?? 0) || 0;
-
-        records.push({
-          areaName,
-          versionName,
-          chance,
-          method,
-          timeOfDay,
-          minLevel,
-          maxLevel,
-          levelRange: formatFinderLevelRange(minLevel, maxLevel),
-          specialConditions,
-          rarity: classifyFinderRarity(chance)
-        });
-      });
-    });
-  });
-
-  return records.sort(
-    (left, right) =>
-      right.chance - left.chance ||
-      left.areaName.localeCompare(right.areaName) ||
-      left.method.localeCompare(right.method)
-  );
-}
-
-function getFinderAvailabilityState(entry, versionOption, records) {
-  if (records.length) {
-    return { state: "exact" };
-  }
-
-  if (!entry || !versionOption || !state.gameAvailabilityReady) {
-    return { state: "unknown" };
-  }
-
-  const game = getGameMeta(versionOption.gameId);
-  const availableInGame = isAvailableInGame(entry.baseNumber, versionOption.gameId);
-  if (!availableInGame) {
-    return { state: "missing", exclusiveVersions: getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber) };
-  }
-
-  if (game && gameHasSeparateVersions(game)) {
-    const exclusiveVersions = getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber);
-    if (exclusiveVersions.length === 1 && exclusiveVersions[0].id !== versionOption.id) {
-      return { state: "missing", exclusiveVersions };
-    }
-  }
-
-  return { state: "broad-only", exclusiveVersions: getVersionExclusiveVersions(versionOption.gameId, entry.baseNumber) };
-}
-
-function createFinderMatchButton(entry) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "collection-item finder-match-item";
-  button.classList.toggle("active", entry.name === state.finder.selectedEntryName);
-
-  const art = document.createElement("div");
-  art.className = "collection-item-art";
-
-  const sprite = document.createElement("img");
-  sprite.className = "collection-item-sprite";
-  applyEntrySprite(sprite, entry);
-  art.appendChild(sprite);
-
-  const copy = document.createElement("div");
-  copy.className = "collection-item-copy";
-
-  const title = document.createElement("strong");
-  title.textContent = entry.displayName;
-
-  const note = document.createElement("p");
-  note.className = "collection-item-note";
-  note.textContent = `Dex #${formatNumber(entry.baseNumber)} · Generation ${entry.generation}`;
-
-  copy.append(title, note);
-  button.append(art, copy);
-  button.addEventListener("click", () => {
-    state.finder.selectedEntryName = entry.name;
-    state.finder.query = entry.displayName;
-    elements.finderPokemonInput.value = entry.displayName;
-    renderFinder();
-  });
-
-  return button;
-}
-
-function renderFinderVersionOptions() {
-  const currentValue =
-    FINDER_VERSION_OPTIONS.some((option) => option.id === state.finder.selectedVersionId)
-      ? state.finder.selectedVersionId
-      : FINDER_VERSION_OPTIONS[0]?.id ?? "";
-
-  elements.finderVersionSelect.replaceChildren();
-
-  FINDER_VERSION_OPTIONS.forEach((option) => {
-    const element = document.createElement("option");
-    element.value = option.id;
-    element.textContent = option.label;
-    elements.finderVersionSelect.appendChild(element);
-  });
-
-  state.finder.selectedVersionId = currentValue;
-  elements.finderVersionSelect.value = currentValue;
-}
-
-function renderFinderMatches() {
-  elements.finderMatchList.replaceChildren();
-
-  if (!state.entries.length) {
-    elements.finderSearchSummary.textContent = "Archive still syncing. Finder suggestions will come online once the dex finishes loading.";
-    return;
-  }
-
-  const normalizedQuery = normalizeSearch(state.finder.query);
-  if (!normalizedQuery) {
-    elements.finderSearchSummary.textContent = "Type a Pokémon name to surface likely matches for the selected game version.";
-    return;
-  }
-
-  const matches = getFinderSearchMatches(normalizedQuery);
-  if (!matches.length) {
-    elements.finderSearchSummary.textContent = "No Pokémon matched that search. Try a different spelling or a base species name.";
-    return;
-  }
-
-  elements.finderSearchSummary.textContent =
-    matches.length === 1
-      ? "1 likely match found. Press Find Pokémon or click the result."
-      : `${formatCount(matches.length)} likely matches found. Choose one below or press Find Pokémon if the top match is right.`;
-
-  matches.forEach((entry) => {
-    elements.finderMatchList.appendChild(createFinderMatchButton(entry));
-  });
-}
-
-function renderFinderEmptyState() {
-  elements.finderResultEmpty.hidden = false;
-  elements.finderResultShell.hidden = true;
-  elements.finderResultShell.classList.add("hidden");
-  elements.finderOpenScanButton.disabled = true;
-  elements.finderStatus.textContent = "Enter a Pokémon and choose a game version";
-}
-
-async function renderFinderResult() {
-  const entry = getFinderSelectedEntry();
-  const versionOption = getFinderVersionOptionMeta();
-
-  if (!entry || !versionOption) {
-    renderFinderEmptyState();
-    return;
-  }
-
-  const requestToken = ++state.finder.requestToken;
-  elements.finderResultEmpty.hidden = true;
-  elements.finderResultShell.hidden = false;
-  elements.finderResultShell.classList.remove("hidden");
-  elements.finderOpenScanButton.disabled = false;
-  elements.finderResultName.textContent = entry.displayName;
-  elements.finderResultVersion.textContent = versionOption.label;
-  applyEntrySprite(elements.finderResultSprite, entry);
-  elements.finderPrimaryLocation.textContent = "Scanning…";
-  elements.finderTimeOfDay.textContent = "Scanning…";
-  elements.finderMethod.textContent = "Scanning…";
-  elements.finderLevelRange.textContent = "Scanning…";
-  elements.finderEncounterRate.textContent = "Scanning…";
-  elements.finderRarity.textContent = "Scanning…";
-  elements.finderLocationList.replaceChildren();
-  elements.finderDetailList.replaceChildren();
-  elements.finderResultNote.textContent = "Checking the encounter archive for route, time, method, and rarity details.";
-  elements.finderStatus.textContent = `Finding ${entry.displayName} in ${versionOption.label}`;
-
-  try {
-    const locations = entry.encounterUrl ? await loadLocationEntries(entry.encounterUrl) : [];
-    if (requestToken !== state.finder.requestToken) {
-      return;
-    }
-
-    const records = buildFinderEncounterRecords(locations, versionOption);
-    const availability = getFinderAvailabilityState(entry, versionOption, records);
-
-    if (records.length) {
-      const primary = records[0];
-      const uniqueAreas = [...new Set(records.map((record) => record.areaName))];
-
-      elements.finderPrimaryLocation.textContent = primary.areaName;
-      elements.finderTimeOfDay.textContent = primary.timeOfDay;
-      elements.finderMethod.textContent = primary.method;
-      elements.finderLevelRange.textContent = primary.levelRange;
-      elements.finderEncounterRate.textContent = `${primary.chance}%`;
-      elements.finderRarity.textContent = primary.rarity;
-
-      uniqueAreas.forEach((area) => {
-        const chip = document.createElement("span");
-        chip.className = "finder-chip";
-        chip.textContent = area;
-        elements.finderLocationList.appendChild(chip);
-      });
-
-      records.slice(0, 8).forEach((record) => {
-        const line = document.createElement("article");
-        line.className = "finder-encounter-item";
-
-        const copy = document.createElement("div");
-        copy.className = "finder-encounter-copy";
-
-        const label = document.createElement("strong");
-        label.textContent = record.areaName;
-
-        const meta = document.createElement("span");
-        meta.textContent = `${record.method} · ${record.timeOfDay} · ${record.levelRange} · ${record.chance}%`;
-        copy.append(label, meta);
-
-        if (record.specialConditions !== "None") {
-          const conditionLine = document.createElement("span");
-          conditionLine.textContent = `Conditions: ${record.specialConditions}`;
-          copy.appendChild(conditionLine);
-        }
-
-        const rarity = document.createElement("span");
-        rarity.className = `finder-rarity-badge is-${normalizeSearch(record.rarity)}`;
-        rarity.textContent = record.rarity;
-
-        line.append(copy, rarity);
-        elements.finderDetailList.appendChild(line);
-      });
-
-      if (records.length > 8) {
-        const more = document.createElement("p");
-        more.className = "results-summary";
-        more.textContent = `+${records.length - 8} more encounter lines are available in the archive for this version.`;
-        elements.finderDetailList.appendChild(more);
-      }
-
-      elements.finderResultNote.textContent =
-        uniqueAreas.length > 1
-          ? `${entry.displayName} has ${formatCount(uniqueAreas.length)} archived locations in ${versionOption.label}. The top line shown above is the strongest recorded encounter.`
-          : `${entry.displayName} currently has one archived location line in ${versionOption.label}.`;
-      elements.finderStatus.textContent = `${uniqueAreas.length} archived location${uniqueAreas.length === 1 ? "" : "s"} found`;
-      return;
-    }
-
-    if (availability.state === "broad-only") {
-      elements.finderPrimaryLocation.textContent = "Tracked in Dex";
-      elements.finderTimeOfDay.textContent = "--";
-      elements.finderMethod.textContent = "--";
-      elements.finderLevelRange.textContent = "--";
-      elements.finderEncounterRate.textContent = "--";
-      elements.finderRarity.textContent = "--";
-      const exclusiveNote =
-        availability.exclusiveVersions?.length === 1
-          ? ` It is ${availability.exclusiveVersions[0].label} exclusive.`
-          : "";
-      elements.finderResultNote.textContent =
-        versionOption.gameId === "lza"
-          ? `${entry.displayName} is tracked in ${versionOption.label}, but exact route and encounter data is not attached in the current archive yet.${exclusiveNote}`
-          : `${entry.displayName} is confirmed in ${versionOption.label}, but the current archive does not have exact route, method, time-of-day, or level data attached for that version.${exclusiveNote}`;
-      elements.finderStatus.textContent = "Coverage only";
-      return;
-    }
-
-    elements.finderPrimaryLocation.textContent = "Not in This Version";
-    elements.finderTimeOfDay.textContent = "--";
-    elements.finderMethod.textContent = "--";
-    elements.finderLevelRange.textContent = "--";
-    elements.finderEncounterRate.textContent = "--";
-    elements.finderRarity.textContent = "--";
-    if (availability.state === "missing" && availability.exclusiveVersions?.length === 1) {
-      elements.finderResultNote.textContent = `${entry.displayName} is not tracked in ${versionOption.label}. It is ${availability.exclusiveVersions[0].label} exclusive instead.`;
-    } else {
-      elements.finderResultNote.textContent =
-        availability.state === "missing"
-          ? `${entry.displayName} is not currently tracked in ${versionOption.label}.`
-          : `The encounter archive does not have a usable ${versionOption.label} record for ${entry.displayName} yet.`;
-    }
-    elements.finderStatus.textContent = "No match found";
-  } catch {
-    if (requestToken !== state.finder.requestToken) {
-      return;
-    }
-
-    elements.finderPrimaryLocation.textContent = "Offline";
-    elements.finderTimeOfDay.textContent = "--";
-    elements.finderMethod.textContent = "--";
-    elements.finderLevelRange.textContent = "--";
-    elements.finderEncounterRate.textContent = "--";
-    elements.finderRarity.textContent = "--";
-    elements.finderResultNote.textContent = "Finder data could not be loaded right now.";
-    elements.finderStatus.textContent = "Finder offline";
-  }
-}
-
-function renderFinder() {
-  renderFinderVersionOptions();
-  elements.finderPokemonInput.value = state.finder.query;
-  renderFinderMatches();
-  void renderFinderResult();
-}
-
-function submitFinderSearch() {
-  state.finder.query = elements.finderPokemonInput.value;
-  state.finder.selectedVersionId = elements.finderVersionSelect.value;
-
-  const normalizedQuery = normalizeSearch(state.finder.query);
-  if (!normalizedQuery) {
-    state.finder.selectedEntryName = null;
-    renderFinder();
-    return;
-  }
-
-  const matches = getFinderSearchMatches(normalizedQuery);
-  const exactMatch = matches.find((entry) => getFinderMatchScore(entry, normalizedQuery) === 0);
-
-  if (exactMatch) {
-    state.finder.selectedEntryName = exactMatch.name;
-  } else if (matches.length === 1) {
-    state.finder.selectedEntryName = matches[0].name;
-  } else if (!matches.length) {
-    state.finder.selectedEntryName = null;
-  } else {
-    state.finder.selectedEntryName = null;
-    state.finder.requestToken += 1;
-    elements.finderStatus.textContent = "Choose one of the matches below";
-    renderFinderMatches();
-    renderFinderEmptyState();
-    elements.finderStatus.textContent = "Choose one of the matches below";
-    return;
-  }
-
-  renderFinder();
-}
-
-function clearFinder() {
-  state.finder.query = "";
-  state.finder.selectedEntryName = null;
-  state.finder.requestToken += 1;
-  elements.finderPokemonInput.value = "";
-  renderFinder();
 }
 
 function renderActiveView() {
@@ -5315,9 +5211,6 @@ function setActiveView(viewId) {
   state.ui.activeView = viewId;
   saveUiSessionState();
   renderActiveView();
-  if (viewId === "finder") {
-    renderFinder();
-  }
   if (viewId === "shiny") {
     renderShinyHub();
   }
@@ -5353,7 +5246,7 @@ function setActiveDetailTab(tabId) {
 }
 
 function getScanVisualMode() {
-  return VALID_SCAN_VISUAL_MODE_IDS.has(state.ui.scanVisualMode) ? state.ui.scanVisualMode : "artwork";
+  return VALID_SCAN_VISUAL_MODE_IDS.has(state.ui.scanVisualMode) ? state.ui.scanVisualMode : "home";
 }
 
 function isScanArtworkMode() {
@@ -5400,6 +5293,9 @@ function openPokemonEntry(nameOrId) {
 
   if (shouldResetDetailTab) {
     setActiveDetailTab("overview");
+    state.ui.scanVisualMode = "home";
+    saveUiSessionState();
+    renderScanVisualToggle();
   }
 
   void fetchPokemonDetail(nameOrId);
@@ -5711,8 +5607,36 @@ function renderLandingSmartSuggestions(catchTarget, shinyTarget, task) {
   });
 }
 
+function getSuggestedCatchGenderBadgeLabel(entry) {
+  const variantLabel = getEntryVariantLabel(entry);
+  return variantLabel === "Male" || variantLabel === "Female" ? variantLabel : "";
+}
+
+function renderSuggestedCatchLabel(element, entry, options = {}) {
+  const { emptyText = "", includeVariantDetail = false } = options;
+  element.replaceChildren();
+
+  if (!entry) {
+    element.textContent = emptyText;
+    return;
+  }
+
+  const genderBadgeLabel = getSuggestedCatchGenderBadgeLabel(entry);
+  const primaryLabel = genderBadgeLabel && entry.baseDisplayName ? entry.baseDisplayName : entry.displayName;
+  element.append(document.createTextNode(primaryLabel));
+
+  if (genderBadgeLabel) {
+    const badge = document.createElement("span");
+    badge.className = "suggested-entry-gender-badge";
+    badge.textContent = genderBadgeLabel;
+    element.appendChild(badge);
+  } else if (includeVariantDetail) {
+    element.append(document.createTextNode(` · ${getEntryVariantLabel(entry)}`));
+  }
+}
+
 function createSuggestedHuntTile(entry, options = {}) {
-  const { selected = false, forceShiny = false, onSelect = null } = options;
+  const { selected = false, forceShiny = false, onSelect = null, badgeLabel = "" } = options;
   const button = document.createElement("button");
   button.type = "button";
   button.className = `suggested-hunt-tile${selected ? " is-selected" : ""}`;
@@ -5735,6 +5659,13 @@ function createSuggestedHuntTile(entry, options = {}) {
   const dexBadge = document.createElement("span");
   dexBadge.className = "suggested-hunt-dex";
   dexBadge.textContent = `#${formatNumber(entry.baseNumber)}`;
+
+  if (badgeLabel) {
+    const formBadge = document.createElement("span");
+    formBadge.className = "suggested-hunt-badge";
+    formBadge.textContent = badgeLabel;
+    pod.appendChild(formBadge);
+  }
 
   pod.append(sprite, dexBadge);
   button.appendChild(pod);
@@ -5766,6 +5697,7 @@ function renderSuggestedHuntBoard(container, entries, options = {}) {
       createSuggestedHuntTile(entry, {
         selected: entry.name === selectedName,
         forceShiny,
+        badgeLabel: kind === "living" ? getSuggestedCatchGenderBadgeLabel(entry) : "",
         onSelect: (nextEntry) => {
           const selectionMode =
             kind === "shiny" ? state.ui.landingActionMode === "shiny" : state.ui.landingActionMode === "living";
@@ -6192,6 +6124,15 @@ function buildSpriteUrl(id, shiny = false) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon${shinySegment}/${id}.png`;
 }
 
+function buildApiHomeSpriteUrl(id, shiny = false) {
+  const numericId = Number(id) || 0;
+  if (numericId <= 0) {
+    return "";
+  }
+
+  return `${POKEAPI_HOME_SPRITE_BASE_URL}/${shiny ? "shiny/" : ""}${numericId}.png`;
+}
+
 function buildProjectPokemonImageUrl(baseNumber) {
   const imageNumber = formatHybridImageNumber(baseNumber);
   if (!imageNumber || imageNumber === "0000") {
@@ -6355,7 +6296,8 @@ const POKEMONDB_FORM_TOKEN_ALIASES = [
   [/-alola(?=-|$)/, "-alolan"],
   [/-galar(?=-|$)/, "-galarian"],
   [/-hisui(?=-|$)/, "-hisuian"],
-  [/-paldea(?=-|$)/, "-paldean"]
+  [/-paldea(?=-|$)/, "-paldean"],
+  [/(squawkabilly-(green|blue|yellow|white))-plumage$/, "$1"]
 ];
 
 function buildPokemonDbSlugCandidates(name, baseName = "", { includeBaseFallback = true } = {}) {
@@ -6370,7 +6312,11 @@ function buildPokemonDbSlugCandidates(name, baseName = "", { includeBaseFallback
     furfrou: "furfrou-natural",
     vivillon: "vivillon-meadow",
     "maushold-family-of-three": "maushold-family3",
-    "maushold-family-of-four": "maushold-family4"
+    "maushold-family-of-four": "maushold-family4",
+    "squawkabilly-green-plumage": "squawkabilly-green",
+    "squawkabilly-blue-plumage": "squawkabilly-blue",
+    "squawkabilly-yellow-plumage": "squawkabilly-yellow",
+    "squawkabilly-white-plumage": "squawkabilly-white"
   };
   const addVariants = (value) => {
     const slug = normalizeHomeThumbnailSlug(value);
@@ -6378,8 +6324,8 @@ function buildPokemonDbSlugCandidates(name, baseName = "", { includeBaseFallback
       return;
     }
 
-    addPokemonDbSlugCandidate(candidates, slug);
     addPokemonDbSlugCandidate(candidates, exactAliases[slug]);
+    addPokemonDbSlugCandidate(candidates, slug);
 
     if (slug.endsWith("-female")) {
       addPokemonDbSlugCandidate(candidates, slug.replace(/-female$/, "-f"));
@@ -6588,12 +6534,23 @@ function getIdentityApiSpriteUrl(identity, shiny = false) {
   return id > 0 ? buildSpriteUrl(id, shiny) : "";
 }
 
+function getIdentityApiHomeSpriteUrl(identity, shiny = false) {
+  if (identity?.syntheticKind) {
+    return "";
+  }
+
+  const normalizedName = normalizeHomeThumbnailSlug(identity?.name);
+  const id = Number(POKEAPI_HOME_SPRITE_ID_ALIASES[normalizedName] ?? identity?.id ?? identity?.dexNumber ?? 0);
+  return id > 0 ? buildApiHomeSpriteUrl(id, shiny) : "";
+}
+
 function getEntrySpriteUrls(entry, options = {}) {
   const wantsShiny = shouldUseShinySprite(entry.name, options);
   const hasDistinctSprite = hasDistinctIdentitySprite(entry);
   const formRegular = hasDistinctSprite
     ? uniqUrls([
         ...getPokemonDbHomeUrlsFromIdentity(entry, false, { includeBaseFallback: false }),
+        getIdentityApiHomeSpriteUrl(entry),
         ...getHomeThumbnailUrlsFromIdentity(entry, false, { includeBaseFallback: false }),
         entry.listSprite,
         getIdentityApiSpriteUrl(entry),
@@ -6603,6 +6560,7 @@ function getEntrySpriteUrls(entry, options = {}) {
   const formShiny = hasDistinctSprite
     ? uniqUrls([
         ...getPokemonDbHomeUrlsFromIdentity(entry, true, { includeBaseFallback: false }),
+        getIdentityApiHomeSpriteUrl(entry, true),
         ...getHomeThumbnailUrlsFromIdentity(entry, true, { includeBaseFallback: false }),
         entry.shinyListSprite,
         getIdentityApiSpriteUrl(entry, true)
@@ -6610,6 +6568,7 @@ function getEntrySpriteUrls(entry, options = {}) {
     : [];
   const baseRegular = uniqUrls([
     ...getPokemonDbHomeUrlsFromIdentity(entry),
+    getIdentityApiHomeSpriteUrl(entry),
     ...getHomeThumbnailUrlsFromIdentity(entry),
     ...buildProjectPokemonImageUrlsFromIdentity(entry),
     ...buildHybridImageUrlsFromIdentity(entry),
@@ -6638,29 +6597,32 @@ function getPokemonVisualUrls(pokemon, options = {}) {
   const wantsShiny = shouldUseShinySprite(pokemon.name, options);
   const { preferArtwork = false } = options;
   const hasDistinctSprite = hasDistinctIdentitySprite(pokemon);
-  const visualRegular = preferArtwork ? [pokemon.artwork, pokemon.sprite] : [pokemon.sprite, pokemon.artwork];
-  const visualShiny = preferArtwork
-    ? [pokemon.artworkShiny, pokemon.spriteShiny]
-    : [pokemon.spriteShiny, pokemon.artworkShiny];
-  const formRegular = hasDistinctSprite
+  const visualRegular = [pokemon.sprite, pokemon.artwork];
+  const visualShiny = [pokemon.spriteShiny, pokemon.artworkShiny];
+  const artworkRegular = [pokemon.artwork, pokemon.sprite];
+  const artworkShiny = [pokemon.artworkShiny, pokemon.spriteShiny];
+  const formRegularFallback = hasDistinctSprite
     ? uniqUrls([
         ...getPokemonDbHomeUrlsFromIdentity(pokemon, false, { includeBaseFallback: false }),
+        getIdentityApiHomeSpriteUrl(pokemon),
         ...getHomeThumbnailUrlsFromIdentity(pokemon, false, { includeBaseFallback: false }),
         ...visualRegular,
         getIdentityApiSpriteUrl(pokemon),
         ...buildHybridImageUrlsFromIdentity(pokemon, { includeBaseFallback: false })
       ])
     : [];
-  const formShiny = hasDistinctSprite
+  const formShinyFallback = hasDistinctSprite
     ? uniqUrls([
         ...getPokemonDbHomeUrlsFromIdentity(pokemon, true, { includeBaseFallback: false }),
+        getIdentityApiHomeSpriteUrl(pokemon, true),
         ...getHomeThumbnailUrlsFromIdentity(pokemon, true, { includeBaseFallback: false }),
         ...visualShiny,
         getIdentityApiSpriteUrl(pokemon, true)
       ])
     : [];
-  const baseRegular = uniqUrls([
+  const baseRegularFallback = uniqUrls([
     ...getPokemonDbHomeUrlsFromIdentity(pokemon),
+    getIdentityApiHomeSpriteUrl(pokemon),
     ...getHomeThumbnailUrlsFromIdentity(pokemon),
     ...buildProjectPokemonImageUrlsFromIdentity(pokemon),
     ...buildHybridImageUrlsFromIdentity(pokemon),
@@ -6669,19 +6631,40 @@ function getPokemonVisualUrls(pokemon, options = {}) {
     buildSpriteUrl(pokemon.baseNumber ?? pokemon.dexNumber ?? pokemon.id)
   ]);
 
+  if (preferArtwork) {
+    if (wantsShiny) {
+      return uniqUrls([
+        ...(hasDistinctSprite ? [...artworkShiny, ...artworkRegular, ...formShinyFallback, ...formRegularFallback] : []),
+        ...artworkShiny,
+        ...artworkRegular,
+        ...getPokemonDbHomeUrlsFromIdentity(pokemon, true),
+        getIdentityApiHomeSpriteUrl(pokemon, true),
+        ...getHomeThumbnailUrlsFromIdentity(pokemon, true),
+        getIdentityApiSpriteUrl(pokemon, true),
+        ...baseRegularFallback
+      ]);
+    }
+
+    return uniqUrls([
+      ...(hasDistinctSprite ? [...artworkRegular, ...formRegularFallback] : []),
+      ...artworkRegular,
+      ...baseRegularFallback
+    ]);
+  }
+
   if (wantsShiny) {
     return uniqUrls([
-      ...formShiny,
-      ...formRegular,
+      ...formShinyFallback,
+      ...formRegularFallback,
       ...getPokemonDbHomeUrlsFromIdentity(pokemon, true),
       ...getHomeThumbnailUrlsFromIdentity(pokemon, true),
       ...visualShiny,
       getIdentityApiSpriteUrl(pokemon, true),
-      ...baseRegular
+      ...baseRegularFallback
     ]);
   }
 
-  return uniqUrls([...formRegular, ...baseRegular]);
+  return uniqUrls([...formRegularFallback, ...baseRegularFallback]);
 }
 
 function applyImageSources(image, sources, alt = "") {
@@ -6787,6 +6770,7 @@ function normalizeCachedDexEntry(entry) {
     archiveVisible: entry.archiveVisible !== false,
     showInFormsTab: entry.showInFormsTab !== false
   };
+  applyTrackedGenderPairIdentity(normalizedEntry);
   normalizedEntry.generation = determineEntryGeneration(normalizedEntry);
   const homeMeta = getHomeBoxCompatibilityMeta(normalizedEntry);
 
@@ -6837,7 +6821,6 @@ function commitDexIndexState(snapshot, options = {}) {
 
   if (renderUi) {
     refreshResults();
-    renderFinder();
     renderCollections();
     renderTrainerVault();
     renderHomeOrganizer();
@@ -6855,7 +6838,7 @@ function hydrateDexIndexFromCache() {
   const hydrated = commitDexIndexState(cached, { renderUi: false });
 
   if (hydrated) {
-    setStatus(`${formatCount(state.entries.length)} cached entities ready. Refreshing live archive...`);
+    setStatus(`${formatCount(state.entries.length)} cached entities ready. Refreshing live Dex...`);
   }
 
   return hydrated;
@@ -7369,7 +7352,7 @@ function buildAppearanceFormEntries(startId, existingNames = new Set(), sourceEn
       return;
     }
 
-    const rootName = sourceEntry.name.replace(/-(male|female)$/, "");
+    const rootName = stripTrackedGenderSuffix(sourceEntry.name);
     const name = `${rootName}-female`;
     if (existingNames.has(name)) {
       return;
@@ -7382,7 +7365,7 @@ function buildAppearanceFormEntries(startId, existingNames = new Set(), sourceEn
         name,
         displayName: `${baseLabel} Female`,
         baseNumber: sourceEntry.baseNumber,
-        basePokemonName: sourceEntry.basePokemonName ?? sourceEntry.name,
+        basePokemonName: rootName,
         variantLabel: "Female",
         detailNote: `Female ${baseLabel} is tracked here because it has an official visual gender difference.`,
         listSprite: buildGenderSpriteUrl(sourceEntry.id),
@@ -7469,9 +7452,21 @@ function getEntryAccentKey(entry) {
   return "form";
 }
 
+function getEntryWithinGroupOrder(entry) {
+  if (!entry?.isForm) {
+    return 0;
+  }
+
+  if (entry.syntheticKind === "gender") {
+    return 1;
+  }
+
+  return 2;
+}
+
 function compareEntriesWithinGroup(left, right) {
   return (
-    Number(left.isForm) - Number(right.isForm) ||
+    getEntryWithinGroupOrder(left) - getEntryWithinGroupOrder(right) ||
     left.displayName.localeCompare(right.displayName) ||
     left.id - right.id
   );
@@ -7528,9 +7523,29 @@ async function repairUnresolvedFormEntries(entries) {
 function buildSpeciesOrderFromNames(speciesNames = []) {
   const seen = new Set();
   const order = [];
+  const resolveBaseOrderEntry = (name) => {
+    const normalizedName = String(name ?? "").trim().toLowerCase();
+    if (!normalizedName) {
+      return null;
+    }
+
+    const directEntry = state.baseEntriesByName.get(normalizedName);
+    if (directEntry) {
+      return directEntry;
+    }
+
+    for (const suffix of SPECIES_ORDER_DEFAULT_FORM_SUFFIXES) {
+      const defaultFormEntry = state.baseEntriesByName.get(`${normalizedName}-${suffix}`);
+      if (defaultFormEntry) {
+        return defaultFormEntry;
+      }
+    }
+
+    return null;
+  };
 
   speciesNames.forEach((name) => {
-    const baseEntry = state.baseEntriesByName.get(name);
+    const baseEntry = resolveBaseOrderEntry(name);
     const speciesNumber = baseEntry?.id;
 
     if (!Number.isFinite(speciesNumber) || seen.has(speciesNumber)) {
@@ -7634,13 +7649,17 @@ function isAvailableInGame(baseNumber, gameId) {
 }
 
 function getEntryGameSupport(entry) {
-  if (!entry?.isForm) {
+  if (!entry) {
     return null;
   }
 
   const name = String(entry.name ?? "").toLowerCase();
   const basePokemonName = String(entry.basePokemonName ?? "").toLowerCase();
   const formFlags = new Set(entry.formFlags ?? []);
+
+  if (!entry.isForm) {
+    return null;
+  }
 
   if (entry.syntheticKind === "gender") {
     return null;
@@ -7670,8 +7689,16 @@ function getEntryGameSupport(entry) {
     return FORM_GAME_SUPPORT.bdspPla;
   }
 
+  if (name === "basculin-blue-striped") {
+    return FORM_GAME_SUPPORT.swshSv;
+  }
+
+  if (name === "basculin-white-striped") {
+    return FORM_GAME_SUPPORT.plaSv;
+  }
+
   if (name === "shellos-east" || name === "gastrodon-east") {
-    return FORM_GAME_SUPPORT.bdspPlaSv;
+    return FORM_GAME_SUPPORT.bdspPlaSwshSv;
   }
 
   if (
@@ -7720,12 +7747,32 @@ function getEntryGameSupport(entry) {
   return null;
 }
 
+function isBaseFormUnavailableInGame(entry, gameId) {
+  if (!entry || entry.isForm || !gameId || gameId === "all") {
+    return false;
+  }
+
+  const blockedSpecies = GAME_BASE_FORM_UNAVAILABLE_SPECIES[gameId];
+  if (!blockedSpecies?.size) {
+    return false;
+  }
+
+  const normalizedName = String(entry.name ?? "")
+    .toLowerCase()
+    .replace(DEFAULT_GAME_VARIANT_BASE_NAME_PATTERN, "");
+  return blockedSpecies.has(normalizedName);
+}
+
 function isEntryAvailableInGame(entry, gameId) {
   if (!entry || !gameId || gameId === "all") {
     return true;
   }
 
   if (!isAvailableInGame(entry.baseNumber, gameId)) {
+    return false;
+  }
+
+  if (isBaseFormUnavailableInGame(entry, gameId)) {
     return false;
   }
 
@@ -7818,11 +7865,11 @@ function renderGameAvailability(baseNumber) {
   if (!state.gameAvailabilityReady && state.gameAvailabilityLoading) {
     elements.gameAvailabilityCount.textContent = "Syncing";
     elements.gameAvailabilityNote.textContent =
-      "Pulling Switch game dex coverage from the archive now.";
+      "Pulling Switch game dex coverage from the Dex now.";
   } else if (!state.gameAvailabilityReady) {
     elements.gameAvailabilityCount.textContent = "Unavailable";
     elements.gameAvailabilityNote.textContent =
-      "Switch game availability could not be loaded right now. Refresh the archive and try again.";
+      "Switch game availability could not be loaded right now. Refresh the Dex and try again.";
   } else if (!state.gameAvailabilityBreakdownReady && state.gameAvailabilityLoading) {
     elements.gameAvailabilityCount.textContent = `${availableCount}/${GAME_CATALOG.length} games`;
     elements.gameAvailabilityNote.textContent =
@@ -8042,7 +8089,6 @@ async function loadSwitchGameAvailability() {
   state.gameAvailabilityError = successCount !== GAME_CATALOG.length;
   state.gameAvailabilityLoading = false;
   refreshResults();
-  renderFinder();
   renderCollections();
   renderHomeOrganizer();
 
@@ -10112,6 +10158,315 @@ async function renderLocationIntel(pokemon) {
   }
 }
 
+async function loadSpeciesByBaseNumber(baseNumber) {
+  const url = `https://pokeapi.co/api/v2/pokemon-species/${encodeURIComponent(baseNumber)}/`;
+  if (state.speciesCache.has(url)) {
+    return state.speciesCache.get(url);
+  }
+
+  const payload = await fetchJsonCached(url);
+  state.speciesCache.set(url, payload);
+  return payload;
+}
+
+function collectMissingEvolutionCoverageTargets(node, targets = [], seenSpecies = new Set()) {
+  if (!node?.evolves_to?.length) {
+    return targets;
+  }
+
+  node.evolves_to.forEach((nextNode) => {
+    const speciesName = String(nextNode?.species?.name || "").trim().toLowerCase();
+    if (!speciesName) {
+      return;
+    }
+
+    if (!seenSpecies.has(speciesName) && !isCaught(speciesName)) {
+      seenSpecies.add(speciesName);
+      targets.push({
+        speciesName,
+        displayName: titleCase(speciesName)
+      });
+    }
+
+    collectMissingEvolutionCoverageTargets(nextNode, targets, seenSpecies);
+  });
+
+  return targets;
+}
+
+function summarizeDuplicateEvolutionAssignments(assignments = []) {
+  const groupedAssignments = [];
+
+  assignments.forEach((assignment) => {
+    const speciesName = String(assignment?.speciesName || "").trim().toLowerCase();
+    if (!speciesName) {
+      return;
+    }
+
+    const existing = groupedAssignments.find((item) => item.speciesName === speciesName);
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+
+    groupedAssignments.push({
+      speciesName,
+      displayName: assignment.displayName || titleCase(speciesName),
+      count: 1
+    });
+  });
+
+  return groupedAssignments;
+}
+
+function formatDuplicateEvolutionAssignments(assignments = []) {
+  const groupedAssignments = summarizeDuplicateEvolutionAssignments(assignments);
+  const parts = groupedAssignments.map(
+    (assignment) => `${formatCount(assignment.count)} to ${assignment.displayName}`
+  );
+
+  if (!parts.length) {
+    return "";
+  }
+
+  if (parts.length === 1) {
+    return parts[0];
+  }
+
+  if (parts.length === 2) {
+    return `${parts[0]} and ${parts[1]}`;
+  }
+
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+function getDuplicatePlannerEntries() {
+  return state.entries
+    .filter((entry) => getDuplicateCount(entry.name) > 0)
+    .sort(
+      (left, right) =>
+        getDuplicateCount(right.name) - getDuplicateCount(left.name) ||
+        left.baseNumber - right.baseNumber ||
+        compareEntriesWithinGroup(left, right)
+    );
+}
+
+function buildDuplicatePlannerRecordNote(record) {
+  const steps = [`${formatCount(record.duplicateCount)} extra ${record.duplicateCount === 1 ? "copy" : "copies"} ready.`];
+
+  if (record.evolveCount > 0) {
+    steps.push(`Evolve ${formatDuplicateEvolutionAssignments(record.evolveAssignments)}.`);
+  }
+
+  if (record.tradeCount > 0) {
+    const tradeTargetLabel =
+      record.tradeCount === 1 ? "the remaining copy" : `the remaining ${formatCount(record.tradeCount)} copies`;
+    steps.push(
+      record.evolveCount > 0 || record.releaseCount > 0
+        ? `Wonder trade ${tradeTargetLabel}.`
+        : `Wonder trade ${formatCount(record.tradeCount)} ${record.tradeCount === 1 ? "copy" : "copies"}.`
+    );
+  }
+
+  if (record.releaseCount > 0) {
+    steps.push(
+      record.evolveCount > 0 || record.tradeCount > 0
+        ? `Release ${record.releaseCount === 1 ? "the last copy" : `the last ${formatCount(record.releaseCount)} copies`}.`
+        : `Release ${formatCount(record.releaseCount)} ${record.releaseCount === 1 ? "copy" : "copies"}.`
+    );
+  }
+
+  if (!record.evolutionDataReady && record.evolveCount === 0) {
+    steps.push("Evolution data is still syncing, so extras are staged for trading first.");
+  }
+
+  return steps.join(" ");
+}
+
+async function buildDuplicatePlannerRecord(entry) {
+  const caughtCount = getCaughtCount(entry.name);
+  const duplicateCount = getDuplicateCount(entry.name);
+  let evolveCount = 0;
+  let evolveAssignments = [];
+  let evolutionDataReady = false;
+
+  try {
+    const species = await loadSpeciesByBaseNumber(entry.baseNumber);
+    const chain = await loadEvolutionChain(species.evolution_chain?.url ?? "");
+    const speciesName = entry.basePokemonName ?? species.name ?? entry.name;
+    const currentNode = findEvolutionNode(chain?.chain, speciesName);
+    const missingCoverageTargets = collectMissingEvolutionCoverageTargets(currentNode);
+    evolveAssignments = missingCoverageTargets.slice(0, duplicateCount);
+    evolveCount = evolveAssignments.length;
+    evolutionDataReady = true;
+  } catch {
+    evolveCount = 0;
+    evolveAssignments = [];
+  }
+
+  const remainingCount = Math.max(0, duplicateCount - evolveCount);
+  const tradeCapacity = entry.isForm ? 1 : 2;
+  const tradeCount = Math.min(remainingCount, tradeCapacity);
+  const releaseCount = Math.max(0, remainingCount - tradeCount);
+  const recommendedAction = evolveCount > 0 ? "evolve" : tradeCount > 0 ? "trade" : "release";
+  const tags = [`Dupes ${formatCount(duplicateCount)}`];
+  const evolveTargets = summarizeDuplicateEvolutionAssignments(evolveAssignments).map(
+    (assignment) => assignment.displayName
+  );
+
+  if (evolveCount > 0) {
+    tags.push(`Evolve ${formatCount(evolveCount)}`);
+  }
+  if (tradeCount > 0) {
+    tags.push(`Trade ${formatCount(tradeCount)}`);
+  }
+  if (releaseCount > 0) {
+    tags.push(`Release ${formatCount(releaseCount)}`);
+  }
+
+  const record = {
+    entry,
+    caughtCount,
+    duplicateCount,
+    evolveCount,
+    evolveAssignments,
+    evolveTargets,
+    tradeCount,
+    releaseCount,
+    evolutionDataReady,
+    recommendedAction,
+    tags
+  };
+
+  return {
+    ...record,
+    note: buildDuplicatePlannerRecordNote(record)
+  };
+}
+
+function getFilteredDuplicatePlannerRecords(records = state.duplicatePlannerRecords) {
+  switch (state.ui.duplicatePlannerFilter) {
+    case "evolve":
+      return records.filter((record) => record.evolveCount > 0);
+    case "trade":
+      return records.filter((record) => record.tradeCount > 0);
+    case "release":
+      return records.filter((record) => record.releaseCount > 0);
+    case "all":
+    default:
+      return records;
+  }
+}
+
+function sortDuplicatePlannerRecords(records) {
+  const actionRank = { evolve: 0, trade: 1, release: 2 };
+  return [...records].sort(
+    (left, right) =>
+      actionRank[left.recommendedAction] - actionRank[right.recommendedAction] ||
+      right.duplicateCount - left.duplicateCount ||
+      left.entry.baseNumber - right.entry.baseNumber ||
+      compareEntriesWithinGroup(left.entry, right.entry)
+  );
+}
+
+function renderDuplicatePlannerFilterButtons() {
+  elements.duplicatePlannerFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.duplicateFilter === state.ui.duplicatePlannerFilter);
+  });
+}
+
+function renderDuplicatePlannerRecords(records, totalDuplicateCopies) {
+  const filteredRecords = getFilteredDuplicatePlannerRecords(records);
+  const evolveTotal = records.reduce((sum, record) => sum + record.evolveCount, 0);
+  const tradeTotal = records.reduce((sum, record) => sum + record.tradeCount, 0);
+  const releaseTotal = records.reduce((sum, record) => sum + record.releaseCount, 0);
+
+  elements.duplicatePlannerCount.textContent = formatCount(totalDuplicateCopies);
+  elements.duplicatePlannerSummary.textContent =
+    state.ui.duplicatePlannerFilter === "all"
+      ? `${formatCount(totalDuplicateCopies)} extra copies across ${formatCount(records.length)} entries. Evolve ${formatCount(
+          evolveTotal
+        )}, wonder trade ${formatCount(tradeTotal)}, release ${formatCount(releaseTotal)}.`
+      : state.ui.duplicatePlannerFilter === "evolve"
+        ? `${formatCount(evolveTotal)} extra copies can still fill unregistered evolutions.`
+        : state.ui.duplicatePlannerFilter === "trade"
+          ? `${formatCount(tradeTotal)} extra copies are staged for wonder trades.`
+          : `${formatCount(releaseTotal)} extra copies are safe to release after the higher-value actions are done.`;
+
+  elements.duplicatePlannerList.replaceChildren();
+  if (!filteredRecords.length) {
+    const emptyMessages = {
+      all: "No duplicate living-dex copies are tracked yet.",
+      evolve: "No tracked duplicates are currently needed for missing evolutions.",
+      trade: "No tracked duplicates are currently staged for wonder trades.",
+      release: "No tracked duplicates are currently queued for release."
+    };
+    elements.duplicatePlannerList.appendChild(
+      createCollectionEmptyState(emptyMessages[state.ui.duplicatePlannerFilter] ?? emptyMessages.all)
+    );
+    return;
+  }
+
+  filteredRecords.forEach((record) => {
+    elements.duplicatePlannerList.appendChild(
+      createCollectionItem(record.entry, record.note, record.tags)
+    );
+  });
+}
+
+function renderDuplicatePlanner() {
+  const duplicateEntries = getDuplicatePlannerEntries();
+  const totalDuplicateCopies = duplicateEntries.reduce((sum, entry) => sum + getDuplicateCount(entry.name), 0);
+
+  renderDuplicatePlannerFilterButtons();
+
+  if (!duplicateEntries.length) {
+    state.duplicatePlannerRecords = [];
+    state.duplicatePlannerDirty = false;
+    elements.duplicatePlannerCount.textContent = "0";
+    elements.duplicatePlannerSummary.textContent =
+      "Track more than one copy in the living dex and PokéPilot will sort the extras into evolve, wonder trade, and release routes here.";
+    elements.duplicatePlannerList.replaceChildren(
+      createCollectionEmptyState("No duplicate living-dex copies are tracked yet.")
+    );
+    return;
+  }
+
+  if (!state.duplicatePlannerDirty && state.duplicatePlannerRecords.length) {
+    renderDuplicatePlannerRecords(state.duplicatePlannerRecords, totalDuplicateCopies);
+    return;
+  }
+
+  const requestToken = ++state.duplicatePlannerRequestToken;
+  elements.duplicatePlannerCount.textContent = formatCount(totalDuplicateCopies);
+  elements.duplicatePlannerSummary.textContent = `Analyzing ${formatCount(totalDuplicateCopies)} extra living-dex copies.`;
+  elements.duplicatePlannerList.replaceChildren(
+    createCollectionEmptyState("Scanning evolution lines and duplicate action routes.")
+  );
+
+  void Promise.all(duplicateEntries.map((entry) => buildDuplicatePlannerRecord(entry)))
+    .then((records) => {
+      if (requestToken !== state.duplicatePlannerRequestToken) {
+        return;
+      }
+
+      state.duplicatePlannerRecords = sortDuplicatePlannerRecords(records);
+      state.duplicatePlannerDirty = false;
+      renderDuplicatePlannerRecords(state.duplicatePlannerRecords, totalDuplicateCopies);
+    })
+    .catch(() => {
+      if (requestToken !== state.duplicatePlannerRequestToken) {
+        return;
+      }
+
+      elements.duplicatePlannerSummary.textContent =
+        "Duplicate counts are still tracked, but the evolve / trade / release planner could not finish loading right now.";
+      elements.duplicatePlannerList.replaceChildren(
+        createCollectionEmptyState("Duplicate planning is temporarily offline.")
+      );
+    });
+}
+
 function renderCollections() {
   const profile = getActiveProfile();
   const baseEntries = getBaseEntries();
@@ -10316,11 +10671,10 @@ function renderCollections() {
   elements.randomTargetSummary.textContent = state.randomTargets.length
     ? `${state.randomTargets.length} living dex targets are queued up for ${profile.name}. Click a tile to inspect it, or press Catch to choose one from the board.`
     : "Everything in the base archive is already caught for this profile. Flip to a fresh profile or start a shiny push.";
-  elements.landingTargetSelected.textContent = selectedLivingTarget
-    ? `${selectedLivingTarget.displayName} · ${getEntryVariantLabel(selectedLivingTarget)}`
-    : livingSelectionMode
-      ? "Select a target or cancel"
-      : "Choose a target";
+  renderSuggestedCatchLabel(elements.landingTargetSelected, selectedLivingTarget, {
+    emptyText: livingSelectionMode ? "Select a target or cancel" : "Choose a target",
+    includeVariantDetail: true
+  });
   elements.landingShinyTargetSelected.textContent = selectedShinyTarget
     ? `${selectedShinyTarget.displayName} · Shiny Preview`
     : shinySelectionMode
@@ -10485,6 +10839,8 @@ function renderCollections() {
     () => ["Unavailable"]
   );
 
+  renderDuplicatePlanner();
+
   elements.shinyLockedCount.textContent = formatCount(shinyLockedEntries.length);
   elements.shinyLockedSummary.textContent = shinyLockedEntries.length
     ? "These entries are excluded from shiny dex tracking because they do not have a legitimate shiny release right now."
@@ -10506,30 +10862,23 @@ function renderTrainerVault() {
 
   elements.profilePill.textContent = profile.name;
   elements.sessionButton.textContent = getSessionButtonLabel();
-  elements.profileCount.textContent = `${profileCount} profile${profileCount === 1 ? "" : "s"}`;
-  elements.profileSelect.replaceChildren();
+  if (elements.profileCount && elements.profileSelect) {
+    elements.profileCount.textContent = `${profileCount} profile${profileCount === 1 ? "" : "s"}`;
+    elements.profileSelect.replaceChildren();
 
-  state.profileMeta.profiles.forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.textContent = item.name;
-    option.selected = item.id === profile.id;
-    elements.profileSelect.appendChild(option);
-  });
+    state.profileMeta.profiles.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.name;
+      option.selected = item.id === profile.id;
+      elements.profileSelect.appendChild(option);
+    });
+  }
 
   elements.notebookStatus.textContent = state.notebook.trim() ? "Autosaved locally" : "Notebook ready";
   if (elements.trainerNotebook.value !== state.notebook) {
     elements.trainerNotebook.value = state.notebook;
   }
-
-  elements.companionStatus.textContent = state.currentPokemon
-    ? `${state.currentPokemon.displayName} context active`
-    : getOwnedReleaseCount()
-      ? `${getOwnedReleaseCount()} releases tracked`
-      : "Offline Helper";
-  elements.companionAnswer.textContent =
-    state.companionReply ||
-    "Ask a question and PokéPilot will answer from your current archive, trackers, and Pokémon data.";
 
   renderCloudAccountCard();
   renderFavoritePicker();
@@ -10632,120 +10981,6 @@ async function buildLocationAnswer(pokemon) {
   return `${pokemon.displayName} is tracked in these Switch games: ${records.map((record) => record.shortName).join(", ")}. The current archive does not have route-level area names attached yet.`;
 }
 
-async function answerCompanionQuestion(question) {
-  const normalized = normalizeSearch(question);
-  const pokemon = state.currentPokemon;
-
-  if (!normalized) {
-    return "Ask about a Pokémon, your tracked games, shiny plans, evolutions, or what to do next.";
-  }
-
-  if (/(what.*do next|next task|next step|what should i do)/.test(normalized)) {
-    return getNextTask().detail;
-  }
-
-  if (/(what.*catch|catch next|missing target|hunt next)/.test(normalized)) {
-    const target = getSuggestedCatchEntry();
-    return target
-      ? `${target.displayName} is the cleanest next catch from your current archive stack.`
-      : "Everything visible in the active archive stack is already marked caught.";
-  }
-
-  if (/(what.*shiny|shiny next|shiny target)/.test(normalized)) {
-    const target = getSuggestedShinyEntry();
-    return target
-      ? `${target.displayName} is your best next shiny follow-up from the current save data.`
-      : "No shiny follow-up is ready yet. Catch more Pokémon or log a current target first.";
-  }
-
-  if (/(owned game|what games do i own|my games|tracked games)/.test(normalized)) {
-    const owned = getOwnedReleaseRecords().map((record) => record.label);
-    return owned.length
-      ? `You currently marked these Switch releases as owned: ${owned.join(", ")}.`
-      : "No Switch releases are marked as owned yet in the playthrough tracker.";
-  }
-
-  if (/(unobtainable|cannot obtain|can.t get)/.test(normalized)) {
-    const unobtainable = getUnobtainableEntries();
-    return !getOwnedGameIds().length
-      ? "Mark the game versions you own first, then I can calculate the unobtainable pool."
-      : !state.gameAvailabilityReady
-        ? "Game coverage is still syncing, so the unobtainable pool is not ready yet."
-        : unobtainable.length
-          ? `${formatCount(unobtainable.length)} base species are unobtainable in your current owned-version library. First few: ${unobtainable.slice(0, 6).map((entry) => entry.displayName).join(", ")}.`
-          : "Everything is obtainable somewhere in the game versions you currently marked as owned.";
-  }
-
-  if (/(favorite type|fav of each type|type favorite)/.test(normalized)) {
-    const chosen = getFavoriteTypeEntries().filter((entry) => entry.entry);
-    return chosen.length
-      ? `You have ${chosen.length} type favorites set. First few: ${chosen.slice(0, 6).map((entry) => `${titleCase(entry.typeName)} = ${entry.entry.displayName}`).join(" · ")}.`
-      : "No type favorites are set yet. Open the Vault and choose them from the type-favorite manager.";
-  }
-
-  if (/(favorite|favourite)/.test(normalized) && !/(type favorite|fav of each type)/.test(normalized)) {
-    const favorites = Object.keys(state.favoritesMap);
-    return favorites.length
-      ? `You have ${favorites.length} favorite Pokémon saved.`
-      : "No Pokémon are favorited yet.";
-  }
-
-  if (/(bookmark|watchlist)/.test(normalized)) {
-    const bookmarks = Object.keys(state.bookmarksMap);
-    return bookmarks.length
-      ? `You have ${bookmarks.length} bookmarked Pokémon in the catch watchlist.`
-      : "No Pokémon are bookmarked yet.";
-  }
-
-  if (/(home box|box organizer|boxes)/.test(normalized)) {
-    const box = getCurrentBox();
-    const targetCount = getHomeBoxTargetCount(box);
-    return box
-      ? `${box.name} follows ${getHomeBoxRangeLabel(box)} and has ${getFilledBoxCount(box)}/${targetCount} targets marked boxed in HOME.`
-      : "The HOME living-form template is still syncing.";
-  }
-
-  if (/(checklist link|linked checklist|unlink)/.test(normalized)) {
-    const linkedCount = GAME_CATALOG.reduce(
-      (sum, game) => sum + Number(state.gameChecklistState.links[game.id]),
-      0
-    );
-    return `${linkedCount}/${GAME_CATALOG.length} game checklists are linked to the main dex right now.`;
-  }
-
-  if (!pokemon) {
-    return "Open a Pokémon entry first if you want species-specific help like evolutions, routes, or shiny methods.";
-  }
-
-  if (/(how evolve|evolve|pre evolution|post evolution|evolution)/.test(normalized)) {
-    return buildEvolutionAnswer(pokemon);
-  }
-
-  if (/(where find|where catch|location|route|map)/.test(normalized)) {
-    return buildLocationAnswer(pokemon);
-  }
-
-  if (/(shiny method|shiny hunt|best shiny)/.test(normalized)) {
-    const activeGameId = getActiveGameId();
-    const gameIds = activeGameId !== "none" ? [activeGameId] : GAME_CATALOG.map((game) => game.id);
-    const routes = gameIds
-      .map((gameId) => `${getGameMeta(gameId)?.shortName}: ${getShinyPlan(gameId, pokemon).method}`)
-      .join(" · ");
-    return `${pokemon.displayName} shiny routes: ${routes}.`;
-  }
-
-  if (/(what game|which game|available in)/.test(normalized)) {
-    const availableGames = GAME_CATALOG.filter((game) => isAvailableInGame(pokemon.baseNumber, game.id)).map(
-      (game) => game.shortName
-    );
-    return availableGames.length
-      ? `${pokemon.displayName} is tracked in these Switch games: ${availableGames.join(", ")}.`
-      : `I do not have Switch-game dex coverage attached for ${pokemon.displayName} right now.`;
-  }
-
-  return `${pokemon.displayName} is open now. I can help with its evolution line, shiny methods, location intel, Switch game availability, your favorites, or your next task.`;
-}
-
 function renderHomeOrganizer() {
   const homeBoxEntries = getHomeBoxEntries();
   const homeExcludedEntries = getHomeExcludedEntries();
@@ -10788,7 +11023,7 @@ function renderHomeOrganizer() {
     elements.homeBoxSummary.textContent =
       `${currentBox.name} covers ${getHomeBoxRangeLabel(currentBox)} (${getHomeBoxSpanLabel(currentBox)}). ` +
       `${filledCount}/${targetCount} marked boxed in HOME, ${caughtCount}/${targetCount} caught in your dex.` +
-      `${spareText}${excludedText} Click a slot to mark or unmark that target as boxed in HOME. Use Archive or Scan when you want the full Pokemon page while organizing.`;
+      `${spareText}${excludedText} Click a slot to mark or unmark that target as boxed in HOME. Use Dex or Scan when you want the full Pokemon page while organizing.`;
   }
 
   elements.clearBoxButton.disabled = !currentBox || filledCount === 0;
@@ -10850,11 +11085,15 @@ function renderHomeOrganizer() {
       const slot = document.createElement("button");
       slot.type = "button";
       slot.className = "home-slot";
+      slot.setAttribute("aria-label", entry ? `${entry.displayName} HOME slot ${index + 1}` : `Unused HOME slot ${index + 1}`);
 
       const number = document.createElement("span");
       number.className = "home-slot-number";
       number.textContent = String(index + 1).padStart(2, "0");
       slot.appendChild(number);
+
+      const artWell = document.createElement("span");
+      artWell.className = "home-slot-artwell";
 
       if (entry) {
         const boxed = isBoxedInHome(entry.name);
@@ -10863,16 +11102,21 @@ function renderHomeOrganizer() {
         slot.classList.toggle("caught", caught && !boxed);
         slot.classList.toggle("missing", !caught && !boxed);
         slot.classList.toggle("active", state.currentPokemon?.name === entry.name);
+        slot.title = `${entry.displayName} · ${boxed ? "Boxed in HOME" : caught ? "Caught in Dex" : "Missing from Dex"}`;
 
         const sprite = document.createElement("img");
         sprite.className = "home-slot-sprite";
         sprite.loading = "lazy";
         sprite.decoding = "async";
         applyEntrySprite(sprite, entry);
+        artWell.appendChild(sprite);
 
         const label = document.createElement("span");
         label.className = "home-slot-label";
         label.textContent = entry.displayName;
+
+        const meta = document.createElement("div");
+        meta.className = "home-slot-meta";
 
         const dex = document.createElement("span");
         dex.className = "home-slot-dex";
@@ -10881,28 +11125,40 @@ function renderHomeOrganizer() {
         const variant = document.createElement("span");
         variant.className = "home-slot-variant";
         variant.textContent = getEntryVariantLabel(entry);
+        meta.append(dex, variant);
 
         const status = document.createElement("span");
         status.className = "home-slot-status";
         status.textContent = boxed ? "Boxed" : caught ? "Caught" : "Missing";
 
-        slot.append(sprite, label, dex, variant, status);
+        slot.append(artWell, label, meta, status);
       } else {
         slot.classList.add("is-empty");
+        slot.title = `${currentBox.name} spare slot ${index + 1}`;
+        artWell.classList.add("is-empty");
+
+        const placeholder = document.createElement("span");
+        placeholder.className = "home-slot-placeholder";
+        placeholder.setAttribute("aria-hidden", "true");
+        artWell.appendChild(placeholder);
 
         const status = document.createElement("span");
         status.className = "home-slot-status";
         status.textContent = "Spare";
 
-        const placeholder = document.createElement("span");
-        placeholder.className = "home-slot-label";
-        placeholder.textContent = "Unused";
+        const label = document.createElement("span");
+        label.className = "home-slot-label";
+        label.textContent = "Unused";
+
+        const meta = document.createElement("div");
+        meta.className = "home-slot-meta";
 
         const note = document.createElement("span");
         note.className = "home-slot-dex";
         note.textContent = "No assigned target";
+        meta.appendChild(note);
 
-        slot.append(status, placeholder, note);
+        slot.append(artWell, label, meta, status);
       }
 
       slot.addEventListener("click", () => {
@@ -11168,11 +11424,13 @@ function renderModuleQueue() {
   };
 
   const saveAndRefreshTools = (statusMessage = "") => {
-    saveToolsState();
-    renderModuleQueue();
-    if (statusMessage) {
-      setStatus(statusMessage);
-    }
+    preserveViewportScroll(() => {
+      saveToolsState();
+      renderModuleQueue();
+      if (statusMessage) {
+        setStatus(statusMessage);
+      }
+    });
   };
 
   const setLzaDonutSlot = (index, berryName) => {
@@ -11302,21 +11560,64 @@ function renderModuleQueue() {
   const plaSummary = getPlaRecipeSummary();
   const svRecipe = getSelectedSvSandwich();
   const supplySummary = getSupplyTrackerSummary();
+  const renderToolStatChip = (label, value, modifierClass = "") => `
+    <span class="tool-stat-chip${modifierClass ? ` ${modifierClass}` : ""}">
+      <span class="tool-stat-chip-label">${escapeHtml(label)}</span>
+      <strong class="tool-stat-chip-value">${escapeHtml(String(value))}</strong>
+    </span>
+  `;
 
   elements.moduleGrid.classList.add("is-toolbox");
   elements.moduleGrid.replaceChildren();
 
+  const showcaseCard = document.createElement("article");
+  showcaseCard.className = "module-card tool-showcase-card";
+  showcaseCard.innerHTML = `
+    <div class="tool-showcase-copy">
+      <span class="module-status queued">Workbench Overview</span>
+      <strong>Field recipes, shiny prep, and cost math in one tuned station.</strong>
+      <p class="results-summary">
+        Every calculator here stays tied to the current save profile, so your berry mockups, material counts, sandwich picks, and running costs all move together.
+      </p>
+    </div>
+    <div class="tool-showcase-grid">
+      <article class="tool-showcase-stat">
+        <span class="tool-showcase-kicker">Z-A</span>
+        <strong>${formatCount(LZA_DONUT_PRESETS.length)}</strong>
+        <p>preset donut bases ready to load into the mocker</p>
+      </article>
+      <article class="tool-showcase-stat">
+        <span class="tool-showcase-kicker">PLA</span>
+        <strong>${formatCount(PLA_RECIPE_CATALOG.length)}</strong>
+        <p>crafting recipes with live material and cost tracking</p>
+      </article>
+      <article class="tool-showcase-stat">
+        <span class="tool-showcase-kicker">SV</span>
+        <strong>${formatCount(SV_SHINY_SANDWICH_RECIPES.length)}</strong>
+        <p>type-based shiny sandwich routes one click away</p>
+      </article>
+      <article class="tool-showcase-stat">
+        <span class="tool-showcase-kicker">Shared</span>
+        <strong>${formatCount(supplySummary.rows.length)}</strong>
+        <p>supply lines already open in the cross-game cost tracker</p>
+      </article>
+    </div>
+  `;
+
   const lzaCard = document.createElement("article");
-  lzaCard.className = "module-card tool-station-card";
+  lzaCard.className = "module-card tool-station-card tool-station-card--lza tool-station-card--wide";
   lzaCard.innerHTML = `
     <div class="tool-card-head">
-      <div>
-        <span class="module-status live">Legends: Z-A</span>
-        <strong>Donut Lab</strong>
+      <div class="tool-card-meta">
+        <span class="tool-card-orb" aria-hidden="true">ZA</span>
+        <div class="tool-card-copy">
+          <span class="module-status live">Legends: Z-A</span>
+          <strong>Donut Lab</strong>
+        </div>
       </div>
       <span class="toolbar-pill">8-slot mocker</span>
     </div>
-    <p class="results-summary">
+    <p class="results-summary tool-note-band">
       Common shiny and farming bases on top, then a live mock builder underneath. This previews flavor bias and donut stats, not a guaranteed power roll.
     </p>
     <div class="tool-preset-grid">
@@ -11330,10 +11631,10 @@ function renderModuleQueue() {
       ).join("")}
     </div>
     <div class="tool-stat-grid">
-      <span class="tool-stat-chip">Berries ${lzaSummary.berryCount}/8</span>
-      <span class="tool-stat-chip">Flavor Score ${formatCount(lzaSummary.flavorScore)}</span>
-      <span class="tool-stat-chip">Level +${formatCount(lzaSummary.totals.level)}</span>
-      <span class="tool-stat-chip">Calories ${formatCount(lzaSummary.totals.calories)}</span>
+      ${renderToolStatChip("Berries Loaded", `${lzaSummary.berryCount}/8`)}
+      ${renderToolStatChip("Flavor Score", formatCount(lzaSummary.flavorScore))}
+      ${renderToolStatChip("Level Bonus", `+${formatCount(lzaSummary.totals.level)}`)}
+      ${renderToolStatChip("Calories", formatCount(lzaSummary.totals.calories))}
     </div>
     <p class="results-summary">
       ${
@@ -11409,16 +11710,19 @@ function renderModuleQueue() {
   lzaCard.querySelector("[data-clear-lza]")?.addEventListener("click", clearLzaBuilder);
 
   const plaCard = document.createElement("article");
-  plaCard.className = "module-card tool-station-card";
+  plaCard.className = "module-card tool-station-card tool-station-card--pla";
   plaCard.innerHTML = `
     <div class="tool-card-head">
-      <div>
-        <span class="module-status live">Legends: Arceus</span>
-        <strong>Crafting Bench</strong>
+      <div class="tool-card-meta">
+        <span class="tool-card-orb" aria-hidden="true">PLA</span>
+        <div class="tool-card-copy">
+          <span class="module-status live">Legends: Arceus</span>
+          <strong>Crafting Bench</strong>
+        </div>
       </div>
       <span class="toolbar-pill">Materials + cost</span>
     </div>
-    <p class="results-summary">
+    <p class="results-summary tool-note-band">
       Pick a recipe, set a batch size, then track owned materials and optional per-material costs to see what you can craft right now.
     </p>
     <div class="tool-field-grid">
@@ -11434,10 +11738,10 @@ function renderModuleQueue() {
       </label>
     </div>
     <div class="tool-stat-grid">
-      <span class="tool-stat-chip">Craftable Now ${formatCount(plaSummary.craftableNow)}</span>
-      <span class="tool-stat-chip">Materials ${plaSummary.materialRows.length}</span>
-      <span class="tool-stat-chip">Batch Cost ${formatMoney(plaSummary.totalCost)}</span>
-      <span class="tool-stat-chip">Missing ${formatCount(plaSummary.missingMaterials.length)}</span>
+      ${renderToolStatChip("Craftable Now", formatCount(plaSummary.craftableNow))}
+      ${renderToolStatChip("Materials", formatCount(plaSummary.materialRows.length))}
+      ${renderToolStatChip("Batch Cost", formatMoney(plaSummary.totalCost))}
+      ${renderToolStatChip("Missing", formatCount(plaSummary.missingMaterials.length))}
     </div>
     <p class="results-summary">
       ${
@@ -11450,42 +11754,44 @@ function renderModuleQueue() {
           : "Your current stock covers this full batch."
       }
     </p>
-    <div class="tool-table">
-      <div class="tool-table-head">
-        <span>Material</span>
-        <span>Need</span>
-        <span>Owned</span>
-        <span>Unit Cost</span>
-        <span>Shortfall</span>
+    <div class="tool-table-shell">
+      <div class="tool-table">
+        <div class="tool-table-head">
+          <span>Material</span>
+          <span>Need</span>
+          <span>Owned</span>
+          <span>Unit Cost</span>
+          <span>Shortfall</span>
+        </div>
+        ${plaSummary.materialRows
+          .map(
+            (material) => `
+              <div class="tool-table-row">
+                <span class="tool-table-label">${escapeHtml(material.name)}</span>
+                <span class="tool-table-value">${formatCount(material.required)}</span>
+                <input
+                  class="tool-table-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value="${escapeHtml(String(material.owned))}"
+                  data-pla-owned="${escapeHtml(material.name)}"
+                />
+                <input
+                  class="tool-table-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value="${escapeHtml(state.tools.pla.materialCosts[material.name] ?? "")}"
+                  data-pla-cost="${escapeHtml(material.name)}"
+                />
+                <span class="tool-table-value">${material.shortfall ? formatCount(material.shortfall) : "Ready"}</span>
+              </div>
+            `
+          )
+          .join("")}
       </div>
-      ${plaSummary.materialRows
-        .map(
-          (material) => `
-            <div class="tool-table-row">
-              <span class="tool-table-label">${escapeHtml(material.name)}</span>
-              <span class="tool-table-value">${formatCount(material.required)}</span>
-              <input
-                class="tool-table-input"
-                type="number"
-                min="0"
-                step="1"
-                value="${escapeHtml(String(material.owned))}"
-                data-pla-owned="${escapeHtml(material.name)}"
-              />
-              <input
-                class="tool-table-input"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value="${escapeHtml(state.tools.pla.materialCosts[material.name] ?? "")}"
-                data-pla-cost="${escapeHtml(material.name)}"
-              />
-              <span class="tool-table-value">${material.shortfall ? formatCount(material.shortfall) : "Ready"}</span>
-            </div>
-          `
-        )
-        .join("")}
     </div>
   `;
 
@@ -11507,16 +11813,19 @@ function renderModuleQueue() {
   });
 
   const svCard = document.createElement("article");
-  svCard.className = "module-card tool-station-card";
+  svCard.className = "module-card tool-station-card tool-station-card--sv";
   svCard.innerHTML = `
     <div class="tool-card-head">
-      <div>
-        <span class="module-status live">Scarlet / Violet</span>
-        <strong>Shiny Sandwich Maker</strong>
+      <div class="tool-card-meta">
+        <span class="tool-card-orb" aria-hidden="true">SV</span>
+        <div class="tool-card-copy">
+          <span class="module-status live">Scarlet / Violet</span>
+          <strong>Shiny Sandwich Maker</strong>
+        </div>
       </div>
       <span class="toolbar-pill">Sparkling Lv. 3</span>
     </div>
-    <p class="results-summary">
+    <p class="results-summary tool-note-band">
       Choose a target type to get the quick shiny sandwich base plus the flexible picnic version that works with almost any pair of Herba.
     </p>
     <div class="tool-field-grid">
@@ -11553,9 +11862,7 @@ function renderModuleQueue() {
       </article>
     </div>
     <div class="tool-stat-grid">
-      ${SV_SHINY_ODDS.map(
-        (entry) => `<span class="tool-stat-chip">${escapeHtml(entry.label)} ${escapeHtml(entry.value)}</span>`
-      ).join("")}
+      ${SV_SHINY_ODDS.map((entry) => renderToolStatChip(entry.label, entry.value)).join("")}
     </div>
     <p class="results-summary">
       Best route: clear 60 outbreak spawns first, save before the picnic, then stack Sparkling Lv. 3 with the Shiny Charm for the 1/512 ceiling.
@@ -11567,69 +11874,74 @@ function renderModuleQueue() {
   });
 
   const supplyCard = document.createElement("article");
-  supplyCard.className = "module-card tool-station-card";
+  supplyCard.className = "module-card tool-station-card tool-station-card--supply tool-station-card--wide";
   supplyCard.innerHTML = `
     <div class="tool-card-head">
-      <div>
-        <span class="module-status live">Shared Utility</span>
-        <strong>Supply Cost Tracker</strong>
+      <div class="tool-card-meta">
+        <span class="tool-card-orb" aria-hidden="true">LOG</span>
+        <div class="tool-card-copy">
+          <span class="module-status live">Shared Utility</span>
+          <strong>Supply Cost Tracker</strong>
+        </div>
       </div>
       <span class="toolbar-pill">Any game</span>
     </div>
-    <p class="results-summary">
+    <p class="results-summary tool-note-band">
       Keep a running list of item costs and counts when you are pricing donuts, crafting batches, sandwich runs, or shopping lists.
     </p>
     <div class="tool-stat-grid">
-      <span class="tool-stat-chip">Lines ${formatCount(supplySummary.rows.length)}</span>
-      <span class="tool-stat-chip">Quantity ${formatCount(supplySummary.totalQuantity)}</span>
-      <span class="tool-stat-chip">Total ${formatMoney(supplySummary.totalCost)}</span>
+      ${renderToolStatChip("Lines", formatCount(supplySummary.rows.length))}
+      ${renderToolStatChip("Quantity", formatCount(supplySummary.totalQuantity))}
+      ${renderToolStatChip("Total Cost", formatMoney(supplySummary.totalCost))}
     </div>
-    <div class="tool-table">
-      <div class="tool-table-head tool-table-head--supply">
-        <span>Item</span>
-        <span>Unit Cost</span>
-        <span>Qty</span>
-        <span>Total</span>
-        <span></span>
+    <div class="tool-table-shell">
+      <div class="tool-table">
+        <div class="tool-table-head tool-table-head--supply">
+          <span>Item</span>
+          <span>Unit Cost</span>
+          <span>Qty</span>
+          <span>Total</span>
+          <span></span>
+        </div>
+        ${supplySummary.rows
+          .map((row) => {
+            const quantity = Math.max(0, normalizeNonNegativeInteger(row.quantity, 0));
+            const total = parseMoney(row.unitCost) * quantity;
+            return `
+              <div class="tool-table-row tool-table-row--supply">
+                <input
+                  class="tool-table-input"
+                  type="text"
+                  placeholder="Item name"
+                  value="${escapeHtml(row.name)}"
+                  data-supply-name="${escapeHtml(row.id)}"
+                />
+                <input
+                  class="tool-table-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value="${escapeHtml(row.unitCost)}"
+                  data-supply-cost="${escapeHtml(row.id)}"
+                />
+                <input
+                  class="tool-table-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value="${escapeHtml(row.quantity)}"
+                  data-supply-qty="${escapeHtml(row.id)}"
+                />
+                <span class="tool-table-value">${formatMoney(total)}</span>
+                <button type="button" class="ghost-button tool-inline-button" data-remove-supply="${escapeHtml(row.id)}">
+                  Remove
+                </button>
+              </div>
+            `;
+          })
+          .join("")}
       </div>
-      ${supplySummary.rows
-        .map((row) => {
-          const quantity = Math.max(0, normalizeNonNegativeInteger(row.quantity, 0));
-          const total = parseMoney(row.unitCost) * quantity;
-          return `
-            <div class="tool-table-row tool-table-row--supply">
-              <input
-                class="tool-table-input"
-                type="text"
-                placeholder="Item name"
-                value="${escapeHtml(row.name)}"
-                data-supply-name="${escapeHtml(row.id)}"
-              />
-              <input
-                class="tool-table-input"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value="${escapeHtml(row.unitCost)}"
-                data-supply-cost="${escapeHtml(row.id)}"
-              />
-              <input
-                class="tool-table-input"
-                type="number"
-                min="0"
-                step="1"
-                value="${escapeHtml(row.quantity)}"
-                data-supply-qty="${escapeHtml(row.id)}"
-              />
-              <span class="tool-table-value">${formatMoney(total)}</span>
-              <button type="button" class="ghost-button tool-inline-button" data-remove-supply="${escapeHtml(row.id)}">
-                Remove
-              </button>
-            </div>
-          `;
-        })
-        .join("")}
     </div>
     <div class="tool-action-row">
       <button type="button" class="ghost-button detail-link-button" data-add-supply>Add Line</button>
@@ -11656,7 +11968,7 @@ function renderModuleQueue() {
     button.addEventListener("click", () => removeSupplyTrackerRow(button.dataset.removeSupply));
   });
 
-  elements.moduleGrid.append(lzaCard, plaCard, svCard, supplyCard);
+  elements.moduleGrid.append(showcaseCard, lzaCard, plaCard, svCard, supplyCard);
 }
 
 function preserveViewportScroll(callback) {
@@ -12792,7 +13104,9 @@ function renderSuggestors() {
 
   elements.advisorFocus.textContent = task.focus;
 
-  elements.suggestCatchName.textContent = catchTarget?.displayName ?? "All visible entries logged";
+  renderSuggestedCatchLabel(elements.suggestCatchName, catchTarget, {
+    emptyText: "All visible entries logged"
+  });
   elements.suggestCatchText.textContent = catchTarget
     ? `${catchTarget.displayName} is the next missing target in your current archive stack.`
     : "Every currently visible entry is already marked caught.";
@@ -12860,6 +13174,7 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
   const basePokemonName = knownEntry?.basePokemonName ?? species.name;
   const baseDisplayName = knownEntry?.baseDisplayName ?? titleCase(basePokemonName);
   const preferKnownEntrySprite = hasDistinctIdentitySprite(knownEntry);
+  const preferKnownEntryArtworkFallback = Boolean(knownEntry?.syntheticKind && preferKnownEntrySprite);
   const types = [...apiPokemon.types]
     .sort((left, right) => left.slot - right.slot)
     .map((entry) => entry.type.name);
@@ -12899,16 +13214,16 @@ function simplifyPokemon(apiPokemon, species, activeEntry = null) {
       apiPokemon.sprites.front_default ||
       "",
     artwork:
-      (preferKnownEntrySprite ? knownEntry?.listSprite : apiPokemon.sprites.other["official-artwork"].front_default) ||
-      (preferKnownEntrySprite ? apiPokemon.sprites.other["official-artwork"].front_default : knownEntry?.listSprite) ||
+      (preferKnownEntryArtworkFallback ? knownEntry?.listSprite : apiPokemon.sprites.other["official-artwork"].front_default) ||
+      (preferKnownEntryArtworkFallback ? apiPokemon.sprites.other["official-artwork"].front_default : knownEntry?.listSprite) ||
       apiPokemon.sprites.other.home.front_default ||
       apiPokemon.sprites.front_default ||
       knownEntry?.shinyListSprite ||
       apiPokemon.sprites.front_shiny ||
       "",
     artworkShiny:
-      (preferKnownEntrySprite ? knownEntry?.shinyListSprite : apiPokemon.sprites.other["official-artwork"].front_shiny) ||
-      (preferKnownEntrySprite ? apiPokemon.sprites.other["official-artwork"].front_shiny : knownEntry?.shinyListSprite) ||
+      (preferKnownEntryArtworkFallback ? knownEntry?.shinyListSprite : apiPokemon.sprites.other["official-artwork"].front_shiny) ||
+      (preferKnownEntryArtworkFallback ? apiPokemon.sprites.other["official-artwork"].front_shiny : knownEntry?.shinyListSprite) ||
       apiPokemon.sprites.other.home.front_shiny ||
       apiPokemon.sprites.front_shiny ||
       knownEntry?.listSprite ||
@@ -13088,9 +13403,10 @@ function renderCurrentScanRibbon() {
     return;
   }
 
+  const caughtCount = getCaughtCount(pokemon.name);
   const statusBits = [
     `#${formatNumber(pokemon.dexNumber)}`,
-    isCaught(pokemon.name) ? "Caught" : "Missing",
+    getCaughtStatusLabel(pokemon.name),
     isShiny(pokemon.name) ? "Shiny caught" : null
   ]
     .filter(Boolean)
@@ -13115,6 +13431,35 @@ function renderCurrentScanRibbon() {
 
 renderScanVisualToggle();
 
+function renderScanCaughtControls(pokemon = state.currentPokemon) {
+  const duplicateMode = isArchiveDuplicateMode();
+  const count = pokemon ? getCaughtCount(pokemon.name) : 0;
+  const caught = count > 0;
+
+  elements.toggleCaughtButton.hidden = duplicateMode;
+  elements.toggleCaughtButton.classList.toggle("hidden", duplicateMode);
+  elements.scanCaughtStepperShell.hidden = !duplicateMode;
+  elements.scanCaughtStepperShell.classList.toggle("hidden", !duplicateMode);
+
+  if (duplicateMode) {
+    elements.scanCaughtMinusButton.disabled = !pokemon || count <= 0;
+    elements.scanCaughtPlusButton.disabled = !pokemon;
+    elements.scanCaughtCount.textContent = formatCount(count);
+    return;
+  }
+
+  elements.toggleCaughtButton.disabled = !pokemon;
+  if (!pokemon) {
+    elements.toggleCaughtButton.textContent = "Register Caught";
+    elements.toggleCaughtButton.classList.remove("caught");
+    return;
+  }
+
+  elements.toggleCaughtButton.textContent =
+    count > 1 ? `Caught x${formatCount(count)}` : caught ? "Caught Registered" : "Register Caught";
+  elements.toggleCaughtButton.classList.toggle("caught", caught);
+}
+
 function clearCurrentScan() {
   if (!state.currentPokemon) {
     return;
@@ -13133,9 +13478,7 @@ function clearCurrentScan() {
   elements.pokemonName.textContent = "No active scan";
   elements.detailEmpty.classList.remove("hidden");
   elements.detailContent.classList.add("hidden");
-  elements.toggleCaughtButton.disabled = true;
-  elements.toggleCaughtButton.textContent = "Register Caught";
-  elements.toggleCaughtButton.classList.remove("caught");
+  renderScanCaughtControls(null);
   elements.toggleShinyButton.disabled = true;
   elements.toggleShinyButton.textContent = "Catch Shiny";
   elements.toggleShinyButton.classList.remove("active");
@@ -13153,7 +13496,6 @@ function renderCurrentPokemon(pokemon) {
   state.sessionRestore.currentPokemonName = pokemon.name;
   saveUiSessionState();
   setSelectedDexEntryCard(pokemon.name, previousPokemonName);
-  const caught = isCaught(pokemon.name);
   const shiny = isShiny(pokemon.name);
   const shinyLocked = isShinyDexLocked(pokemon.name);
   const bookmarked = isBookmarked(pokemon.name);
@@ -13171,9 +13513,7 @@ function renderCurrentPokemon(pokemon) {
   renderPokedexEntries(pokemon);
   renderCurrentScanRibbon();
   elements.bstTotal.textContent = `BST ${pokemon.bst}`;
-  elements.toggleCaughtButton.disabled = false;
-  elements.toggleCaughtButton.textContent = caught ? "Caught Registered" : "Register Caught";
-  elements.toggleCaughtButton.classList.toggle("caught", caught);
+  renderScanCaughtControls(pokemon);
   elements.toggleShinyButton.disabled = shinyLocked;
   elements.toggleShinyButton.textContent = shinyLocked ? "Shiny Locked" : shiny ? "Shiny Caught" : "Catch Shiny";
   elements.toggleShinyButton.classList.toggle("active", !shinyLocked && shiny);
@@ -13346,12 +13686,22 @@ function renderFilterButtons() {
   elements.ownedGameOnlyToggle.disabled = !ownedGameOnlyMeta.enabled;
   elements.ownedGameOnlyToggleShell.classList.toggle("disabled", !ownedGameOnlyMeta.enabled);
   elements.ownedGameOnlyNote.textContent = ownedGameOnlyMeta.note;
+  const duplicateModeAvailable = !isArchiveShinyMode();
+  elements.archiveDuplicateModeToggle.checked = state.ui.archiveDuplicateMode;
+  elements.archiveDuplicateModeToggle.disabled = !duplicateModeAvailable;
+  elements.archiveDuplicateModeShell.classList.toggle("disabled", !duplicateModeAvailable);
+  elements.archiveDuplicateNote.textContent = duplicateModeAvailable
+    ? state.ui.archiveDuplicateMode
+      ? "Plus and minus counters are live across Dex and Scan for living-dex copy tracking."
+      : "Turn this on to swap living-dex catch toggles into copy counters."
+    : "Duplicate counting is only available while the Dex is in Living Dex mode.";
   elements.sortIndicator.textContent = labelSort(state.filters.sort);
   elements.archiveModeIndicator.textContent = `Mode ${getArchiveModeLabel()} - Public Access`;
   elements.archiveRegistryLabel.textContent = isArchiveShinyMode() ? "Shiny Registry" : "Registry";
   elements.statTrackedLabel.textContent = isArchiveShinyMode() ? "Caught Shiny" : "Caught";
   elements.statMissingLabel.textContent = getArchiveMissingLabel();
   elements.dexList.classList.toggle("is-grid", isArchiveGridView());
+  elements.dexList.classList.toggle("is-dupe-mode", isArchiveDuplicateMode());
 }
 
 function renderResultsSummary(filteredEntries) {
@@ -13398,7 +13748,7 @@ function renderResultsSummary(filteredEntries) {
   } else if (activeGameFilter && !state.gameAvailabilityReady && state.gameAvailabilityLoading) {
     elements.resultsSummary.textContent = `Syncing ${activeGameFilter.shortName} game coverage now.`;
   } else if (filteredEntries.length === total && state.filters.game === "all") {
-    elements.resultsSummary.textContent = `Guest mode active. Full ${modeLabel.toLowerCase()} archive signal online.`;
+    elements.resultsSummary.textContent = `Guest mode active. Full ${modeLabel.toLowerCase()} Dex signal online.`;
   } else if (activeGameFilter && state.filters.ownedGameOnly) {
     elements.resultsSummary.textContent = ownedGameOnlyMeta.comparisonGameCount
       ? `${formatCount(filteredEntries.length)} ${modeLabel.toLowerCase()} entities are unique to ${activeGameFilter.shortName} within your owned games.`
@@ -13421,9 +13771,86 @@ function makeTag(label, accentKey = null) {
   return chip;
 }
 
+function describeCaughtCountChange(entry, previousCount, nextCount) {
+  if (nextCount <= 0) {
+    return `${entry.displayName} cleared from your living dex.`;
+  }
+
+  if (previousCount <= 0 && nextCount === 1) {
+    return `${entry.displayName} registered with 1 living copy.`;
+  }
+
+  return `${entry.displayName} now tracks ${formatCount(nextCount)} ${
+    nextCount === 1 ? "copy" : "copies"
+  } in the living dex.`;
+}
+
+function updateLivingDexCount(entry, nextCount) {
+  const previousCount = getCaughtCount(entry.name);
+  const normalizedCount = setCaughtCount(entry.name, nextCount);
+
+  if (normalizedCount === previousCount) {
+    return;
+  }
+
+  refreshResults();
+  renderCollections();
+  renderHomeOrganizer();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+
+  setStatus(describeCaughtCountChange(entry, previousCount, normalizedCount));
+}
+
+function changeLivingDexCount(entry, delta) {
+  updateLivingDexCount(entry, getCaughtCount(entry.name) + delta);
+}
+
+function createCaughtCountStepper(entry, options = {}) {
+  const variant = options.variant ?? "list";
+  const count = getCaughtCount(entry.name);
+  const shell = document.createElement("div");
+  shell.className = `caught-count-stepper caught-count-stepper--${variant}`;
+  shell.classList.toggle("is-active", count > 0);
+  shell.setAttribute("aria-label", `Adjust living-dex copy count for ${entry.displayName}`);
+
+  const minusButton = document.createElement("button");
+  minusButton.type = "button";
+  minusButton.className = "caught-count-button";
+  minusButton.textContent = "-";
+  minusButton.disabled = count <= 0;
+  minusButton.setAttribute("aria-label", `Remove one ${entry.displayName} copy`);
+  minusButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    changeLivingDexCount(entry, -1);
+  });
+
+  const value = document.createElement("span");
+  value.className = "caught-count-value";
+  value.textContent = formatCount(count);
+
+  const plusButton = document.createElement("button");
+  plusButton.type = "button";
+  plusButton.className = "caught-count-button";
+  plusButton.textContent = "+";
+  plusButton.setAttribute("aria-label", `Add one ${entry.displayName} copy`);
+  plusButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    changeLivingDexCount(entry, 1);
+  });
+
+  shell.append(minusButton, value, plusButton);
+  return shell;
+}
+
 function buildDexEntryListNode(entry) {
   const instance = elements.dexEntryTemplate.content.cloneNode(true);
   const card = instance.querySelector(".dex-entry");
+  const toggle = instance.querySelector(".entry-toggle");
   const checkbox = instance.querySelector(".entry-checkbox");
   const entryButton = instance.querySelector(".dex-entry-button");
   const entrySprite = instance.querySelector(".entry-sprite");
@@ -13431,24 +13858,32 @@ function buildDexEntryListNode(entry) {
   const entryName = instance.querySelector(".entry-name");
   const entryStatus = instance.querySelector(".entry-status");
   const entryTags = instance.querySelector(".entry-tags");
+  const duplicateMode = isArchiveDuplicateMode();
   const caught = isCaught(entry.name);
+  const caughtCount = getCaughtCount(entry.name);
   const shiny = isShiny(entry.name);
   const tracked = isArchiveTracked(entry.name);
   const accentKey = getEntryAccentKey(entry);
 
   card.dataset.entryName = entry.name;
   card.dataset.accent = accentKey;
-  checkbox.dataset.entryName = entry.name;
   entryButton.dataset.entryName = entry.name;
   card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
   card.classList.toggle("caught", tracked);
   card.classList.toggle("is-form", entry.isForm);
+  card.classList.toggle("count-mode", duplicateMode);
 
-  checkbox.checked = tracked;
-  checkbox.setAttribute(
-    "aria-label",
-    `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
-  );
+  if (duplicateMode) {
+    toggle.classList.add("count-mode");
+    toggle.replaceChildren(createCaughtCountStepper(entry, { variant: "list" }));
+  } else {
+    checkbox.dataset.entryName = entry.name;
+    checkbox.checked = tracked;
+    checkbox.setAttribute(
+      "aria-label",
+      `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
+    );
+  }
 
   applyEntrySprite(entrySprite, entry, {
     forceShiny: isArchiveShinyMode(),
@@ -13456,14 +13891,21 @@ function buildDexEntryListNode(entry) {
   });
   entryNumber.textContent = `#${formatNumber(entry.baseNumber)}`;
   entryName.textContent = entry.displayName;
+  const livingStatus = duplicateMode
+    ? caughtCount > 0
+      ? `${getCaughtCountSummary(caughtCount)}${
+          getDuplicateCount(entry.name) ? ` · ${formatCount(getDuplicateCount(entry.name))} dupes` : ""
+        }`
+      : "No copies tracked"
+    : caught
+      ? "Caught"
+      : "Missing";
   entryStatus.textContent = `${
     isArchiveShinyMode()
       ? tracked
         ? "Shiny caught"
         : "Missing shiny"
-      : caught
-        ? "Caught"
-        : "Missing"
+      : livingStatus
   } · ${getEntryVariantLabel(entry)} · Generation ${entry.generation === "unknown" ? "?" : entry.generation}`;
 
   const tags = [];
@@ -13497,7 +13939,7 @@ function buildDexEntryGridNode(entry) {
   const number = document.createElement("span");
   const sprite = document.createElement("img");
   const name = document.createElement("strong");
-  const catchButton = document.createElement("button");
+  const duplicateMode = isArchiveDuplicateMode();
   const tracked = isArchiveTracked(entry.name);
   const caught = isCaught(entry.name);
   const shinyLocked = isShinyDexLocked(entry.name);
@@ -13507,6 +13949,7 @@ function buildDexEntryGridNode(entry) {
   card.classList.toggle("selected", entry.name === state.currentPokemon?.name);
   card.classList.toggle("caught", tracked);
   card.classList.toggle("is-form", entry.isForm);
+  card.classList.toggle("count-mode", duplicateMode);
   card.dataset.accent = getEntryAccentKey(entry);
 
   openButton.type = "button";
@@ -13527,26 +13970,31 @@ function buildDexEntryGridNode(entry) {
 
   openButton.append(number, sprite, name);
 
-  catchButton.type = "button";
-  catchButton.className = "archive-grid-catch-btn";
-  catchButton.dataset.entryName = entry.name;
-  catchButton.classList.toggle("caught", tracked);
-  catchButton.disabled = isArchiveShinyMode() && shinyLocked;
-  catchButton.textContent = isArchiveShinyMode()
-    ? shinyLocked
-      ? "Locked"
-      : tracked
+  if (duplicateMode) {
+    card.append(openButton, createCaughtCountStepper(entry, { variant: "grid" }));
+  } else {
+    const catchButton = document.createElement("button");
+    catchButton.type = "button";
+    catchButton.className = "archive-grid-catch-btn";
+    catchButton.dataset.entryName = entry.name;
+    catchButton.classList.toggle("caught", tracked);
+    catchButton.disabled = isArchiveShinyMode() && shinyLocked;
+    catchButton.textContent = isArchiveShinyMode()
+      ? shinyLocked
+        ? "Locked"
+        : tracked
+          ? "Caught"
+          : "Catch"
+      : caught
         ? "Caught"
-        : "Catch"
-    : caught
-      ? "Caught"
-      : "Catch";
-  catchButton.setAttribute(
-    "aria-label",
-    `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
-  );
+        : "Catch";
+    catchButton.setAttribute(
+      "aria-label",
+      `${isArchiveShinyMode() ? "Toggle shiny state" : "Toggle caught state"} for ${entry.displayName}`
+    );
+    card.append(openButton, catchButton);
+  }
 
-  card.append(openButton, catchButton);
   state.archiveRender.renderedCardsByName.set(entry.name, card);
   return card;
 }
@@ -13776,8 +14224,20 @@ function openBestMatch() {
   setStatus("No matching entity found. Adjust the scan string or clear a filter.");
 }
 
+function resolvePokemonDetailFetchTarget(nameOrId, knownEntry = null) {
+  if (!knownEntry || typeof nameOrId !== "string") {
+    return nameOrId;
+  }
+
+  if (!knownEntry.syntheticKind) {
+    return knownEntry.name;
+  }
+
+  return knownEntry.basePokemonName || knownEntry.name || nameOrId;
+}
+
 async function fetchDexIndex() {
-  setStatus("Syncing full archive index...");
+  setStatus("Syncing full Dex index...");
 
   try {
     const bootstrapPayload = await fetchJsonCached("https://pokeapi.co/api/v2/pokemon?limit=1", {
@@ -13826,6 +14286,7 @@ async function fetchDexIndex() {
           shinyListSprite: buildSpriteUrl(id, true)
         };
 
+        applyTrackedGenderPairIdentity(normalizedEntry);
         normalizedEntry.generation = determineEntryGeneration(normalizedEntry);
         normalizedEntry.searchBlob = buildEntrySearchBlob(normalizedEntry);
         return normalizedEntry;
@@ -13867,7 +14328,7 @@ async function fetchDexIndex() {
     scheduleSwitchGameAvailabilityLoad();
     await restorePersistedCurrentScan();
   } catch (error) {
-    setStatus("The archive could not reach PokeAPI. Refresh the interface and try again.");
+    setStatus("The Dex could not reach PokeAPI. Refresh the interface and try again.");
   }
 }
 
@@ -13876,7 +14337,7 @@ async function fetchPokemonDetail(nameOrId) {
   const lookupName =
     typeof nameOrId === "string" ? normalizeSearch(nameOrId).replace(/\s+/g, "-") : null;
   const knownEntry = lookupName ? state.entriesByName.get(lookupName) ?? null : null;
-  const fetchTarget = knownEntry?.basePokemonName ?? nameOrId;
+  const fetchTarget = resolvePokemonDetailFetchTarget(nameOrId, knownEntry);
   setLoadingState(true);
   setStatus(`Scanning ${knownEntry?.displayName ?? nameOrId}...`);
 
@@ -13969,20 +14430,6 @@ function openRandomEntry() {
   openPokemonEntry(randomEntry.name);
 }
 
-async function submitCompanionQuestion() {
-  const question = elements.companionInput.value.trim();
-  elements.companionStatus.textContent = "Thinking";
-
-  try {
-    state.companionReply = await answerCompanionQuestion(question);
-  } catch {
-    state.companionReply =
-      "I hit a snag while answering that. Try asking about your current Pokémon, game coverage, or next targets.";
-  }
-
-  renderTrainerVault();
-}
-
 elements.navTabs.forEach((button) => {
   button.addEventListener("click", () => {
     setActiveView(button.dataset.view);
@@ -14012,33 +14459,6 @@ elements.currentScanOpenButton.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 elements.currentScanClearButton.addEventListener("click", clearCurrentScan);
-elements.finderPokemonInput.addEventListener("input", () => {
-  state.finder.query = elements.finderPokemonInput.value;
-  renderFinderMatches();
-});
-elements.finderPokemonInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitFinderSearch();
-  }
-});
-elements.finderVersionSelect.addEventListener("change", () => {
-  state.finder.selectedVersionId = elements.finderVersionSelect.value;
-  if (state.finder.selectedEntryName) {
-    renderFinder();
-  }
-});
-elements.finderSearchButton.addEventListener("click", submitFinderSearch);
-elements.finderClearButton.addEventListener("click", clearFinder);
-elements.finderOpenScanButton.addEventListener("click", async () => {
-  const entry = getFinderSelectedEntry();
-  if (!entry) {
-    return;
-  }
-
-  await openPokemonEntry(entry.name);
-  setActiveView("scan");
-});
 
 elements.detailTabButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -14071,6 +14491,20 @@ elements.searchForm.addEventListener("submit", (event) => {
 elements.openEntryButton.addEventListener("click", openBestMatch);
 elements.randomButton.addEventListener("click", openRandomEntry);
 elements.toggleCaughtButton.addEventListener("click", toggleCurrentCaught);
+elements.scanCaughtMinusButton.addEventListener("click", () => {
+  if (!state.currentPokemon || !isArchiveDuplicateMode()) {
+    return;
+  }
+
+  changeLivingDexCount(state.currentPokemon, -1);
+});
+elements.scanCaughtPlusButton.addEventListener("click", () => {
+  if (!state.currentPokemon || !isArchiveDuplicateMode()) {
+    return;
+  }
+
+  changeLivingDexCount(state.currentPokemon, 1);
+});
 elements.toggleShinyButton.addEventListener("click", toggleCurrentShiny);
 elements.clearScanButton.addEventListener("click", clearCurrentScan);
 elements.bookmarkButton.addEventListener("click", () => {
@@ -14162,33 +14596,37 @@ elements.shinyTrackerStartButton.addEventListener("click", () => {
 elements.shinyTrackerResetButton.addEventListener("click", () => {
   resetShinyHubSession();
 });
-elements.profileSelect.addEventListener("change", () => {
-  switchProfile(elements.profileSelect.value);
-});
-elements.createProfileButton.addEventListener("click", () => {
-  const nextId = createProfile(elements.profileNameInput?.value ?? "");
-  if (!nextId) {
-    setStatus("Unable to create a new local trainer profile right now.");
-    return;
-  }
+if (elements.profileSelect) {
+  elements.profileSelect.addEventListener("change", () => {
+    switchProfile(elements.profileSelect.value);
+  });
+}
+if (elements.createProfileButton) {
+  elements.createProfileButton.addEventListener("click", () => {
+    const nextId = createProfile(elements.profileNameInput?.value ?? "");
+    if (!nextId) {
+      setStatus("Unable to create a new local trainer profile right now.");
+      return;
+    }
 
-  if (elements.profileNameInput) {
-    elements.profileNameInput.value = "";
-  }
-  renderTracker();
-  renderExpGameOptions();
-  renderCollections();
-  renderTrainerVault();
-  renderHomeOrganizer();
-  renderShinyHelper();
-  renderSuggestors();
-  if (state.currentPokemon) {
-    renderCurrentPokemon(state.currentPokemon);
-  }
-  void renderExpPlanner();
-  setStatus("New local trainer profile created.");
-});
-if (elements.profileNameInput) {
+    if (elements.profileNameInput) {
+      elements.profileNameInput.value = "";
+    }
+    renderTracker();
+    renderExpGameOptions();
+    renderCollections();
+    renderTrainerVault();
+    renderHomeOrganizer();
+    renderShinyHelper();
+    renderSuggestors();
+    if (state.currentPokemon) {
+      renderCurrentPokemon(state.currentPokemon);
+    }
+    void renderExpPlanner();
+    setStatus("New local trainer profile created.");
+  });
+}
+if (elements.profileNameInput && elements.createProfileButton) {
   elements.profileNameInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -14202,8 +14640,8 @@ elements.accountSignInButton.addEventListener("click", () => {
 elements.accountSignUpButton.addEventListener("click", () => {
   void signUpCloudAccount();
 });
-elements.accountGoogleSignInButton.addEventListener("click", () => {
-  void signInCloudAccountWithGoogle();
+elements.accountAutoSyncButton.addEventListener("click", () => {
+  setCloudAutoSyncEnabled(!isCloudAutoSyncEnabled());
 });
 elements.accountSignOutButton.addEventListener("click", () => {
   void signOutCloudAccount();
@@ -14220,19 +14658,17 @@ elements.accountPasswordInput.addEventListener("keydown", (event) => {
     void signInCloudAccount();
   }
 });
+window.addEventListener("focus", requestCloudAutoSyncRefresh);
+window.addEventListener("online", requestCloudAutoSyncRefresh);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    requestCloudAutoSyncRefresh();
+  }
+});
 elements.trainerNotebook.addEventListener("input", () => {
   state.notebook = elements.trainerNotebook.value;
   saveNotebookState();
   elements.notebookStatus.textContent = "Autosaved locally";
-});
-elements.companionAskButton.addEventListener("click", () => {
-  void submitCompanionQuestion();
-});
-elements.companionInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    void submitCompanionQuestion();
-  }
 });
 elements.clearBoxButton.addEventListener("click", () => {
   const currentBox = getCurrentBox();
@@ -14348,6 +14784,14 @@ elements.ownedGameOnlyToggle.addEventListener("change", () => {
   state.filters.ownedGameOnly = elements.ownedGameOnlyToggle.checked;
   refreshResults();
 });
+elements.archiveDuplicateModeToggle.addEventListener("change", () => {
+  setArchiveDuplicateMode(elements.archiveDuplicateModeToggle.checked);
+});
+elements.duplicatePlannerFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setDuplicatePlannerFilter(button.dataset.duplicateFilter);
+  });
+});
 
 elements.expGameSelect.addEventListener("change", () => {
   state.expPlan.gameId = elements.expGameSelect.value;
@@ -14380,7 +14824,6 @@ const bootedFromDexCache = hydrateDexIndexFromCache();
 renderActiveView();
 renderDetailTabs();
 renderCurrentScanRibbon();
-renderFinder();
 renderCollections();
 renderTrainerVault();
 renderExpGameOptions();
