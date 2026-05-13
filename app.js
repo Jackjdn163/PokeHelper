@@ -5785,7 +5785,19 @@ const HOME_GAME_ICON_URLS = {
   lza:   `${BULBAGARDEN_ARCHIVES_BASE}/4/4c/HOME_Legends_Z-A_icon.png`
 };
 
-// Arrays render as split dual-icon badges; single strings render as one icon.
+// Maps each game version ID (as stored in state.tracker.games[gameId].versions) to its icon URL.
+const GAME_VERSION_ICON_URLS = {
+  "lets-go-pikachu": HOME_GAME_ICON_URLS.lgpp,
+  "lets-go-eevee":   HOME_GAME_ICON_URLS.lgpe,
+  "sword":           HOME_GAME_ICON_URLS.sw,
+  "shield":          HOME_GAME_ICON_URLS.sh,
+  "brilliant-diamond": HOME_GAME_ICON_URLS.bd,
+  "shining-pearl":   HOME_GAME_ICON_URLS.sp,
+  "scarlet":         HOME_GAME_ICON_URLS.sc,
+  "violet":          HOME_GAME_ICON_URLS.vi
+};
+
+// For single-version or unversioned games, the fallback icon.
 const SUGGESTED_GAME_BADGE_SYMBOLS = {
   lgpe: [HOME_GAME_ICON_URLS.lgpp, HOME_GAME_ICON_URLS.lgpe],
   swsh: [HOME_GAME_ICON_URLS.sw,   HOME_GAME_ICON_URLS.sh],
@@ -5794,6 +5806,31 @@ const SUGGESTED_GAME_BADGE_SYMBOLS = {
   sv:   [HOME_GAME_ICON_URLS.sc,   HOME_GAME_ICON_URLS.vi],
   lza:  HOME_GAME_ICON_URLS.lza
 };
+
+// Returns the single icon URL to show for a game, respecting which versions are owned.
+// - If only one version is checked: show that version's icon.
+// - If both versions are checked: pick one at random using the entry seed.
+// - If no versions are checked (game not owned / fallback): return null.
+function resolveGameBadgeIconUrl(game, entrySeed = 0) {
+  const trackerGame = state.tracker.games[game.id];
+  const gameVersions = getGameVersions(game);
+
+  if (!gameVersions.length) {
+    // Single-version game — use the static symbol directly.
+    return SUGGESTED_GAME_BADGE_SYMBOLS[game.id] ?? null;
+  }
+
+  const ownedVersionIds = gameVersions
+    .filter((v) => trackerGame?.versions?.[v.id])
+    .map((v) => v.id);
+
+  if (!ownedVersionIds.length) {
+    return null;
+  }
+
+  const picked = ownedVersionIds[entrySeed % ownedVersionIds.length];
+  return GAME_VERSION_ICON_URLS[picked] ?? null;
+}
 
 function getSuggestedCatchBadgeGame(entry) {
   if (!entry || !state.gameAvailabilityReady) {
@@ -5804,7 +5841,14 @@ function getSuggestedCatchBadgeGame(entry) {
   const fallbackGameIds = GAME_CATALOG.map((game) => game.id).filter((gameId) =>
     isEntryAvailableInGame(entry, gameId)
   );
-  const eligibleGameIds = ownedGameIds.length ? ownedGameIds : fallbackGameIds;
+  // When using owned games, only include those that have at least one owned version checked.
+  const resolvedOwnedIds = ownedGameIds.filter((gameId) => {
+    const game = getGameMeta(gameId);
+    const versions = game ? getGameVersions(game) : [];
+    if (!versions.length) return true;
+    return versions.some((v) => state.tracker.games[gameId]?.versions?.[v.id]);
+  });
+  const eligibleGameIds = resolvedOwnedIds.length ? resolvedOwnedIds : fallbackGameIds;
 
   if (!eligibleGameIds.length) {
     return null;
@@ -5816,7 +5860,8 @@ function getSuggestedCatchBadgeGame(entry) {
     hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
   }
 
-  return getGameMeta(eligibleGameIds[hash % eligibleGameIds.length]) ?? null;
+  const game = getGameMeta(eligibleGameIds[hash % eligibleGameIds.length]) ?? null;
+  return game ? { game, seed: hash } : null;
 }
 
 function createSuggestedGameBadge(game, options = {}) {
@@ -5824,7 +5869,7 @@ function createSuggestedGameBadge(game, options = {}) {
     return null;
   }
 
-  const { inline = false } = options;
+  const { inline = false, entrySeed = 0 } = options;
   const badge = document.createElement("span");
   badge.className = inline
     ? "suggested-entry-game-badge suggested-game-symbol-badge suggested-game-symbol-badge--inline"
@@ -5834,25 +5879,19 @@ function createSuggestedGameBadge(game, options = {}) {
   badge.setAttribute("role", "img");
   badge.setAttribute("aria-label", `${game.name} catch suggestion`);
 
-  const symbolValue = SUGGESTED_GAME_BADGE_SYMBOLS[game.id] ?? "";
-  const symbolPaths = Array.isArray(symbolValue) ? symbolValue : (symbolValue ? [symbolValue] : []);
-  if (symbolPaths.length) {
-    if (symbolPaths.length > 1) {
-      badge.classList.add("suggested-game-symbol-badge--split");
-    }
-    for (const path of symbolPaths) {
-      const symbol = document.createElement("img");
-      symbol.className = "suggested-game-symbol";
-      symbol.src = path;
-      symbol.alt = "";
-      symbol.decoding = "async";
-      symbol.onerror = () => {
-        symbol.onerror = null;
-        symbol.classList.add("is-missing");
-        symbol.removeAttribute("src");
-      };
-      badge.appendChild(symbol);
-    }
+  const iconUrl = resolveGameBadgeIconUrl(game, entrySeed);
+  if (iconUrl) {
+    const symbol = document.createElement("img");
+    symbol.className = "suggested-game-symbol";
+    symbol.src = iconUrl;
+    symbol.alt = "";
+    symbol.decoding = "async";
+    symbol.onerror = () => {
+      symbol.onerror = null;
+      symbol.classList.add("is-missing");
+      symbol.removeAttribute("src");
+    };
+    badge.appendChild(symbol);
     return badge;
   }
 
@@ -5864,12 +5903,12 @@ function createSuggestedGameBadge(game, options = {}) {
 }
 
 function appendSuggestedCatchGameBadge(element, entry) {
-  const game = getSuggestedCatchBadgeGame(entry);
-  if (!game) {
+  const result = getSuggestedCatchBadgeGame(entry);
+  if (!result) {
     return;
   }
 
-  const badge = createSuggestedGameBadge(game, { inline: true });
+  const badge = createSuggestedGameBadge(result.game, { inline: true, entrySeed: result.seed });
   if (badge) {
     element.appendChild(badge);
   }
@@ -5910,7 +5949,8 @@ function createSuggestedHuntTile(entry, options = {}) {
     forceShiny = false,
     onSelect = null,
     genderBadgeLabel = "",
-    gameBadgeGame = null
+    gameBadgeGame = null,
+    gameBadgeSeed = 0
   } = options;
   const button = document.createElement("button");
   button.type = "button";
@@ -5944,7 +5984,7 @@ function createSuggestedHuntTile(entry, options = {}) {
     : null;
 
   if (gameBadgeGame) {
-    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
+    const gameBadge = createSuggestedGameBadge(gameBadgeGame, { entrySeed: gameBadgeSeed });
     if (gameBadge) {
       pod.appendChild(gameBadge);
     }
@@ -5985,13 +6025,14 @@ function renderSuggestedHuntBoard(container, entries, options = {}) {
   }
 
   entries.forEach((entry) => {
-    const suggestedGame = kind === "living" ? getSuggestedCatchBadgeGame(entry) : null;
+    const suggestedResult = kind === "living" ? getSuggestedCatchBadgeGame(entry) : null;
     container.appendChild(
       createSuggestedHuntTile(entry, {
         selected: entry.name === selectedName,
         forceShiny,
         genderBadgeLabel: kind === "living" ? getSuggestedCatchGenderBadgeLabel(entry) : "",
-        gameBadgeGame: suggestedGame,
+        gameBadgeGame: suggestedResult?.game ?? null,
+        gameBadgeSeed: suggestedResult?.seed ?? 0,
         onSelect: (nextEntry) => {
           const selectionMode =
             kind === "shiny" ? state.ui.landingActionMode === "shiny" : state.ui.landingActionMode === "living";
