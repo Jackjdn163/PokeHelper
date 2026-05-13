@@ -112,6 +112,10 @@
             <span class="dashboard-nav-icon">⌖</span>
             <span>Maps</span>
           </button>
+          <button type="button" class="dashboard-nav-item" data-view="ai">
+            <span class="dashboard-nav-icon">✦</span>
+            <span>AI</span>
+          </button>
           <button type="button" class="dashboard-nav-item" data-view="vault">
             <span class="dashboard-nav-icon">⚙</span>
             <span>Settings</span>
@@ -203,6 +207,10 @@
               <button type="button" class="dashboard-nav-item dashboard-nav-item--placeholder" data-coming-soon="Maps">
                 <span class="dashboard-nav-icon">⌖</span>
                 <span>Maps</span>
+              </button>
+              <button type="button" class="dashboard-nav-item" data-view="ai">
+                <span class="dashboard-nav-icon">✦</span>
+                <span>AI</span>
               </button>
               <button type="button" class="dashboard-nav-item" data-view="vault">
                 <span class="dashboard-nav-icon">⚙</span>
@@ -1624,6 +1632,31 @@
             </p>
             <div class="module-grid" id="module-grid"></div>
         </article>
+
+        <article class="panel system-panel ai-panel-shell" data-module-view="ai">
+          <div class="system-head">
+            <div>
+              <p class="section-label">PokePilot AI</p>
+              <h2 class="system-title">Ask Anything</h2>
+            </div>
+            <span class="toolbar-pill" id="ai-model-pill">Offline</span>
+          </div>
+          <p class="system-summary ai-context-note" id="ai-context-note">
+            The AI can see your dex progress, active hunts, and game data to give personalised answers.
+          </p>
+          <div class="ai-chat-window" id="ai-chat-window" role="log" aria-live="polite" aria-label="AI conversation"></div>
+          <div class="ai-input-row">
+            <textarea
+              id="ai-input"
+              class="ai-textarea"
+              placeholder="Ask about Pokemon, your dex, shiny odds, hunt tips..."
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <button type="button" class="primary-action compact" id="ai-send-btn">Send</button>
+          </div>
+          <p class="ai-disclaimer">AI can make mistakes. Verify important game details.</p>
+        </article>
       </section>
     </div>
 
@@ -1686,8 +1719,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script>window.si=window.si||function(){(window.siq=window.siq||[]).push(arguments)};</script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
-    <script type="module" src="./app.js?v=71"></script>
+    <script src="./app.js?v=72"></script>
   </body>
 </html>
