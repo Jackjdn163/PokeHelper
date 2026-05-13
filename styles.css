@@ -1621,6 +1621,10 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.24));
 }
 
+.suggested-hunt-sprite.is-missing {
+  opacity: 0;
+}
+
 .suggested-hunt-badge {
   position: absolute;
   inset: 5px auto auto 5px;
@@ -1719,6 +1723,10 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   height: 100%;
   object-fit: contain;
   border-radius: inherit;
+}
+
+.suggested-game-symbol.is-missing {
+  display: none;
 }
 
 .suggested-game-symbol-monogram {
