@@ -5773,14 +5773,17 @@ const SUGGESTED_GAME_BADGE_SYMBOLS = {
 };
 
 function getSuggestedCatchBadgeGame(entry) {
-  if (!entry || !state.gameAvailabilityReady) {
+  if (!entry) {
     return null;
   }
 
-  const ownedGameIds = getOwnedGameIds().filter((gameId) => isEntryAvailableInGame(entry, gameId));
-  const fallbackGameIds = GAME_CATALOG.map((game) => game.id).filter((gameId) =>
-    isEntryAvailableInGame(entry, gameId)
-  );
+  const availabilityReady = state.gameAvailabilityReady;
+  const ownedGameIds = availabilityReady
+    ? getOwnedGameIds().filter((gameId) => isEntryAvailableInGame(entry, gameId))
+    : getOwnedGameIds();
+  const fallbackGameIds = availabilityReady
+    ? GAME_CATALOG.map((game) => game.id).filter((gameId) => isEntryAvailableInGame(entry, gameId))
+    : GAME_CATALOG.map((game) => game.id);
   const eligibleGameIds = ownedGameIds.length ? ownedGameIds : fallbackGameIds;
 
   if (!eligibleGameIds.length) {
@@ -5909,13 +5912,6 @@ function createSuggestedHuntTile(entry, options = {}) {
       }
     : null;
 
-  if (gameBadgeGame) {
-    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
-    if (gameBadge) {
-      pod.appendChild(gameBadge);
-    }
-  }
-
   if (genderBadgeMeta) {
     const genderBadge = document.createElement("span");
     genderBadge.className = `suggested-hunt-gender-badge suggested-hunt-gender-badge--${genderBadgeMeta.tone}`;
@@ -5923,6 +5919,11 @@ function createSuggestedHuntTile(entry, options = {}) {
     genderBadge.title = genderBadgeMeta.label;
     genderBadge.setAttribute("aria-label", genderBadgeMeta.label);
     pod.appendChild(genderBadge);
+  } else if (gameBadgeGame) {
+    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
+    if (gameBadge) {
+      pod.appendChild(gameBadge);
+    }
   }
 
   pod.append(sprite, dexBadge);
