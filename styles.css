@@ -1729,6 +1729,18 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   display: none;
 }
 
+/* Split badge: two icons side by side */
+.suggested-game-symbol-badge--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.suggested-game-symbol-badge--split .suggested-game-symbol {
+  border-radius: 0;
+}
+
 .suggested-game-symbol-monogram {
   position: absolute;
   inset: 0;
@@ -6315,6 +6327,17 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   object-fit: contain;
 }
 
+.tool-showcase-game-img-pair {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.tool-showcase-game-img-pair .tool-showcase-game-img {
+  width: 18px;
+  height: 18px;
+}
+
 .tool-showcase-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6343,6 +6366,17 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 36px;
   height: 36px;
   object-fit: contain;
+}
+
+.tool-showcase-stat-badge-pair {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.tool-showcase-stat-badge-pair .tool-showcase-stat-badge {
+  width: 28px;
+  height: 28px;
 }
 
 .tool-showcase-stat-icon {
@@ -6457,6 +6491,20 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 .tool-card-orb--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Split orb: two game icons side by side */
+.tool-card-orb--split {
+  padding: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.tool-card-orb--split img {
   width: 100%;
   height: 100%;
   object-fit: contain;

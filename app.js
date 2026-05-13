@@ -5767,20 +5767,25 @@ const POKEMONDB_HOME_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/norma
 const BULBAGARDEN_ARCHIVES_BASE = "https://archives.bulbagarden.net/media/upload";
 
 const HOME_GAME_ICON_URLS = {
-  lgpe:  `${BULBAGARDEN_ARCHIVES_BASE}/1/19/HOME_Let%27s_Go_Pikachu_icon.png`,
-  swsh:  `${BULBAGARDEN_ARCHIVES_BASE}/f/fe/HOME_Sword_icon.png`,
-  bdsp:  `${BULBAGARDEN_ARCHIVES_BASE}/c/cf/HOME_Brilliant_Diamond_icon.png`,
+  lgpp:  `${BULBAGARDEN_ARCHIVES_BASE}/1/19/HOME_Let%27s_Go_Pikachu_icon.png`,
+  lgpe:  `${BULBAGARDEN_ARCHIVES_BASE}/3/3f/HOME_Let%27s_Go_Eevee_icon.png`,
+  sw:    `${BULBAGARDEN_ARCHIVES_BASE}/f/fe/HOME_Sword_icon.png`,
+  sh:    `${BULBAGARDEN_ARCHIVES_BASE}/c/c8/HOME_Shield_icon.png`,
+  bd:    `${BULBAGARDEN_ARCHIVES_BASE}/c/cf/HOME_Brilliant_Diamond_icon.png`,
+  sp:    `${BULBAGARDEN_ARCHIVES_BASE}/7/75/HOME_Shining_Pearl_icon.png`,
   pla:   `${BULBAGARDEN_ARCHIVES_BASE}/b/ba/HOME_Legends_Arceus_icon.png`,
-  sv:    `${BULBAGARDEN_ARCHIVES_BASE}/2/29/HOME_Scarlet_icon.png`,
+  sc:    `${BULBAGARDEN_ARCHIVES_BASE}/2/29/HOME_Scarlet_icon.png`,
+  vi:    `${BULBAGARDEN_ARCHIVES_BASE}/9/92/HOME_Violet_icon.png`,
   lza:   `${BULBAGARDEN_ARCHIVES_BASE}/4/4c/HOME_Legends_Z-A_icon.png`
 };
 
+// Arrays render as split dual-icon badges; single strings render as one icon.
 const SUGGESTED_GAME_BADGE_SYMBOLS = {
-  lgpe: HOME_GAME_ICON_URLS.lgpe,
-  swsh: HOME_GAME_ICON_URLS.swsh,
-  bdsp: HOME_GAME_ICON_URLS.bdsp,
+  lgpe: [HOME_GAME_ICON_URLS.lgpp, HOME_GAME_ICON_URLS.lgpe],
+  swsh: [HOME_GAME_ICON_URLS.sw,   HOME_GAME_ICON_URLS.sh],
+  bdsp: [HOME_GAME_ICON_URLS.bd,   HOME_GAME_ICON_URLS.sp],
   pla:  HOME_GAME_ICON_URLS.pla,
-  sv:   HOME_GAME_ICON_URLS.sv,
+  sv:   [HOME_GAME_ICON_URLS.sc,   HOME_GAME_ICON_URLS.vi],
   lza:  HOME_GAME_ICON_URLS.lza
 };
 
@@ -5823,19 +5828,25 @@ function createSuggestedGameBadge(game, options = {}) {
   badge.setAttribute("role", "img");
   badge.setAttribute("aria-label", `${game.name} catch suggestion`);
 
-  const symbolPath = SUGGESTED_GAME_BADGE_SYMBOLS[game.id] ?? "";
-  if (symbolPath) {
-    const symbol = document.createElement("img");
-    symbol.className = "suggested-game-symbol";
-    symbol.src = symbolPath;
-    symbol.alt = "";
-    symbol.decoding = "async";
-    symbol.onerror = () => {
-      symbol.onerror = null;
-      symbol.classList.add("is-missing");
-      symbol.removeAttribute("src");
-    };
-    badge.appendChild(symbol);
+  const symbolValue = SUGGESTED_GAME_BADGE_SYMBOLS[game.id] ?? "";
+  const symbolPaths = Array.isArray(symbolValue) ? symbolValue : (symbolValue ? [symbolValue] : []);
+  if (symbolPaths.length) {
+    if (symbolPaths.length > 1) {
+      badge.classList.add("suggested-game-symbol-badge--split");
+    }
+    for (const path of symbolPaths) {
+      const symbol = document.createElement("img");
+      symbol.className = "suggested-game-symbol";
+      symbol.src = path;
+      symbol.alt = "";
+      symbol.decoding = "async";
+      symbol.onerror = () => {
+        symbol.onerror = null;
+        symbol.classList.add("is-missing");
+        symbol.removeAttribute("src");
+      };
+      badge.appendChild(symbol);
+    }
     return badge;
   }
 
@@ -11920,7 +11931,10 @@ function renderModuleQueue(options = {}) {
           <span>Legends: Arceus</span>
         </div>
         <div class="tool-showcase-game-chip tool-showcase-game-chip--sv">
-          <img src="${HOME_GAME_ICON_URLS.sv}" alt="Scarlet / Violet" class="tool-showcase-game-img" />
+          <span class="tool-showcase-game-img-pair">
+            <img src="${HOME_GAME_ICON_URLS.sc}" alt="" class="tool-showcase-game-img" />
+            <img src="${HOME_GAME_ICON_URLS.vi}" alt="" class="tool-showcase-game-img" />
+          </span>
           <span>Scarlet / Violet</span>
         </div>
       </div>
@@ -11937,7 +11951,10 @@ function renderModuleQueue(options = {}) {
         <p>crafting recipes</p>
       </article>
       <article class="tool-showcase-stat tool-showcase-stat--sv">
-        <img src="${HOME_GAME_ICON_URLS.sv}" alt="" class="tool-showcase-stat-badge" />
+        <span class="tool-showcase-stat-badge-pair">
+          <img src="${HOME_GAME_ICON_URLS.sc}" alt="" class="tool-showcase-stat-badge" />
+          <img src="${HOME_GAME_ICON_URLS.vi}" alt="" class="tool-showcase-stat-badge" />
+        </span>
         <strong>${formatCount(SV_SHINY_SANDWICH_RECIPES.length)}</strong>
         <p>sandwich routes</p>
       </article>
@@ -12181,8 +12198,9 @@ function renderModuleQueue(options = {}) {
   svCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
-        <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
-          <img src="${HOME_GAME_ICON_URLS.sv}" alt="" />
+        <div class="tool-card-orb tool-card-orb--img tool-card-orb--split" aria-hidden="true">
+          <img src="${HOME_GAME_ICON_URLS.sc}" alt="" />
+          <img src="${HOME_GAME_ICON_URLS.vi}" alt="" />
         </div>
         <div class="tool-card-copy">
           <span class="module-status live">Scarlet / Violet</span>
