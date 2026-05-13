@@ -9,6 +9,12 @@
       name="description"
       content="A PokeOS-inspired living form dex with system-style filters, scan results, and full Pokemon form detail."
     />
+    <script>
+      if (window.location.protocol === "file:") {
+        const targetUrl = `http://127.0.0.1:8126/${window.location.search}${window.location.hash}`;
+        window.location.replace(targetUrl);
+      }
+    </script>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,7 +22,7 @@
       href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=59" />
+    <link rel="stylesheet" href="./styles.css?v=71" />
   </head>
   <body>
     <div class="app-shell">
@@ -809,7 +815,7 @@
 
           <section class="panel-section">
             <p class="section-label">Checklist Status</p>
-            <div class="button-bank">
+            <div class="button-bank compact">
               <button type="button" class="bank-button active" data-status="all">
                 All
               </button>
@@ -818,6 +824,9 @@
               </button>
               <button type="button" class="bank-button" data-status="missing">
                 Missing
+              </button>
+              <button type="button" class="bank-button" data-status="owned-missing">
+                Owned Gaps
               </button>
             </div>
           </section>
@@ -1677,6 +1686,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script type="module" src="./app.js?v=59"></script>
+    <script type="module" src="./app.js?v=71"></script>
   </body>
 </html>

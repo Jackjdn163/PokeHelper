@@ -1,9 +1,15 @@
-const CACHE_NAME = "pokepilot-shell-v59";
+const CACHE_NAME = "pokepilot-shell-v71";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=59",
-  "./app.js?v=59",
+  "./styles.css?v=71",
+  "./app.js?v=71",
+  "./assets/game-badges/lgpe-badge.png",
+  "./assets/game-badges/swsh-badge.png",
+  "./assets/game-badges/bdsp-badge.png",
+  "./assets/game-badges/pla-badge.png",
+  "./assets/game-badges/sv-badge.png",
+  "./assets/game-badges/lza-emblem.png",
   "./game-tools-data.js",
   "./supabase-config.js",
   "./manifest.webmanifest",

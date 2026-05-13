@@ -1671,6 +1671,38 @@ const SPECIES_ORDER_DEFAULT_FORM_SUFFIXES = [
   "disguised"
 ];
 
+const UNOWN_FORM_ORDER = new Map([
+  ["unown", 0],
+  ["unown-a", 0],
+  ["unown-b", 1],
+  ["unown-c", 2],
+  ["unown-d", 3],
+  ["unown-e", 4],
+  ["unown-f", 5],
+  ["unown-g", 6],
+  ["unown-h", 7],
+  ["unown-i", 8],
+  ["unown-j", 9],
+  ["unown-k", 10],
+  ["unown-l", 11],
+  ["unown-m", 12],
+  ["unown-n", 13],
+  ["unown-o", 14],
+  ["unown-p", 15],
+  ["unown-q", 16],
+  ["unown-r", 17],
+  ["unown-s", 18],
+  ["unown-t", 19],
+  ["unown-u", 20],
+  ["unown-v", 21],
+  ["unown-w", 22],
+  ["unown-x", 23],
+  ["unown-y", 24],
+  ["unown-z", 25],
+  ["unown-exclamation", 26],
+  ["unown-question", 27]
+]);
+
 const HOME_BOX_COMPATIBILITY_RULES = [
   {
     tag: "Dex Only",
@@ -2263,6 +2295,7 @@ const state = {
   duplicatePlannerRequestToken: 0,
   randomTargets: [],
   shinyTargets: [],
+  suggestedCatchBadgeSeed: Math.floor(Math.random() * 2147483647),
   growthRateCache: new Map(),
   speciesCache: new Map(),
   detailCache: new Map(),
@@ -2281,6 +2314,7 @@ const state = {
     currentPokemonName: null,
     restoring: false
   },
+  deferredViewRenders: new Set(VALID_VIEW_IDS),
   activeRequestId: 0,
   archiveStats: {
     baseCount: 0,
@@ -3904,6 +3938,23 @@ function isAvailableInOwnedCoverage(baseNumber) {
   );
 }
 
+function isEntryAvailableInOwnedCoverage(entry) {
+  if (!entry) {
+    return false;
+  }
+
+  const ownedGames = getOwnedGameIds();
+
+  if (!ownedGames.length || !state.gameAvailabilityReady) {
+    return false;
+  }
+
+  return (
+    ownedGames.some((gameId) => isEntryAvailableInOwnedGameSelection(entry, gameId)) ||
+    (!entry.isForm && isAvailableViaOwnedDynamaxAdventure(entry.baseNumber))
+  );
+}
+
 function getVersionExclusiveLabel(gameId, baseNumber) {
   const matchingVersions = getVersionExclusiveVersions(gameId, baseNumber);
 
@@ -3966,6 +4017,10 @@ function shuffleEntries(entries) {
   return pool;
 }
 
+function refreshSuggestedCatchBadgeSeed() {
+  state.suggestedCatchBadgeSeed = Math.floor(Math.random() * 2147483647);
+}
+
 function refreshRandomTargets() {
   const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
   const catchPool =
@@ -3974,6 +4029,7 @@ function refreshRandomTargets() {
       : missingBaseEntries;
   const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
   const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
+  refreshSuggestedCatchBadgeSeed();
   state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
   ensureSuggestedBoardSelections();
@@ -3985,6 +4041,7 @@ function rerollRandomTargetBoard() {
     getOwnedGameIds().length && state.gameAvailabilityReady
       ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
       : missingBaseEntries;
+  refreshSuggestedCatchBadgeSeed();
   state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
   state.ui.selectedRandomTargetName = null;
   ensureSuggestedBoardSelections();
@@ -4208,6 +4265,10 @@ function getArchiveTrackedLabel() {
 
 function getArchiveMissingLabel() {
   return isArchiveShinyMode() ? "Missing Shiny" : "Missing";
+}
+
+function getArchiveOwnedMissingLabel() {
+  return isArchiveShinyMode() ? "Owned Hunts" : "Owned Gaps";
 }
 
 function isArchiveTracked(name) {
@@ -5176,6 +5237,85 @@ function setProgressBar(element, ratio) {
   element.style.width = `${normalized * 100}%`;
 }
 
+function markViewsDirty(...viewIds) {
+  viewIds.flat().forEach((viewId) => {
+    if (VALID_VIEW_IDS.has(viewId)) {
+      state.deferredViewRenders.add(viewId);
+    }
+  });
+}
+
+function clearDirtyViews(...viewIds) {
+  viewIds.flat().forEach((viewId) => {
+    state.deferredViewRenders.delete(viewId);
+  });
+}
+
+function isAnyViewDirty(...viewIds) {
+  return viewIds.flat().some((viewId) => state.deferredViewRenders.has(viewId));
+}
+
+function shouldRenderForViews(viewIds, force = false) {
+  const normalizedViewIds = [...new Set(viewIds.flat().filter((viewId) => VALID_VIEW_IDS.has(viewId)))];
+  if (force || normalizedViewIds.includes(state.ui.activeView)) {
+    clearDirtyViews(normalizedViewIds);
+    return true;
+  }
+
+  markViewsDirty(normalizedViewIds);
+  return false;
+}
+
+function flushDeferredViewRenders(viewId = state.ui.activeView) {
+  switch (viewId) {
+    case "landing":
+    case "collection":
+    case "vault":
+      if (isAnyViewDirty("landing", "collection", "vault")) {
+        renderCollections({ force: true });
+      }
+      if (viewId === "vault") {
+        renderTrainerVault();
+      }
+      break;
+    case "scan":
+      if (isAnyViewDirty("scan")) {
+        if (state.currentPokemon) {
+          renderCurrentPokemon(state.currentPokemon, { force: true });
+        } else {
+          clearDirtyViews("scan");
+          renderShinyHelper(state.currentPokemon, { force: true });
+        }
+      }
+      break;
+    case "shiny":
+      if (isAnyViewDirty("shiny")) {
+        renderShinyHub({ force: true });
+      }
+      break;
+    case "home":
+      if (isAnyViewDirty("home")) {
+        renderHomeOrganizer({ force: true });
+      }
+      break;
+    case "journey":
+      if (isAnyViewDirty("journey")) {
+        renderTracker({ force: true });
+      }
+      break;
+    case "lab":
+      if (isAnyViewDirty("lab")) {
+        renderSuggestors({ force: true });
+        renderModuleQueue({ force: true });
+        renderExpGameOptions();
+        void renderExpPlanner({ force: true });
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 function renderActiveView() {
   const activeView = state.ui.activeView;
   const systemViews = new Set(["collection", "home", "journey", "lab", "vault"]);
@@ -5211,9 +5351,7 @@ function setActiveView(viewId) {
   state.ui.activeView = viewId;
   saveUiSessionState();
   renderActiveView();
-  if (viewId === "shiny") {
-    renderShinyHub();
-  }
+  flushDeferredViewRenders(viewId);
   if (viewChanged) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -5612,8 +5750,99 @@ function getSuggestedCatchGenderBadgeLabel(entry) {
   return variantLabel === "Male" || variantLabel === "Female" ? variantLabel : "";
 }
 
+function getSuggestedCatchGenderBadgeMeta(entry) {
+  const label = getSuggestedCatchGenderBadgeLabel(entry);
+  if (!label) {
+    return null;
+  }
+
+  return {
+    label,
+    symbol: label === "Male" ? "♂" : "♀",
+    tone: label === "Male" ? "male" : "female"
+  };
+}
+
+const SUGGESTED_GAME_BADGE_SYMBOLS = {
+  lgpe: "./assets/game-badges/lgpe-badge.png",
+  swsh: "./assets/game-badges/swsh-badge.png",
+  bdsp: "./assets/game-badges/bdsp-badge.png",
+  pla: "./assets/game-badges/pla-badge.png",
+  sv: "./assets/game-badges/sv-badge.png",
+  lza: "./assets/game-badges/lza-emblem.png"
+};
+
+function getSuggestedCatchBadgeGame(entry) {
+  if (!entry || !state.gameAvailabilityReady) {
+    return null;
+  }
+
+  const ownedGameIds = getOwnedGameIds().filter((gameId) => isEntryAvailableInGame(entry, gameId));
+  const fallbackGameIds = GAME_CATALOG.map((game) => game.id).filter((gameId) =>
+    isEntryAvailableInGame(entry, gameId)
+  );
+  const eligibleGameIds = ownedGameIds.length ? ownedGameIds : fallbackGameIds;
+
+  if (!eligibleGameIds.length) {
+    return null;
+  }
+
+  const seedSource = `${state.suggestedCatchBadgeSeed}:${state.profileMeta.activeProfileId}:${entry.name}`;
+  let hash = 0;
+  for (const character of seedSource) {
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  }
+
+  return getGameMeta(eligibleGameIds[hash % eligibleGameIds.length]) ?? null;
+}
+
+function createSuggestedGameBadge(game, options = {}) {
+  if (!game) {
+    return null;
+  }
+
+  const { inline = false } = options;
+  const badge = document.createElement("span");
+  badge.className = inline
+    ? "suggested-entry-game-badge suggested-game-symbol-badge suggested-game-symbol-badge--inline"
+    : "suggested-hunt-badge suggested-hunt-badge--game suggested-game-symbol-badge";
+  badge.dataset.game = game.id;
+  badge.title = `${game.name} catch suggestion`;
+  badge.setAttribute("role", "img");
+  badge.setAttribute("aria-label", `${game.name} catch suggestion`);
+
+  const symbolPath = SUGGESTED_GAME_BADGE_SYMBOLS[game.id] ?? "";
+  if (symbolPath) {
+    const symbol = document.createElement("img");
+    symbol.className = "suggested-game-symbol";
+    symbol.src = symbolPath;
+    symbol.alt = "";
+    symbol.decoding = "async";
+    badge.appendChild(symbol);
+    return badge;
+  }
+
+  const monogram = document.createElement("span");
+  monogram.className = "suggested-game-symbol-monogram";
+  monogram.textContent = game.id === "lza" ? "ZA" : game.shortName.slice(0, 2).toUpperCase();
+  badge.appendChild(monogram);
+  return badge;
+}
+
+function appendSuggestedCatchGameBadge(element, entry) {
+  const game = getSuggestedCatchBadgeGame(entry);
+  if (!game) {
+    return;
+  }
+
+  const badge = createSuggestedGameBadge(game, { inline: true });
+  if (badge) {
+    element.appendChild(badge);
+  }
+}
+
 function renderSuggestedCatchLabel(element, entry, options = {}) {
-  const { emptyText = "", includeVariantDetail = false } = options;
+  const { emptyText = "", includeVariantDetail = false, includeGameBadge = false } = options;
   element.replaceChildren();
 
   if (!entry) {
@@ -5621,22 +5850,34 @@ function renderSuggestedCatchLabel(element, entry, options = {}) {
     return;
   }
 
-  const genderBadgeLabel = getSuggestedCatchGenderBadgeLabel(entry);
-  const primaryLabel = genderBadgeLabel && entry.baseDisplayName ? entry.baseDisplayName : entry.displayName;
+  const genderBadgeMeta = getSuggestedCatchGenderBadgeMeta(entry);
+  const primaryLabel = genderBadgeMeta && entry.baseDisplayName ? entry.baseDisplayName : entry.displayName;
   element.append(document.createTextNode(primaryLabel));
 
-  if (genderBadgeLabel) {
+  if (genderBadgeMeta) {
     const badge = document.createElement("span");
-    badge.className = "suggested-entry-gender-badge";
-    badge.textContent = genderBadgeLabel;
+    badge.className = `suggested-entry-gender-badge suggested-entry-gender-badge--${genderBadgeMeta.tone}`;
+    badge.textContent = genderBadgeMeta.symbol;
+    badge.title = genderBadgeMeta.label;
+    badge.setAttribute("aria-label", genderBadgeMeta.label);
     element.appendChild(badge);
   } else if (includeVariantDetail) {
     element.append(document.createTextNode(` · ${getEntryVariantLabel(entry)}`));
   }
+
+  if (includeGameBadge) {
+    appendSuggestedCatchGameBadge(element, entry);
+  }
 }
 
 function createSuggestedHuntTile(entry, options = {}) {
-  const { selected = false, forceShiny = false, onSelect = null, badgeLabel = "" } = options;
+  const {
+    selected = false,
+    forceShiny = false,
+    onSelect = null,
+    genderBadgeLabel = "",
+    gameBadgeGame = null
+  } = options;
   const button = document.createElement("button");
   button.type = "button";
   button.className = `suggested-hunt-tile${selected ? " is-selected" : ""}`;
@@ -5660,11 +5901,28 @@ function createSuggestedHuntTile(entry, options = {}) {
   dexBadge.className = "suggested-hunt-dex";
   dexBadge.textContent = `#${formatNumber(entry.baseNumber)}`;
 
-  if (badgeLabel) {
-    const formBadge = document.createElement("span");
-    formBadge.className = "suggested-hunt-badge";
-    formBadge.textContent = badgeLabel;
-    pod.appendChild(formBadge);
+  const genderBadgeMeta = genderBadgeLabel
+    ? {
+        label: genderBadgeLabel,
+        symbol: genderBadgeLabel === "Male" ? "♂" : "♀",
+        tone: genderBadgeLabel === "Male" ? "male" : "female"
+      }
+    : null;
+
+  if (gameBadgeGame) {
+    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
+    if (gameBadge) {
+      pod.appendChild(gameBadge);
+    }
+  }
+
+  if (genderBadgeMeta) {
+    const genderBadge = document.createElement("span");
+    genderBadge.className = `suggested-hunt-gender-badge suggested-hunt-gender-badge--${genderBadgeMeta.tone}`;
+    genderBadge.textContent = genderBadgeMeta.symbol;
+    genderBadge.title = genderBadgeMeta.label;
+    genderBadge.setAttribute("aria-label", genderBadgeMeta.label);
+    pod.appendChild(genderBadge);
   }
 
   pod.append(sprite, dexBadge);
@@ -5693,11 +5951,13 @@ function renderSuggestedHuntBoard(container, entries, options = {}) {
   }
 
   entries.forEach((entry) => {
+    const suggestedGame = kind === "living" ? getSuggestedCatchBadgeGame(entry) : null;
     container.appendChild(
       createSuggestedHuntTile(entry, {
         selected: entry.name === selectedName,
         forceShiny,
-        badgeLabel: kind === "living" ? getSuggestedCatchGenderBadgeLabel(entry) : "",
+        genderBadgeLabel: kind === "living" ? getSuggestedCatchGenderBadgeLabel(entry) : "",
+        gameBadgeGame: suggestedGame,
         onSelect: (nextEntry) => {
           const selectionMode =
             kind === "shiny" ? state.ui.landingActionMode === "shiny" : state.ui.landingActionMode === "living";
@@ -7464,8 +7724,22 @@ function getEntryWithinGroupOrder(entry) {
   return 2;
 }
 
+function getUnownWithinGroupOrder(entry) {
+  if (!entry || Number(entry.baseNumber) !== 201) {
+    return null;
+  }
+
+  return UNOWN_FORM_ORDER.get(String(entry.name ?? "").toLowerCase()) ?? null;
+}
+
 function compareEntriesWithinGroup(left, right) {
+  const leftUnownOrder = getUnownWithinGroupOrder(left);
+  const rightUnownOrder = getUnownWithinGroupOrder(right);
+
   return (
+    (leftUnownOrder !== null && rightUnownOrder !== null
+      ? leftUnownOrder - rightUnownOrder
+      : 0) ||
     getEntryWithinGroupOrder(left) - getEntryWithinGroupOrder(right) ||
     left.displayName.localeCompare(right.displayName) ||
     left.id - right.id
@@ -7886,8 +8160,15 @@ function renderGameAvailability(baseNumber) {
   records.forEach((record) => {
     const card = document.createElement("article");
     card.className = "availability-card";
+    card.dataset.game = record.id;
     card.classList.toggle("available", state.gameAvailabilityReady && record.available);
     card.classList.toggle("active", record.active);
+    card.classList.toggle("has-version-exclusive", Boolean(record.versionExclusiveLabel));
+    if (record.versionExclusiveClasses?.length) {
+      card.classList.add(
+        ...record.versionExclusiveClasses.map((className) => `availability-card--${className}`)
+      );
+    }
 
     const head = document.createElement("div");
     head.className = "availability-card-head";
@@ -8005,6 +8286,7 @@ function renderGameAvailability(baseNumber) {
       if (record.versionExclusiveLabel) {
         const versionBadge = document.createElement("span");
         versionBadge.className = "availability-badge version-exclusive";
+        versionBadge.dataset.game = record.id;
         if (record.versionExclusiveClasses?.length) {
           versionBadge.classList.add(...record.versionExclusiveClasses);
         }
@@ -8690,7 +8972,11 @@ function getShinyPlan(gameId, pokemon) {
   };
 }
 
-function renderShinyHelper(pokemon = state.currentPokemon) {
+function renderShinyHelper(pokemon = state.currentPokemon, options = {}) {
+  if (!shouldRenderForViews(["scan"], options.force)) {
+    return;
+  }
+
   const activeGame = getGameMeta(getActiveGameId());
   const summaryTarget = pokemon?.displayName ?? "your next target";
 
@@ -8786,7 +9072,11 @@ function renderShinyHelper(pokemon = state.currentPokemon) {
   });
 }
 
-function renderShinyHub() {
+function renderShinyHub(options = {}) {
+  if (!shouldRenderForViews(["shiny"], options.force)) {
+    return;
+  }
+
   const shinyDexBaseEntries = getBaseEntries().filter((entry) => !isShinyDexLocked(entry.name));
   const shinyCaughtCount = shinyDexBaseEntries.reduce((sum, entry) => sum + Number(isShiny(entry.name)), 0);
   const totalRatio = shinyDexBaseEntries.length ? shinyCaughtCount / shinyDexBaseEntries.length : 0;
@@ -10187,7 +10477,9 @@ function collectMissingEvolutionCoverageTargets(node, targets = [], seenSpecies 
         displayName: titleCase(speciesName)
       });
     }
+  });
 
+  node.evolves_to.forEach((nextNode) => {
     collectMissingEvolutionCoverageTargets(nextNode, targets, seenSpecies);
   });
 
@@ -10305,7 +10597,7 @@ async function buildDuplicatePlannerRecord(entry) {
   }
 
   const remainingCount = Math.max(0, duplicateCount - evolveCount);
-  const tradeCapacity = entry.isForm ? 1 : 2;
+  const tradeCapacity = 3;
   const tradeCount = Math.min(remainingCount, tradeCapacity);
   const releaseCount = Math.max(0, remainingCount - tradeCount);
   const recommendedAction = evolveCount > 0 ? "evolve" : tradeCount > 0 ? "trade" : "release";
@@ -10467,7 +10759,11 @@ function renderDuplicatePlanner() {
     });
 }
 
-function renderCollections() {
+function renderCollections(options = {}) {
+  if (!shouldRenderForViews(["landing", "collection", "vault"], options.force)) {
+    return;
+  }
+
   const profile = getActiveProfile();
   const baseEntries = getBaseEntries();
   const shinyDexEntries = getShinyDexEntries();
@@ -10673,7 +10969,8 @@ function renderCollections() {
     : "Everything in the base archive is already caught for this profile. Flip to a fresh profile or start a shiny push.";
   renderSuggestedCatchLabel(elements.landingTargetSelected, selectedLivingTarget, {
     emptyText: livingSelectionMode ? "Select a target or cancel" : "Choose a target",
-    includeVariantDetail: true
+    includeVariantDetail: true,
+    includeGameBadge: true
   });
   elements.landingShinyTargetSelected.textContent = selectedShinyTarget
     ? `${selectedShinyTarget.displayName} · Shiny Preview`
@@ -10981,7 +11278,11 @@ async function buildLocationAnswer(pokemon) {
   return `${pokemon.displayName} is tracked in these Switch games: ${records.map((record) => record.shortName).join(", ")}. The current archive does not have route-level area names attached yet.`;
 }
 
-function renderHomeOrganizer() {
+function renderHomeOrganizer(options = {}) {
+  if (!shouldRenderForViews(["home"], options.force)) {
+    return;
+  }
+
   const homeBoxEntries = getHomeBoxEntries();
   const homeExcludedEntries = getHomeExcludedEntries();
   const templateBoxes = getHomeTemplateBoxes();
@@ -11276,7 +11577,11 @@ function renderHomeOrganizer() {
   });
 }
 
-function renderModuleQueue() {
+function renderModuleQueue(options = {}) {
+  if (!shouldRenderForViews(["lab"], options.force)) {
+    return;
+  }
+
   if (!elements.moduleGrid) {
     return;
   }
@@ -11423,19 +11728,27 @@ function renderModuleQueue() {
     };
   };
 
-  const saveAndRefreshTools = (statusMessage = "") => {
-    preserveViewportScroll(() => {
+  const TOOL_PANEL_IDS = {
+    showcase: "showcase",
+    lza: "lza",
+    pla: "pla",
+    sv: "sv",
+    supply: "supply"
+  };
+
+  const saveAndRefreshTools = (statusMessage = "", anchorId = "") => {
+    preserveModuleQueueScroll(() => {
       saveToolsState();
       renderModuleQueue();
       if (statusMessage) {
         setStatus(statusMessage);
       }
-    });
+    }, anchorId);
   };
 
   const setLzaDonutSlot = (index, berryName) => {
     state.tools.lza.slots[index] = LZA_DONUT_BERRIES_BY_NAME.has(berryName) ? berryName : "";
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.lza);
   };
 
   const applyLzaPreset = (presetId) => {
@@ -11445,12 +11758,12 @@ function renderModuleQueue() {
     }
 
     state.tools.lza.slots = Array.from({ length: 8 }, (_, index) => preset.berries[index] ?? "");
-    saveAndRefreshTools(`${preset.title} loaded into the donut mocker.`);
+    saveAndRefreshTools(`${preset.title} loaded into the donut mocker.`, TOOL_PANEL_IDS.lza);
   };
 
   const clearLzaBuilder = () => {
     state.tools.lza.slots = Array(8).fill("");
-    saveAndRefreshTools("Donut builder cleared.");
+    saveAndRefreshTools("Donut builder cleared.", TOOL_PANEL_IDS.lza);
   };
 
   const setPlaRecipeName = (recipeName) => {
@@ -11459,12 +11772,12 @@ function renderModuleQueue() {
     }
 
     state.tools.pla.recipeName = recipeName;
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.pla);
   };
 
   const setPlaRecipeAmount = (value) => {
     state.tools.pla.amount = Math.max(1, normalizeNonNegativeInteger(value, 1));
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.pla);
   };
 
   const setPlaMaterialCount = (materialName, value) => {
@@ -11474,7 +11787,7 @@ function renderModuleQueue() {
     } else {
       delete state.tools.pla.materialCounts[materialName];
     }
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.pla);
   };
 
   const setPlaMaterialCost = (materialName, value) => {
@@ -11484,7 +11797,7 @@ function renderModuleQueue() {
     } else {
       delete state.tools.pla.materialCosts[materialName];
     }
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.pla);
   };
 
   const setSvSandwichType = (type) => {
@@ -11493,12 +11806,12 @@ function renderModuleQueue() {
     }
 
     state.tools.sv.type = type;
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.sv);
   };
 
   const addSupplyTrackerRow = () => {
     state.tools.supply.rows.push(createDefaultSupplyRow());
-    saveAndRefreshTools("Added a new supply line.");
+    saveAndRefreshTools("Added a new supply line.", TOOL_PANEL_IDS.supply);
   };
 
   const updateSupplyTrackerRow = (rowId, field, value) => {
@@ -11515,7 +11828,7 @@ function renderModuleQueue() {
       row.name = String(value ?? "");
     }
 
-    saveAndRefreshTools();
+    saveAndRefreshTools("", TOOL_PANEL_IDS.supply);
   };
 
   const removeSupplyTrackerRow = (rowId) => {
@@ -11523,7 +11836,7 @@ function renderModuleQueue() {
     if (!state.tools.supply.rows.length) {
       state.tools.supply.rows = [createDefaultSupplyRow()];
     }
-    saveAndRefreshTools("Removed a supply line.");
+    saveAndRefreshTools("Removed a supply line.", TOOL_PANEL_IDS.supply);
   };
 
   const buildBerryOptions = (selectedValue) => {
@@ -11572,6 +11885,7 @@ function renderModuleQueue() {
 
   const showcaseCard = document.createElement("article");
   showcaseCard.className = "module-card tool-showcase-card";
+  showcaseCard.dataset.toolPanel = TOOL_PANEL_IDS.showcase;
   showcaseCard.innerHTML = `
     <div class="tool-showcase-copy">
       <span class="module-status queued">Workbench Overview</span>
@@ -11579,6 +11893,12 @@ function renderModuleQueue() {
       <p class="results-summary">
         Every calculator here stays tied to the current save profile, so your berry mockups, material counts, sandwich picks, and running costs all move together.
       </p>
+      <div class="tool-showcase-route-row">
+        <span class="tool-showcase-route-chip">Berry Mockups</span>
+        <span class="tool-showcase-route-chip">Craft Costs</span>
+        <span class="tool-showcase-route-chip">Sparkling Bases</span>
+        <span class="tool-showcase-route-chip">Shared Totals</span>
+      </div>
     </div>
     <div class="tool-showcase-grid">
       <article class="tool-showcase-stat">
@@ -11606,6 +11926,7 @@ function renderModuleQueue() {
 
   const lzaCard = document.createElement("article");
   lzaCard.className = "module-card tool-station-card tool-station-card--lza tool-station-card--wide";
+  lzaCard.dataset.toolPanel = TOOL_PANEL_IDS.lza;
   lzaCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
@@ -11711,6 +12032,7 @@ function renderModuleQueue() {
 
   const plaCard = document.createElement("article");
   plaCard.className = "module-card tool-station-card tool-station-card--pla";
+  plaCard.dataset.toolPanel = TOOL_PANEL_IDS.pla;
   plaCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
@@ -11814,6 +12136,7 @@ function renderModuleQueue() {
 
   const svCard = document.createElement("article");
   svCard.className = "module-card tool-station-card tool-station-card--sv";
+  svCard.dataset.toolPanel = TOOL_PANEL_IDS.sv;
   svCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
@@ -11875,6 +12198,7 @@ function renderModuleQueue() {
 
   const supplyCard = document.createElement("article");
   supplyCard.className = "module-card tool-station-card tool-station-card--supply tool-station-card--wide";
+  supplyCard.dataset.toolPanel = TOOL_PANEL_IDS.supply;
   supplyCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
@@ -11976,6 +12300,53 @@ function preserveViewportScroll(callback) {
   const previousY = window.scrollY;
 
   const restore = () => {
+    if (window.scrollX !== previousX || window.scrollY !== previousY) {
+      window.scrollTo(previousX, previousY);
+    }
+  };
+
+  callback();
+
+  restore();
+
+  window.requestAnimationFrame(() => {
+    restore();
+    window.requestAnimationFrame(restore);
+  });
+}
+
+function preserveModuleQueueScroll(callback, anchorId = "") {
+  const previousX = window.scrollX;
+  const previousY = window.scrollY;
+  const panelSelector = "[data-tool-panel]";
+  const explicitAnchor =
+    anchorId && elements.moduleGrid
+      ? elements.moduleGrid.querySelector(`${panelSelector}[data-tool-panel="${anchorId}"]`)
+      : null;
+  const visibleAnchor =
+    explicitAnchor ??
+    [...(elements.moduleGrid?.querySelectorAll(panelSelector) ?? [])].find((panel) => {
+      const rect = panel.getBoundingClientRect();
+      return rect.bottom > 120 && rect.top < window.innerHeight - 48;
+    }) ??
+    null;
+  const resolvedAnchorId = visibleAnchor?.dataset.toolPanel ?? "";
+  const previousTop = visibleAnchor?.getBoundingClientRect().top ?? null;
+
+  const restore = () => {
+    if (resolvedAnchorId && previousTop !== null && elements.moduleGrid) {
+      const nextAnchor = elements.moduleGrid.querySelector(
+        `${panelSelector}[data-tool-panel="${resolvedAnchorId}"]`
+      );
+      if (nextAnchor) {
+        const delta = nextAnchor.getBoundingClientRect().top - previousTop;
+        if (Math.abs(delta) > 1) {
+          window.scrollBy(0, delta);
+        }
+        return;
+      }
+    }
+
     if (window.scrollX !== previousX || window.scrollY !== previousY) {
       window.scrollTo(previousX, previousY);
     }
@@ -12274,7 +12645,11 @@ function createJourneySelectCard(game) {
   return button;
 }
 
-function renderTracker() {
+function renderTracker(options = {}) {
+  if (!shouldRenderForViews(["journey"], options.force)) {
+    return;
+  }
+
   const { ownedCount, clearedCount } = getOwnedSummary();
   const selectedGameId = state.ui.journeySelectedGame;
   const selectedGame = selectedGameId ? getGameMeta(selectedGameId) : null;
@@ -12861,7 +13236,11 @@ async function setExpTargetToNextEvolution() {
   }
 }
 
-async function renderExpPlanner() {
+async function renderExpPlanner(options = {}) {
+  if (!shouldRenderForViews(["lab"], options.force)) {
+    return;
+  }
+
   const pokemon = state.currentPokemon;
   elements.expSpeciesLabel.textContent = pokemon ? `${pokemon.displayName} target` : "Open a Pokédex entry";
 
@@ -13097,7 +13476,11 @@ function getNextTask() {
   };
 }
 
-function renderSuggestors() {
+function renderSuggestors(options = {}) {
+  if (!shouldRenderForViews(["lab"], options.force)) {
+    return;
+  }
+
   const catchTarget = getSuggestedCatchEntry();
   const shinyTarget = getSuggestedShinyEntry();
   const task = getNextTask();
@@ -13105,7 +13488,8 @@ function renderSuggestors() {
   elements.advisorFocus.textContent = task.focus;
 
   renderSuggestedCatchLabel(elements.suggestCatchName, catchTarget, {
-    emptyText: "All visible entries logged"
+    emptyText: "All visible entries logged",
+    includeGameBadge: true
   });
   elements.suggestCatchText.textContent = catchTarget
     ? `${catchTarget.displayName} is the next missing target in your current archive stack.`
@@ -13490,12 +13874,20 @@ function clearCurrentScan() {
   setStatus("Current scan cleared.");
 }
 
-function renderCurrentPokemon(pokemon) {
+function renderCurrentPokemon(pokemon, options = {}) {
   const previousPokemonName = state.currentPokemon?.name ?? null;
   state.currentPokemon = pokemon;
   state.sessionRestore.currentPokemonName = pokemon.name;
   saveUiSessionState();
   setSelectedDexEntryCard(pokemon.name, previousPokemonName);
+  renderCurrentScanRibbon();
+
+  if (!options.force && state.ui.activeView !== "scan") {
+    markViewsDirty("scan");
+    return;
+  }
+
+  clearDirtyViews("scan");
   const shiny = isShiny(pokemon.name);
   const shinyLocked = isShinyDexLocked(pokemon.name);
   const bookmarked = isBookmarked(pokemon.name);
@@ -13511,7 +13903,6 @@ function renderCurrentPokemon(pokemon) {
   elements.pokemonHabitat.textContent = pokemon.habitat;
   elements.pokemonGeneration.textContent = pokemon.generation;
   renderPokedexEntries(pokemon);
-  renderCurrentScanRibbon();
   elements.bstTotal.textContent = `BST ${pokemon.bst}`;
   renderScanCaughtControls(pokemon);
   elements.toggleShinyButton.disabled = shinyLocked;
@@ -13588,6 +13979,7 @@ function getFilteredEntries() {
   const filtered = state.entries.filter((entry) => {
     const shinyDexVisible = !isArchiveShinyMode() || !isShinyDexLocked(entry.name);
     const tracked = isArchiveTracked(entry.name);
+    const ownedMissing = !tracked && isEntryAvailableInOwnedCoverage(entry);
     const scopeMatches =
       state.filters.scope === "all" ||
       (state.filters.scope === "base" && !entry.isForm) ||
@@ -13595,7 +13987,8 @@ function getFilteredEntries() {
     const statusMatches =
       state.filters.status === "all" ||
       (state.filters.status === "caught" && tracked) ||
-      (state.filters.status === "missing" && !tracked);
+      (state.filters.status === "missing" && !tracked) ||
+      (state.filters.status === "owned-missing" && ownedMissing);
     const generationMatches =
       state.filters.generation === "all" || String(entry.generation) === state.filters.generation;
     const gameMatches =
@@ -13669,6 +14062,8 @@ function renderFilterButtons() {
       button.textContent = getArchiveTrackedLabel();
     } else if (button.dataset.status === "missing") {
       button.textContent = getArchiveMissingLabel();
+    } else if (button.dataset.status === "owned-missing") {
+      button.textContent = getArchiveOwnedMissingLabel();
     } else {
       button.textContent = "All";
     }
@@ -14822,6 +15217,7 @@ elements.expLevel100Button.addEventListener("click", () => {
 renderModuleQueue();
 const bootedFromDexCache = hydrateDexIndexFromCache();
 renderActiveView();
+flushDeferredViewRenders();
 renderDetailTabs();
 renderCurrentScanRibbon();
 renderCollections();
