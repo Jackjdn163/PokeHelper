@@ -5825,7 +5825,9 @@ function resolveGameBadgeIconUrl(game, entrySeed = 0) {
     .map((v) => v.id);
 
   if (!ownedVersionIds.length) {
-    return null;
+    // Game is owned but versions not yet synced — fall back to first icon.
+    const fallback = SUGGESTED_GAME_BADGE_SYMBOLS[game.id];
+    return Array.isArray(fallback) ? fallback[entrySeed % fallback.length] : (fallback ?? null);
   }
 
   const picked = ownedVersionIds[entrySeed % ownedVersionIds.length];
@@ -5841,14 +5843,7 @@ function getSuggestedCatchBadgeGame(entry) {
   const fallbackGameIds = GAME_CATALOG.map((game) => game.id).filter((gameId) =>
     isEntryAvailableInGame(entry, gameId)
   );
-  // When using owned games, only include those that have at least one owned version checked.
-  const resolvedOwnedIds = ownedGameIds.filter((gameId) => {
-    const game = getGameMeta(gameId);
-    const versions = game ? getGameVersions(game) : [];
-    if (!versions.length) return true;
-    return versions.some((v) => state.tracker.games[gameId]?.versions?.[v.id]);
-  });
-  const eligibleGameIds = resolvedOwnedIds.length ? resolvedOwnedIds : fallbackGameIds;
+  const eligibleGameIds = ownedGameIds.length ? ownedGameIds : fallbackGameIds;
 
   if (!eligibleGameIds.length) {
     return null;
