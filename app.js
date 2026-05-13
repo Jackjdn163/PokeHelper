@@ -74,7 +74,8 @@ const VALID_VIEW_IDS = new Set([
   "journey",
   "lab",
   "maps",
-  "vault"
+  "vault",
+  "ai"
 ]);
 const VALID_DETAIL_TAB_IDS = new Set(["overview", "battle", "field"]);
 const VALID_ARCHIVE_VIEW_IDS = new Set(["list", "grid"]);
@@ -4022,13 +4023,17 @@ function refreshSuggestedCatchBadgeSeed() {
   state.suggestedCatchBadgeSeed = Math.floor(Math.random() * 2147483647);
 }
 
+function isSuggestableLivingEntry(entry) {
+  return !entry.isForm || entry.syntheticKind === "gender";
+}
+
 function refreshRandomTargets() {
-  const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
+  const missingBaseEntries = state.entries.filter((entry) => isSuggestableLivingEntry(entry) && !isCaught(entry.name));
   const catchPool =
     getOwnedGameIds().length && state.gameAvailabilityReady
       ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
       : missingBaseEntries;
-  const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
+  const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !entry.isForm && !isShinyDexLocked(entry.name));
   const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
   refreshSuggestedCatchBadgeSeed();
   state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
@@ -4037,7 +4042,7 @@ function refreshRandomTargets() {
 }
 
 function rerollRandomTargetBoard() {
-  const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
+  const missingBaseEntries = state.entries.filter((entry) => isSuggestableLivingEntry(entry) && !isCaught(entry.name));
   const catchPool =
     getOwnedGameIds().length && state.gameAvailabilityReady
       ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
@@ -5324,7 +5329,7 @@ function flushDeferredViewRenders(viewId = state.ui.activeView) {
 
 function renderActiveView() {
   const activeView = state.ui.activeView;
-  const systemViews = new Set(["collection", "home", "journey", "lab", "vault"]);
+  const systemViews = new Set(["collection", "home", "journey", "lab", "vault", "ai"]);
   document.body.dataset.activeView = activeView;
 
   elements.navTabs.forEach((button) => {
@@ -5770,19 +5775,18 @@ function getSuggestedCatchGenderBadgeMeta(entry) {
 }
 
 const POKEMONDB_HOME_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/normal";
-const BULBAGARDEN_ARCHIVES_BASE = "https://archives.bulbagarden.net/media/upload";
 
 const HOME_GAME_ICON_URLS = {
-  lgpp:  `${BULBAGARDEN_ARCHIVES_BASE}/1/19/HOME_Let%27s_Go_Pikachu_icon.png`,
-  lgpe:  `${BULBAGARDEN_ARCHIVES_BASE}/3/3f/HOME_Let%27s_Go_Eevee_icon.png`,
-  sw:    `${BULBAGARDEN_ARCHIVES_BASE}/f/fe/HOME_Sword_icon.png`,
-  sh:    `${BULBAGARDEN_ARCHIVES_BASE}/c/c8/HOME_Shield_icon.png`,
-  bd:    `${BULBAGARDEN_ARCHIVES_BASE}/c/cf/HOME_Brilliant_Diamond_icon.png`,
-  sp:    `${BULBAGARDEN_ARCHIVES_BASE}/7/75/HOME_Shining_Pearl_icon.png`,
-  pla:   `${BULBAGARDEN_ARCHIVES_BASE}/b/ba/HOME_Legends_Arceus_icon.png`,
-  sc:    `${BULBAGARDEN_ARCHIVES_BASE}/2/29/HOME_Scarlet_icon.png`,
-  vi:    `${BULBAGARDEN_ARCHIVES_BASE}/9/92/HOME_Violet_icon.png`,
-  lza:   `${BULBAGARDEN_ARCHIVES_BASE}/4/4c/HOME_Legends_Z-A_icon.png`
+  lgpp: "./assets/game-badges/lgpe-pikachu.png",
+  lgpe: "./assets/game-badges/lgpe-eevee.png",
+  sw:   "./assets/game-badges/swsh-sword.png",
+  sh:   "./assets/game-badges/swsh-shield.png",
+  bd:   "./assets/game-badges/bdsp-diamond.png",
+  sp:   "./assets/game-badges/bdsp-pearl.png",
+  pla:  "./assets/game-badges/pla-arceus.png",
+  sc:   "./assets/game-badges/sv-scarlet.png",
+  vi:   "./assets/game-badges/sv-violet.png",
+  lza:  "./assets/game-badges/lza-emblem.png"
 };
 
 // Maps each game version ID (as stored in state.tracker.games[gameId].versions) to its icon URL.
