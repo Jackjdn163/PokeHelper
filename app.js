@@ -10871,10 +10871,11 @@ function renderCollections(options = {}) {
   const shinyLockedEntries = state.entries
     .filter((entry) => isShinyDexLocked(entry.name))
     .sort((left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right));
+  const suggestableLivingEntries = state.entries.filter((entry) => isSuggestableLivingEntry(entry));
   const catchSeedPool =
     ownedGames.length && state.gameAvailabilityReady
-      ? baseEntries.filter((entry) => !isCaught(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber))
-      : baseEntries.filter((entry) => !isCaught(entry.name));
+      ? suggestableLivingEntries.filter((entry) => !isCaught(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber))
+      : suggestableLivingEntries.filter((entry) => !isCaught(entry.name));
   const shinySeedPool = baseEntries.filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name));
 
   if ((!state.randomTargets.length && catchSeedPool.length) || (!state.shinyTargets.length && shinySeedPool.length)) {
@@ -13594,57 +13595,57 @@ const MAPS_GAME_CATALOG = [
     id: "sv",
     label: "Scarlet / Violet",
     maps: [
-      { title: "Paldea",             url: "https://archives.bulbagarden.net/media/upload/2/2a/Paldea.png" },
-      { title: "Kitakami",           url: "https://archives.bulbagarden.net/media/upload/0/01/Kitakami.png" },
-      { title: "Blueberry Academy",  url: "https://archives.bulbagarden.net/media/upload/d/d2/Blueberry_Academy.png" }
+      { title: "Paldea",             url: "./assets/maps/sv-paldea.png" },
+      { title: "Kitakami",           url: "./assets/maps/sv-kitakami.png" },
+      { title: "Blueberry Academy",  url: "./assets/maps/sv-blueberry-academy.png" }
     ]
   },
   {
     id: "swsh",
     label: "Sword / Shield",
     maps: [
-      { title: "Galar",              url: "https://archives.bulbagarden.net/media/upload/b/be/Galar_Sh.png" },
-      { title: "Crown Tundra",       url: "https://archives.bulbagarden.net/media/upload/6/61/Galar_Crown_Tundra_SwSh.png" },
-      { title: "Isle of Armor",      url: "https://archives.bulbagarden.net/media/upload/f/f9/Galar_Isle_of_Armor_SwSh.png" }
+      { title: "Galar",              url: "./assets/maps/swsh-galar.png" },
+      { title: "Crown Tundra",       url: "./assets/maps/swsh-crown-tundra.png" },
+      { title: "Isle of Armor",      url: "./assets/maps/swsh-isle-of-armor.png" }
     ]
   },
   {
     id: "lgpe",
     label: "Let's Go",
     maps: [
-      { title: "Kanto",              url: "https://archives.bulbagarden.net/media/upload/d/d5/Kanto_Town_Map_PE.png" }
+      { title: "Kanto",              url: "./assets/maps/lgpe-kanto.png" }
     ]
   },
   {
     id: "lza",
     label: "Legends: Z-A",
     maps: [
-      { title: "Lumiose City",            url: "https://archives.bulbagarden.net/media/upload/9/97/ZA_Lumiose_City_Day.png" },
-      { title: "The Sewers (Bleu)",       url: "https://archives.bulbagarden.net/media/upload/c/c3/ZA_The_Sewers_%28Bleu_District%29.png" },
-      { title: "The Sewers (Magenta)",    url: "https://archives.bulbagarden.net/media/upload/c/c8/ZA_The_Sewers_%28Magenta_District%29.png" },
-      { title: "Lysandre Labs B1F",       url: "https://archives.bulbagarden.net/media/upload/8/8f/ZA_Lysandre_Labs_B1F.png" },
-      { title: "Lysandre Labs B2F",       url: "https://archives.bulbagarden.net/media/upload/0/0c/ZA_Lysandre_Labs_B2F.png" },
-      { title: "Lysandre Labs B3F",       url: "https://archives.bulbagarden.net/media/upload/b/bf/ZA_Lysandre_Labs_B3F.png" }
+      { title: "Lumiose City",         url: "./assets/maps/lza-lumiose-city.png" },
+      { title: "The Sewers (Bleu)",    url: "./assets/maps/lza-sewers-bleu.png" },
+      { title: "The Sewers (Magenta)", url: "./assets/maps/lza-sewers-magenta.png" },
+      { title: "Lysandre Labs B1F",    url: "./assets/maps/lza-lysandre-b1f.png" },
+      { title: "Lysandre Labs B2F",    url: "./assets/maps/lza-lysandre-b2f.png" },
+      { title: "Lysandre Labs B3F",    url: "./assets/maps/lza-lysandre-b3f.png" }
     ]
   },
   {
     id: "bdsp",
     label: "Brilliant Diamond / Shining Pearl",
     maps: [
-      { title: "Sinnoh",             url: "https://archives.bulbagarden.net/media/upload/f/f8/Sinnoh_BDSP.png" }
+      { title: "Sinnoh",             url: "./assets/maps/bdsp-sinnoh.png" }
     ]
   },
   {
     id: "pla",
     label: "Legends: Arceus",
     maps: [
-      { title: "Hisui",              url: "https://archives.bulbagarden.net/media/upload/5/5b/Hisui.png" },
-      { title: "Obsidian Fieldlands",url: "https://archives.bulbagarden.net/media/upload/3/31/Obsidian_Fieldlands_Map.png" },
-      { title: "Crimson Mirelands",  url: "https://archives.bulbagarden.net/media/upload/2/2f/Crimson_Mirelands_Map.png" },
-      { title: "Cobalt Coastlands",  url: "https://archives.bulbagarden.net/media/upload/5/51/Cobalt_Coastlands_Map.png" },
-      { title: "Coronet Highlands",  url: "https://archives.bulbagarden.net/media/upload/f/f7/Coronet_Highlands_Map.png" },
-      { title: "Alabaster Icelands", url: "https://archives.bulbagarden.net/media/upload/b/be/Alabaster_Icelands_Map.png" },
-      { title: "Jubilife Village",   url: "https://archives.bulbagarden.net/media/upload/8/89/Jubilife_Village_Map.png" }
+      { title: "Hisui",               url: "./assets/maps/pla-hisui.png" },
+      { title: "Obsidian Fieldlands", url: "./assets/maps/pla-obsidian.png" },
+      { title: "Crimson Mirelands",   url: "./assets/maps/pla-crimson.png" },
+      { title: "Cobalt Coastlands",   url: "./assets/maps/pla-cobalt.png" },
+      { title: "Coronet Highlands",   url: "./assets/maps/pla-coronet.png" },
+      { title: "Alabaster Icelands",  url: "./assets/maps/pla-alabaster.png" },
+      { title: "Jubilife Village",    url: "./assets/maps/pla-jubilife.png" }
     ]
   }
 ];

@@ -62,6 +62,12 @@
     return Object.keys(ctx).length ? ctx : null;
   }
 
+  function dismissWelcome() {
+    const chatWindow = document.getElementById("ai-chat-window");
+    const welcome = chatWindow?.querySelector(".ai-welcome");
+    if (welcome) welcome.remove();
+  }
+
   function appendMessage(role, text, opts = {}) {
     const chatWindow = document.getElementById("ai-chat-window");
     if (!chatWindow) return null;
@@ -99,6 +105,8 @@
   async function sendMessage(text) {
     text = text.trim();
     if (!text) return;
+
+    dismissWelcome();
 
     const input = document.getElementById("ai-input");
     if (input) { input.value = ""; input.style.height = "auto"; }
@@ -142,6 +150,45 @@
     }
   }
 
+  function renderWelcome() {
+    const chatWindow = document.getElementById("ai-chat-window");
+    if (!chatWindow || chatWindow.children.length > 0) return;
+
+    const welcome = document.createElement("div");
+    welcome.className = "ai-welcome";
+
+    const title = document.createElement("p");
+    title.className = "ai-welcome-title";
+    title.textContent = "PokePilot AI";
+
+    const sub = document.createElement("p");
+    sub.className = "ai-welcome-sub";
+    sub.textContent = "Ask me anything about your dex, shiny odds, hunting methods, or team building. I can see your progress data to give personalised answers.";
+
+    const chips = document.createElement("div");
+    chips.className = "ai-welcome-chips";
+
+    const suggestions = [
+      "What should I hunt next?",
+      "Best shiny method for Scarlet/Violet?",
+      "How do I complete my living dex faster?"
+    ];
+
+    suggestions.forEach((text) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "ai-chip";
+      chip.textContent = text;
+      chip.addEventListener("click", () => sendMessage(text));
+      chips.appendChild(chip);
+    });
+
+    welcome.appendChild(title);
+    welcome.appendChild(sub);
+    welcome.appendChild(chips);
+    chatWindow.appendChild(welcome);
+  }
+
   function init() {
     const sendBtn = document.getElementById("ai-send-btn");
     const inputEl = document.getElementById("ai-input");
@@ -162,6 +209,7 @@
     });
 
     updateModelPill(SUPABASE_URL ? "Ready" : "Offline");
+    renderWelcome();
   }
 
   if (document.readyState === "loading") {

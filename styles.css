@@ -7889,6 +7889,59 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   text-align: center;
 }
 
+.ai-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  height: 100%;
+}
+
+.ai-welcome-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(190, 225, 255, 0.9);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ai-welcome-sub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: rgba(160, 200, 235, 0.65);
+  max-width: 420px;
+  line-height: 1.55;
+}
+
+.ai-welcome-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.ai-chip {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(100, 170, 255, 0.25);
+  background: rgba(60, 120, 200, 0.1);
+  color: rgba(160, 210, 255, 0.85);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ai-chip:hover {
+  background: rgba(60, 120, 200, 0.2);
+  border-color: rgba(100, 170, 255, 0.45);
+  color: rgba(200, 230, 255, 0.95);
+}
+
 /* ─── Maps Tab ─────────────────────────────────────────────────────────────── */
 
 .maps-shell {
