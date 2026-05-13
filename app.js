@@ -13579,7 +13579,12 @@ const MAPS_GAME_CATALOG = [
     id: "lza",
     label: "Legends: Z-A",
     maps: [
-      { title: "Lumiose City",       url: "https://archives.bulbagarden.net/media/upload/9/97/ZA_Lumiose_City_Day.png" }
+      { title: "Lumiose City",            url: "https://archives.bulbagarden.net/media/upload/9/97/ZA_Lumiose_City_Day.png" },
+      { title: "The Sewers (Bleu)",       url: "https://archives.bulbagarden.net/media/upload/c/c3/ZA_The_Sewers_%28Bleu_District%29.png" },
+      { title: "The Sewers (Magenta)",    url: "https://archives.bulbagarden.net/media/upload/c/c8/ZA_The_Sewers_%28Magenta_District%29.png" },
+      { title: "Lysandre Labs B1F",       url: "https://archives.bulbagarden.net/media/upload/8/8f/ZA_Lysandre_Labs_B1F.png" },
+      { title: "Lysandre Labs B2F",       url: "https://archives.bulbagarden.net/media/upload/0/0c/ZA_Lysandre_Labs_B2F.png" },
+      { title: "Lysandre Labs B3F",       url: "https://archives.bulbagarden.net/media/upload/b/bf/ZA_Lysandre_Labs_B3F.png" }
     ]
   },
   {
