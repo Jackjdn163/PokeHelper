@@ -1,47 +1,3 @@
-// ── Scroll position preservation per view ─────────────────────────────────
-// Saves and restores the scroll position of the main content area when the
-// user switches between views, so Tools (lab) doesn't snap to the top.
-(function () {
-  "use strict";
-
-  const scrollPositions = new Map();
-
-  function getMainPanel() {
-    // The active .app-view panel is the scroll container for non-landing views
-    return document.querySelector(".app-view.active");
-  }
-
-  function saveScrollForView(viewId) {
-    if (!viewId || viewId === "landing") return;
-    const panel = getMainPanel();
-    if (panel) scrollPositions.set(viewId, panel.scrollTop);
-  }
-
-  function restoreScrollForView(viewId) {
-    if (!viewId || viewId === "landing") return;
-    const panel = document.querySelector(`[data-view-panel="${viewId}"], [data-module-view="${viewId}"]`);
-    if (!panel) return;
-    // Use the scroll container — either the panel itself or its closest overflow-y:auto ancestor
-    const container = panel.closest(".app-view") || panel;
-    const saved = scrollPositions.get(viewId) ?? 0;
-    // Use requestAnimationFrame to wait for display:grid to apply
-    requestAnimationFrame(() => { container.scrollTop = saved; });
-  }
-
-  // Intercept nav button clicks to save before switching and restore after
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-view]");
-    if (!btn) return;
-    const nextView = btn.dataset.view;
-    const currentView = document.body.dataset.activeView;
-    if (nextView === currentView) return;
-    saveScrollForView(currentView);
-    // Restore after a tick so the new panel is visible
-    requestAnimationFrame(() => restoreScrollForView(nextView));
-  }, true);
-})();
-
-// ── PokePilot AI Panel ─────────────────────────────────────────────────────
 (function () {
   "use strict";
 
@@ -49,26 +5,19 @@
   const EDGE_FN_URL = SUPABASE_URL + "/functions/v1/pokemon-ai";
   const ANON_KEY = window.DEXTER_SUPABASE_CONFIG?.publishableKey || "";
 
-  // Conversation history (role/content pairs sent to OpenAI)
   const history = [];
 
-  // ── App context collector ──────────────────────────────────────────────────
-  // Reads whatever PokePilot data is available from localStorage.
-  // The main app can also set window.POKEPILOT_AI_CONTEXT for richer data.
   function collectAppContext() {
     const ctx = {};
 
-    // Allow the main app to inject structured context
     if (window.POKEPILOT_AI_CONTEXT) {
       Object.assign(ctx, window.POKEPILOT_AI_CONTEXT);
     }
 
-    // Scrape available localStorage keys that look like PokePilot data
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key) continue;
-        // Include any key that looks like app data (not auth tokens)
         if (
           key.includes("dexter") ||
           key.includes("pokepilot") ||
@@ -82,18 +31,14 @@
           key.includes("profile")
         ) {
           try {
-            const raw = localStorage.getItem(key);
-            ctx[key] = JSON.parse(raw);
+            ctx[key] = JSON.parse(localStorage.getItem(key));
           } catch {
             ctx[key] = localStorage.getItem(key);
           }
         }
       }
-    } catch {
-      // localStorage may be unavailable in some contexts
-    }
+    } catch { /* localStorage unavailable */ }
 
-    // Add visible UI state hints
     try {
       const trainerName = document.getElementById("landing-profile-metric")?.textContent?.trim();
       if (trainerName && trainerName !== "Guest Trainer") ctx.trainerName = trainerName;
@@ -112,17 +57,14 @@
 
       const activeHuntTarget = document.getElementById("shiny-tracker-target")?.textContent?.trim();
       if (activeHuntTarget) ctx.activeHuntTarget = activeHuntTarget;
-    } catch {
-      // DOM may not be ready
-    }
+    } catch { /* DOM not ready */ }
 
     return Object.keys(ctx).length ? ctx : null;
   }
 
-  // ── UI helpers ─────────────────────────────────────────────────────────────
   function appendMessage(role, text, opts = {}) {
-    const window_ = document.getElementById("ai-chat-window");
-    if (!window_) return null;
+    const chatWindow = document.getElementById("ai-chat-window");
+    if (!chatWindow) return null;
 
     const msg = document.createElement("div");
     msg.className = `ai-message ai-message--${role}${opts.loading ? " ai-message--loading" : ""}${opts.error ? " ai-message--error" : ""}`;
@@ -137,8 +79,8 @@
 
     msg.appendChild(avatar);
     msg.appendChild(bubble);
-    window_.appendChild(msg);
-    window_.scrollTop = window_.scrollHeight;
+    chatWindow.appendChild(msg);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
     return { el: msg, bubble };
   }
 
@@ -154,13 +96,12 @@
     if (pill) pill.textContent = text;
   }
 
-  // ── Send message ───────────────────────────────────────────────────────────
   async function sendMessage(text) {
     text = text.trim();
     if (!text) return;
 
     const input = document.getElementById("ai-input");
-    if (input) input.value = "";
+    if (input) { input.value = ""; input.style.height = "auto"; }
 
     appendMessage("user", text);
     history.push({ role: "user", content: text });
@@ -169,8 +110,6 @@
     const loadingRef = appendMessage("ai", "Thinking...", { loading: true });
 
     try {
-      const appContext = collectAppContext();
-
       const res = await fetch(EDGE_FN_URL, {
         method: "POST",
         headers: {
@@ -178,11 +117,10 @@
           "Authorization": `Bearer ${ANON_KEY}`,
           "Apikey": ANON_KEY,
         },
-        body: JSON.stringify({ messages: history, appContext }),
+        body: JSON.stringify({ messages: history, appContext: collectAppContext() }),
       });
 
       const data = await res.json();
-
       if (loadingRef?.el) loadingRef.el.remove();
 
       if (data.error) {
@@ -200,16 +138,13 @@
       console.error("AI panel error:", err);
     } finally {
       setInputEnabled(true);
-      const inputEl = document.getElementById("ai-input");
-      if (inputEl) inputEl.focus();
+      document.getElementById("ai-input")?.focus();
     }
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
   function init() {
     const sendBtn = document.getElementById("ai-send-btn");
     const inputEl = document.getElementById("ai-input");
-
     if (!sendBtn || !inputEl) return;
 
     sendBtn.addEventListener("click", () => sendMessage(inputEl.value));
@@ -221,7 +156,6 @@
       }
     });
 
-    // Auto-resize textarea
     inputEl.addEventListener("input", () => {
       inputEl.style.height = "auto";
       inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
