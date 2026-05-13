@@ -1627,9 +1627,9 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 .suggested-hunt-gender-badge {
   position: absolute;
-  inset: 5px 5px auto auto;
-  width: 22px;
-  height: 22px;
+  inset: 4px 4px auto auto;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1640,10 +1640,9 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     0 8px 18px rgba(5, 10, 24, 0.28);
   font-family: "Oxanium", sans-serif;
-  font-size: 0.76rem;
+  font-size: 0.96rem;
   font-weight: 700;
   line-height: 1;
-  transform: translate(22%, -22%);
   z-index: 2;
 }
 
@@ -1689,9 +1688,9 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 .suggested-game-symbol-badge {
   position: relative;
   display: inline-block;
-  width: 42px;
-  height: 23px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   box-shadow: 0 8px 16px rgba(5, 10, 24, 0.18);
   overflow: hidden;
 }
@@ -1704,7 +1703,10 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 .suggested-hunt-badge--game {
-  transform: translate(-18%, -24%);
+  position: absolute;
+  inset: 4px auto auto 4px;
+  transform: none;
+  z-index: 1;
 }
 
 .suggested-game-symbol {
@@ -1721,7 +1723,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   display: grid;
   place-items: center;
   font-family: "Oxanium", sans-serif;
-  font-size: 0.56rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #1d2d5b;
