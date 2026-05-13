@@ -5912,6 +5912,13 @@ function createSuggestedHuntTile(entry, options = {}) {
       }
     : null;
 
+  if (gameBadgeGame) {
+    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
+    if (gameBadge) {
+      pod.appendChild(gameBadge);
+    }
+  }
+
   if (genderBadgeMeta) {
     const genderBadge = document.createElement("span");
     genderBadge.className = `suggested-hunt-gender-badge suggested-hunt-gender-badge--${genderBadgeMeta.tone}`;
@@ -5919,11 +5926,6 @@ function createSuggestedHuntTile(entry, options = {}) {
     genderBadge.title = genderBadgeMeta.label;
     genderBadge.setAttribute("aria-label", genderBadgeMeta.label);
     pod.appendChild(genderBadge);
-  } else if (gameBadgeGame) {
-    const gameBadge = createSuggestedGameBadge(gameBadgeGame);
-    if (gameBadge) {
-      pod.appendChild(gameBadge);
-    }
   }
 
   pod.append(sprite, dexBadge);
