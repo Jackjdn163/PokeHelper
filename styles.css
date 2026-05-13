@@ -262,7 +262,7 @@ p {
   width: 64px;
   height: 64px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
   border-radius: 16px;
   background: rgba(89, 200, 255, 0.08);
   border: 1px solid rgba(89, 200, 255, 0.14);
@@ -1163,7 +1163,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 42px;
   height: 42px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .dashboard-recent-meta {
@@ -1617,7 +1617,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 68%;
   height: 68%;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.24));
 }
 
@@ -2474,7 +2474,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 52px;
   height: 52px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .entry-sprite.is-missing {
@@ -2642,7 +2642,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 72px;
   height: 72px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
 }
 
@@ -4719,7 +4719,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 48px;
   height: 48px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .collection-item-sprite.is-missing {
@@ -5420,7 +5420,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 96px;
   height: 96px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
   filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.35));
 }
 
@@ -6055,7 +6055,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 56px;
   height: 56px;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .home-slot-sprite.is-missing {

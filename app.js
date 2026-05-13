@@ -5764,11 +5764,11 @@ function getSuggestedCatchGenderBadgeMeta(entry) {
 }
 
 const SUGGESTED_GAME_BADGE_SYMBOLS = {
-  lgpe: "./assets/game-badges/lgpe-pikachu.png",
-  swsh: "./assets/game-badges/swsh-sword.png",
-  bdsp: "./assets/game-badges/bdsp-diamond.png",
+  lgpe: "./assets/game-badges/lgpe-badge.png",
+  swsh: "./assets/game-badges/swsh-badge.png",
+  bdsp: "./assets/game-badges/bdsp-badge.png",
   pla: "./assets/game-badges/pla-badge.png",
-  sv: "./assets/game-badges/sv-scarlet.png",
+  sv: "./assets/game-badges/sv-badge.png",
   lza: "./assets/game-badges/lza-emblem.png"
 };
 
@@ -11908,7 +11908,7 @@ function renderModuleQueue(options = {}) {
           <span>Legends: Arceus</span>
         </div>
         <div class="tool-showcase-game-chip tool-showcase-game-chip--sv">
-          <img src="./assets/game-badges/sv-scarlet.png" alt="Scarlet / Violet" class="tool-showcase-game-img" />
+          <img src="./assets/game-badges/sv-badge.png" alt="Scarlet / Violet" class="tool-showcase-game-img" />
           <span>Scarlet / Violet</span>
         </div>
       </div>
@@ -11925,7 +11925,7 @@ function renderModuleQueue(options = {}) {
         <p>crafting recipes</p>
       </article>
       <article class="tool-showcase-stat tool-showcase-stat--sv">
-        <img src="./assets/game-badges/sv-scarlet.png" alt="" class="tool-showcase-stat-badge" />
+        <img src="./assets/game-badges/sv-badge.png" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(SV_SHINY_SANDWICH_RECIPES.length)}</strong>
         <p>sandwich routes</p>
       </article>
@@ -12170,7 +12170,7 @@ function renderModuleQueue(options = {}) {
     <div class="tool-card-head">
       <div class="tool-card-meta">
         <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
-          <img src="./assets/game-badges/sv-scarlet.png" alt="" />
+          <img src="./assets/game-badges/sv-badge.png" alt="" />
         </div>
         <div class="tool-card-copy">
           <span class="module-status live">Scarlet / Violet</span>
