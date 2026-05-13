@@ -25,7 +25,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 body {
@@ -527,6 +527,10 @@ body:not([data-active-view="landing"]) .workspace-shell,
 body:not([data-active-view="landing"]) .systems-grid {
   grid-area: main;
   margin-top: 0;
+  height: calc(100vh - var(--topbar-height, 64px) - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: auto;
 }
 
 body[data-active-view="landing"] {
@@ -3921,7 +3925,6 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 .vault-panel-shell,
 .home-panel-shell {
   grid-column: 1 / -1;
-  scroll-margin-top: 150px;
 }
 
 .suggestion-panel-shell,
@@ -7341,7 +7344,6 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 .ai-panel-shell {
   grid-column: 1 / -1;
-  scroll-margin-top: 150px;
   display: flex;
   flex-direction: column;
   gap: 16px;
