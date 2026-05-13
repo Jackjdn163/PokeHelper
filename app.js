@@ -5764,14 +5764,24 @@ function getSuggestedCatchGenderBadgeMeta(entry) {
 }
 
 const POKEMONDB_HOME_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/normal";
+const BULBAGARDEN_ARCHIVES_BASE = "https://archives.bulbagarden.net/media/upload";
+
+const HOME_GAME_ICON_URLS = {
+  lgpe:  `${BULBAGARDEN_ARCHIVES_BASE}/1/19/HOME_Let%27s_Go_Pikachu_icon.png`,
+  swsh:  `${BULBAGARDEN_ARCHIVES_BASE}/f/fe/HOME_Sword_icon.png`,
+  bdsp:  `${BULBAGARDEN_ARCHIVES_BASE}/c/cf/HOME_Brilliant_Diamond_icon.png`,
+  pla:   `${BULBAGARDEN_ARCHIVES_BASE}/b/ba/HOME_Legends_Arceus_icon.png`,
+  sv:    `${BULBAGARDEN_ARCHIVES_BASE}/2/29/HOME_Scarlet_icon.png`,
+  lza:   `${BULBAGARDEN_ARCHIVES_BASE}/4/4c/HOME_Legends_Z-A_icon.png`
+};
 
 const SUGGESTED_GAME_BADGE_SYMBOLS = {
-  lgpe: `${POKEMONDB_HOME_SPRITE_BASE}/pikachu.png`,
-  swsh: `${POKEMONDB_HOME_SPRITE_BASE}/zacian.png`,
-  bdsp: `${POKEMONDB_HOME_SPRITE_BASE}/dialga.png`,
-  pla:  `${POKEMONDB_HOME_SPRITE_BASE}/arceus.png`,
-  sv:   `${POKEMONDB_HOME_SPRITE_BASE}/koraidon.png`,
-  lza:  `${POKEMONDB_HOME_SPRITE_BASE}/mewtwo-mega-y.png`
+  lgpe: HOME_GAME_ICON_URLS.lgpe,
+  swsh: HOME_GAME_ICON_URLS.swsh,
+  bdsp: HOME_GAME_ICON_URLS.bdsp,
+  pla:  HOME_GAME_ICON_URLS.pla,
+  sv:   HOME_GAME_ICON_URLS.sv,
+  lza:  HOME_GAME_ICON_URLS.lza
 };
 
 function getSuggestedCatchBadgeGame(entry) {
@@ -11902,32 +11912,32 @@ function renderModuleQueue(options = {}) {
       </p>
       <div class="tool-showcase-game-row">
         <div class="tool-showcase-game-chip tool-showcase-game-chip--lza">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/mewtwo-mega-y.png" alt="Legends: Z-A" class="tool-showcase-game-img" />
+          <img src="${HOME_GAME_ICON_URLS.lza}" alt="Legends: Z-A" class="tool-showcase-game-img" />
           <span>Legends: Z-A</span>
         </div>
         <div class="tool-showcase-game-chip tool-showcase-game-chip--pla">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/arceus.png" alt="Legends: Arceus" class="tool-showcase-game-img" />
+          <img src="${HOME_GAME_ICON_URLS.pla}" alt="Legends: Arceus" class="tool-showcase-game-img" />
           <span>Legends: Arceus</span>
         </div>
         <div class="tool-showcase-game-chip tool-showcase-game-chip--sv">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/koraidon.png" alt="Scarlet / Violet" class="tool-showcase-game-img" />
+          <img src="${HOME_GAME_ICON_URLS.sv}" alt="Scarlet / Violet" class="tool-showcase-game-img" />
           <span>Scarlet / Violet</span>
         </div>
       </div>
     </div>
     <div class="tool-showcase-grid">
       <article class="tool-showcase-stat tool-showcase-stat--lza">
-        <img src="${POKEMONDB_HOME_SPRITE_BASE}/mewtwo-mega-y.png" alt="" class="tool-showcase-stat-badge" />
+        <img src="${HOME_GAME_ICON_URLS.lza}" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(LZA_DONUT_PRESETS.length)}</strong>
         <p>preset donut bases</p>
       </article>
       <article class="tool-showcase-stat tool-showcase-stat--pla">
-        <img src="${POKEMONDB_HOME_SPRITE_BASE}/arceus.png" alt="" class="tool-showcase-stat-badge" />
+        <img src="${HOME_GAME_ICON_URLS.pla}" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(PLA_RECIPE_CATALOG.length)}</strong>
         <p>crafting recipes</p>
       </article>
       <article class="tool-showcase-stat tool-showcase-stat--sv">
-        <img src="${POKEMONDB_HOME_SPRITE_BASE}/koraidon.png" alt="" class="tool-showcase-stat-badge" />
+        <img src="${HOME_GAME_ICON_URLS.sv}" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(SV_SHINY_SANDWICH_RECIPES.length)}</strong>
         <p>sandwich routes</p>
       </article>
@@ -11946,7 +11956,7 @@ function renderModuleQueue(options = {}) {
     <div class="tool-card-head">
       <div class="tool-card-meta">
         <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/mewtwo-mega-y.png" alt="" />
+          <img src="${HOME_GAME_ICON_URLS.lza}" alt="" />
         </div>
         <div class="tool-card-copy">
           <span class="module-status live">Legends: Z-A</span>
@@ -12056,7 +12066,7 @@ function renderModuleQueue(options = {}) {
     <div class="tool-card-head">
       <div class="tool-card-meta">
         <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/arceus.png" alt="" />
+          <img src="${HOME_GAME_ICON_URLS.pla}" alt="" />
         </div>
         <div class="tool-card-copy">
           <span class="module-status live">Legends: Arceus</span>
@@ -12172,7 +12182,7 @@ function renderModuleQueue(options = {}) {
     <div class="tool-card-head">
       <div class="tool-card-meta">
         <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
-          <img src="${POKEMONDB_HOME_SPRITE_BASE}/koraidon.png" alt="" />
+          <img src="${HOME_GAME_ICON_URLS.sv}" alt="" />
         </div>
         <div class="tool-card-copy">
           <span class="module-status live">Scarlet / Violet</span>
