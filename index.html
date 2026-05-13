@@ -49,6 +49,7 @@
           <button type="button" class="nav-tab" data-view="collection">Collection</button>
           <button type="button" class="nav-tab" data-view="shiny">Shiny</button>
           <button type="button" class="nav-tab" data-view="lab">Tools</button>
+          <button type="button" class="nav-tab" data-view="maps">Maps</button>
           <button type="button" class="nav-tab" data-view="home">Boxes</button>
           <button type="button" class="nav-tab" data-view="vault">Settings</button>
         </nav>
@@ -1184,6 +1185,18 @@
               </div>
             </div>
         </section>
+      </main>
+
+      <main class="workspace-shell app-view maps-shell" data-view-panel="maps">
+        <div class="maps-layout">
+          <aside class="maps-sidebar">
+            <div class="maps-sidebar-inner" id="maps-game-list"></div>
+          </aside>
+          <div class="maps-content">
+            <div class="maps-game-header" id="maps-game-header"></div>
+            <div class="maps-grid" id="maps-grid"></div>
+          </div>
+        </div>
       </main>
 
       <section class="systems-grid app-view" data-view-panel="systems">

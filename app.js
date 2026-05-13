@@ -73,6 +73,7 @@ const VALID_VIEW_IDS = new Set([
   "home",
   "journey",
   "lab",
+  "maps",
   "vault"
 ]);
 const VALID_DETAIL_TAB_IDS = new Set(["overview", "battle", "field"]);
@@ -5309,6 +5310,11 @@ function flushDeferredViewRenders(viewId = state.ui.activeView) {
         renderModuleQueue({ force: true });
         renderExpGameOptions();
         void renderExpPlanner({ force: true });
+      }
+      break;
+    case "maps":
+      if (isAnyViewDirty("maps")) {
+        renderMapsTab({ force: true });
       }
       break;
     default:
@@ -13539,6 +13545,150 @@ function getNextTask() {
     detail: `${activeGame.name} is already sitting in late-game cleanup mode. Set a tracker focus or swap the active game when you want a new progression push.`,
     focus: `Focus: ${journeyFocus.short || activeGame.shortName}`
   };
+}
+
+// ─── Maps Tab ────────────────────────────────────────────────────────────────
+
+const MAPS_GAME_CATALOG = [
+  {
+    id: "sv",
+    label: "Scarlet / Violet",
+    maps: [
+      { title: "Paldea",             url: "https://archives.bulbagarden.net/media/upload/2/2a/Paldea.png" },
+      { title: "Kitakami",           url: "https://archives.bulbagarden.net/media/upload/0/01/Kitakami.png" },
+      { title: "Blueberry Academy",  url: "https://archives.bulbagarden.net/media/upload/d/d2/Blueberry_Academy.png" }
+    ]
+  },
+  {
+    id: "swsh",
+    label: "Sword / Shield",
+    maps: [
+      { title: "Galar",              url: "https://archives.bulbagarden.net/media/upload/b/be/Galar_Sh.png" },
+      { title: "Crown Tundra",       url: "https://archives.bulbagarden.net/media/upload/6/61/Galar_Crown_Tundra_SwSh.png" },
+      { title: "Isle of Armor",      url: "https://archives.bulbagarden.net/media/upload/f/f9/Galar_Isle_of_Armor_SwSh.png" }
+    ]
+  },
+  {
+    id: "lgpe",
+    label: "Let's Go",
+    maps: [
+      { title: "Kanto",              url: "https://archives.bulbagarden.net/media/upload/d/d5/Kanto_Town_Map_PE.png" }
+    ]
+  },
+  {
+    id: "lza",
+    label: "Legends: Z-A",
+    maps: [
+      { title: "Lumiose City",       url: "https://archives.bulbagarden.net/media/upload/9/97/ZA_Lumiose_City_Day.png" }
+    ]
+  },
+  {
+    id: "bdsp",
+    label: "Brilliant Diamond / Shining Pearl",
+    maps: [
+      { title: "Sinnoh",             url: "https://archives.bulbagarden.net/media/upload/f/f8/Sinnoh_BDSP.png" }
+    ]
+  },
+  {
+    id: "pla",
+    label: "Legends: Arceus",
+    maps: [
+      { title: "Hisui",              url: "https://archives.bulbagarden.net/media/upload/5/5b/Hisui.png" },
+      { title: "Obsidian Fieldlands",url: "https://archives.bulbagarden.net/media/upload/3/31/Obsidian_Fieldlands_Map.png" },
+      { title: "Crimson Mirelands",  url: "https://archives.bulbagarden.net/media/upload/2/2f/Crimson_Mirelands_Map.png" },
+      { title: "Cobalt Coastlands",  url: "https://archives.bulbagarden.net/media/upload/5/51/Cobalt_Coastlands_Map.png" },
+      { title: "Coronet Highlands",  url: "https://archives.bulbagarden.net/media/upload/f/f7/Coronet_Highlands_Map.png" },
+      { title: "Alabaster Icelands", url: "https://archives.bulbagarden.net/media/upload/b/be/Alabaster_Icelands_Map.png" },
+      { title: "Jubilife Village",   url: "https://archives.bulbagarden.net/media/upload/8/89/Jubilife_Village_Map.png" }
+    ]
+  }
+];
+
+let mapsActiveGameId = MAPS_GAME_CATALOG[0].id;
+
+function renderMapsTab(options = {}) {
+  if (!shouldRenderForViews(["maps"], options.force)) {
+    return;
+  }
+
+  const gameListEl = document.getElementById("maps-game-list");
+  const headerEl   = document.getElementById("maps-game-header");
+  const gridEl     = document.getElementById("maps-grid");
+  if (!gameListEl || !headerEl || !gridEl) return;
+
+  // Build sidebar game list
+  gameListEl.innerHTML = "";
+  for (const game of MAPS_GAME_CATALOG) {
+    const icons = SUGGESTED_GAME_BADGE_SYMBOLS[game.id];
+    const iconPaths = Array.isArray(icons) ? icons : (icons ? [icons] : []);
+    const isSplit = iconPaths.length > 1;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "maps-game-btn" + (game.id === mapsActiveGameId ? " is-active" : "");
+    btn.dataset.gameId = game.id;
+
+    const iconWrap = document.createElement("span");
+    iconWrap.className = "maps-game-btn-icon" + (isSplit ? " maps-game-btn-icon--split" : "");
+    for (const path of iconPaths) {
+      const img = document.createElement("img");
+      img.src = path;
+      img.alt = "";
+      img.decoding = "async";
+      iconWrap.appendChild(img);
+    }
+
+    const label = document.createElement("span");
+    label.className = "maps-game-btn-label";
+    label.textContent = game.label;
+
+    const count = document.createElement("span");
+    count.className = "maps-game-btn-count";
+    count.textContent = game.maps.length;
+
+    btn.appendChild(iconWrap);
+    btn.appendChild(label);
+    btn.appendChild(count);
+    btn.addEventListener("click", () => {
+      mapsActiveGameId = game.id;
+      renderMapsTab({ force: true });
+    });
+    gameListEl.appendChild(btn);
+  }
+
+  // Render active game maps
+  const activeGame = MAPS_GAME_CATALOG.find((g) => g.id === mapsActiveGameId) ?? MAPS_GAME_CATALOG[0];
+
+  headerEl.innerHTML = "";
+  const heading = document.createElement("h2");
+  heading.className = "maps-game-heading";
+  heading.textContent = activeGame.label;
+  headerEl.appendChild(heading);
+
+  gridEl.innerHTML = "";
+  for (const map of activeGame.maps) {
+    const card = document.createElement("figure");
+    card.className = "map-card";
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "map-card-img-wrap";
+
+    const img = document.createElement("img");
+    img.className = "map-card-img";
+    img.src = map.url;
+    img.alt = map.title;
+    img.decoding = "async";
+    img.loading = "lazy";
+    imgWrap.appendChild(img);
+
+    const caption = document.createElement("figcaption");
+    caption.className = "map-card-caption";
+    caption.textContent = map.title;
+
+    card.appendChild(imgWrap);
+    card.appendChild(caption);
+    gridEl.appendChild(card);
+  }
 }
 
 function renderSuggestors(options = {}) {
