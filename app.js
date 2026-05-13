@@ -11888,38 +11888,46 @@ function renderModuleQueue(options = {}) {
   showcaseCard.dataset.toolPanel = TOOL_PANEL_IDS.showcase;
   showcaseCard.innerHTML = `
     <div class="tool-showcase-copy">
-      <span class="module-status queued">Workbench Overview</span>
+      <span class="module-status queued">Game Tools Workbench</span>
       <strong>Field recipes, shiny prep, and cost math in one tuned station.</strong>
       <p class="results-summary">
         Every calculator here stays tied to the current save profile, so your berry mockups, material counts, sandwich picks, and running costs all move together.
       </p>
-      <div class="tool-showcase-route-row">
-        <span class="tool-showcase-route-chip">Berry Mockups</span>
-        <span class="tool-showcase-route-chip">Craft Costs</span>
-        <span class="tool-showcase-route-chip">Sparkling Bases</span>
-        <span class="tool-showcase-route-chip">Shared Totals</span>
+      <div class="tool-showcase-game-row">
+        <div class="tool-showcase-game-chip tool-showcase-game-chip--lza">
+          <img src="./assets/game-badges/lza-emblem.png" alt="Legends: Z-A" class="tool-showcase-game-img" />
+          <span>Legends: Z-A</span>
+        </div>
+        <div class="tool-showcase-game-chip tool-showcase-game-chip--pla">
+          <img src="./assets/game-badges/pla-badge.png" alt="Legends: Arceus" class="tool-showcase-game-img" />
+          <span>Legends: Arceus</span>
+        </div>
+        <div class="tool-showcase-game-chip tool-showcase-game-chip--sv">
+          <img src="./assets/game-badges/sv-badge.png" alt="Scarlet / Violet" class="tool-showcase-game-img" />
+          <span>Scarlet / Violet</span>
+        </div>
       </div>
     </div>
     <div class="tool-showcase-grid">
-      <article class="tool-showcase-stat">
-        <span class="tool-showcase-kicker">Z-A</span>
+      <article class="tool-showcase-stat tool-showcase-stat--lza">
+        <img src="./assets/game-badges/lza-emblem.png" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(LZA_DONUT_PRESETS.length)}</strong>
-        <p>preset donut bases ready to load into the mocker</p>
+        <p>preset donut bases</p>
       </article>
-      <article class="tool-showcase-stat">
-        <span class="tool-showcase-kicker">PLA</span>
+      <article class="tool-showcase-stat tool-showcase-stat--pla">
+        <img src="./assets/game-badges/pla-arceus.png" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(PLA_RECIPE_CATALOG.length)}</strong>
-        <p>crafting recipes with live material and cost tracking</p>
+        <p>crafting recipes</p>
       </article>
-      <article class="tool-showcase-stat">
-        <span class="tool-showcase-kicker">SV</span>
+      <article class="tool-showcase-stat tool-showcase-stat--sv">
+        <img src="./assets/game-badges/sv-badge.png" alt="" class="tool-showcase-stat-badge" />
         <strong>${formatCount(SV_SHINY_SANDWICH_RECIPES.length)}</strong>
-        <p>type-based shiny sandwich routes one click away</p>
+        <p>sandwich routes</p>
       </article>
-      <article class="tool-showcase-stat">
-        <span class="tool-showcase-kicker">Shared</span>
+      <article class="tool-showcase-stat tool-showcase-stat--supply">
+        <span class="tool-showcase-stat-icon" aria-hidden="true">◈</span>
         <strong>${formatCount(supplySummary.rows.length)}</strong>
-        <p>supply lines already open in the cross-game cost tracker</p>
+        <p>supply lines open</p>
       </article>
     </div>
   `;
@@ -11930,7 +11938,9 @@ function renderModuleQueue(options = {}) {
   lzaCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
-        <span class="tool-card-orb" aria-hidden="true">ZA</span>
+        <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
+          <img src="./assets/game-badges/lza-emblem.png" alt="" />
+        </div>
         <div class="tool-card-copy">
           <span class="module-status live">Legends: Z-A</span>
           <strong>Donut Lab</strong>
@@ -11939,49 +11949,51 @@ function renderModuleQueue(options = {}) {
       <span class="toolbar-pill">8-slot mocker</span>
     </div>
     <p class="results-summary tool-note-band">
-      Common shiny and farming bases on top, then a live mock builder underneath. This previews flavor bias and donut stats, not a guaranteed power roll.
+      Common shiny and farming bases on top, then a live mock builder underneath. This previews flavor bias and donut stats — not a guaranteed power roll.
     </p>
     <div class="tool-preset-grid">
       ${LZA_DONUT_PRESETS.map(
         (preset) => `
           <button type="button" class="ghost-button tool-preset-button" data-lza-preset="${escapeHtml(preset.id)}">
-            <span>${escapeHtml(preset.title)}</span>
+            <span class="tool-preset-title">${escapeHtml(preset.title)}</span>
             <small>${escapeHtml(preset.summary)}</small>
+            <div class="tool-preset-focus-row">
+              ${(preset.focus ?? []).map((f) => `<span class="tool-preset-focus-chip">${escapeHtml(f)}</span>`).join("")}
+            </div>
           </button>
         `
       ).join("")}
     </div>
-    <div class="tool-stat-grid">
-      ${renderToolStatChip("Berries Loaded", `${lzaSummary.berryCount}/8`)}
-      ${renderToolStatChip("Flavor Score", formatCount(lzaSummary.flavorScore))}
-      ${renderToolStatChip("Level Bonus", `+${formatCount(lzaSummary.totals.level)}`)}
-      ${renderToolStatChip("Calories", formatCount(lzaSummary.totals.calories))}
-    </div>
-    <p class="results-summary">
-      ${
-        lzaSummary.recipeSummary.length
-          ? escapeHtml(lzaSummary.recipeSummary.join(" · "))
-          : "Pick berries in the slots below to preview the donut."
-      }
-    </p>
-    <div class="tool-slot-grid">
-      ${state.tools.lza.slots
-        .map(
-          (slot, index) => `
-            <label class="select-shell compact-field tool-input-shell">
-              <span>Slot ${index + 1}</span>
-              <select data-lza-slot="${index}">
-                ${buildBerryOptions(slot)}
-              </select>
-            </label>
-          `
-        )
-        .join("")}
+    <div class="tool-lza-builder">
+      <div class="tool-lza-builder-head">
+        <span class="meta-label">Berry Tray</span>
+        <div class="tool-lza-stats">
+          <span class="tool-lza-stat-chip"><span class="tool-lza-stat-label">Berries</span><strong>${lzaSummary.berryCount}/8</strong></span>
+          <span class="tool-lza-stat-chip"><span class="tool-lza-stat-label">Level</span><strong>+${formatCount(lzaSummary.totals.level)}</strong></span>
+          <span class="tool-lza-stat-chip"><span class="tool-lza-stat-label">Cal</span><strong>${formatCount(lzaSummary.totals.calories)}</strong></span>
+          <span class="tool-lza-stat-chip"><span class="tool-lza-stat-label">Score</span><strong>${formatCount(lzaSummary.flavorScore)}</strong></span>
+        </div>
+      </div>
+      <div class="tool-slot-grid">
+        ${state.tools.lza.slots
+          .map(
+            (slot, index) => `
+              <label class="select-shell compact-field tool-input-shell">
+                <span>Slot ${index + 1}</span>
+                <select data-lza-slot="${index}">
+                  ${buildBerryOptions(slot)}
+                </select>
+              </label>
+            `
+          )
+          .join("")}
+      </div>
+      ${lzaSummary.recipeSummary.length ? `<p class="results-summary tool-lza-recipe-summary">${escapeHtml(lzaSummary.recipeSummary.join(" · "))}</p>` : ""}
     </div>
     <div class="tool-detail-grid">
       <article class="tool-detail-card">
         <span class="meta-label">Dominant Flavor</span>
-        <strong>${
+        <strong class="tool-detail-value">${
           lzaSummary.dominantFlavors.length
             ? escapeHtml(lzaSummary.dominantFlavors.map((flavor) => flavor.label).join(" / "))
             : "No bias yet"
@@ -12001,10 +12013,10 @@ function renderModuleQueue(options = {}) {
       </article>
       <article class="tool-detail-card">
         <span class="meta-label">Likely Power Pool</span>
-        <strong>${
+        <strong class="tool-detail-value">${
           lzaSummary.powerPool.length
             ? escapeHtml(lzaSummary.powerPool.slice(0, 2).join(" + "))
-            : "Waiting for a dominant flavor"
+            : "Waiting for dominant flavor"
         }</strong>
         <p class="results-summary">
           ${
@@ -12036,7 +12048,9 @@ function renderModuleQueue(options = {}) {
   plaCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
-        <span class="tool-card-orb" aria-hidden="true">PLA</span>
+        <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
+          <img src="./assets/game-badges/pla-arceus.png" alt="" />
+        </div>
         <div class="tool-card-copy">
           <span class="module-status live">Legends: Arceus</span>
           <strong>Crafting Bench</strong>
@@ -12045,7 +12059,7 @@ function renderModuleQueue(options = {}) {
       <span class="toolbar-pill">Materials + cost</span>
     </div>
     <p class="results-summary tool-note-band">
-      Pick a recipe, set a batch size, then track owned materials and optional per-material costs to see what you can craft right now.
+      Pick a recipe, set a batch size, then track owned materials and optional per-material costs to see exactly what you can craft right now.
     </p>
     <div class="tool-field-grid">
       <label class="select-shell compact-field tool-input-shell">
@@ -12059,23 +12073,29 @@ function renderModuleQueue(options = {}) {
         <input type="number" min="1" step="1" value="${escapeHtml(String(state.tools.pla.amount))}" data-pla-amount />
       </label>
     </div>
-    <div class="tool-stat-grid">
-      ${renderToolStatChip("Craftable Now", formatCount(plaSummary.craftableNow))}
-      ${renderToolStatChip("Materials", formatCount(plaSummary.materialRows.length))}
-      ${renderToolStatChip("Batch Cost", formatMoney(plaSummary.totalCost))}
-      ${renderToolStatChip("Missing", formatCount(plaSummary.missingMaterials.length))}
+    <div class="tool-pla-signals">
+      <div class="tool-pla-signal${plaSummary.craftableNow > 0 ? " tool-pla-signal--ready" : ""}">
+        <span class="tool-pla-signal-label">Craftable Now</span>
+        <strong>${formatCount(plaSummary.craftableNow)}</strong>
+      </div>
+      <div class="tool-pla-signal">
+        <span class="tool-pla-signal-label">Materials</span>
+        <strong>${formatCount(plaSummary.materialRows.length)}</strong>
+      </div>
+      <div class="tool-pla-signal${plaSummary.totalCost > 0 ? " tool-pla-signal--cost" : ""}">
+        <span class="tool-pla-signal-label">Batch Cost</span>
+        <strong>${formatMoney(plaSummary.totalCost)}</strong>
+      </div>
+      <div class="tool-pla-signal${plaSummary.missingMaterials.length > 0 ? " tool-pla-signal--warn" : " tool-pla-signal--ready"}">
+        <span class="tool-pla-signal-label">Missing</span>
+        <strong>${formatCount(plaSummary.missingMaterials.length)}</strong>
+      </div>
     </div>
-    <p class="results-summary">
-      ${
-        plaSummary.missingMaterials.length
-          ? escapeHtml(
-              `Short on ${plaSummary.missingMaterials
-                .map((material) => `${material.name} x${material.shortfall}`)
-                .join(", ")}.`
-            )
-          : "Your current stock covers this full batch."
-      }
-    </p>
+    ${
+      plaSummary.missingMaterials.length
+        ? `<p class="results-summary tool-pla-missing-note">Short on: ${escapeHtml(plaSummary.missingMaterials.map((m) => `${m.name} ×${m.shortfall}`).join(", "))}.</p>`
+        : `<p class="results-summary tool-pla-ready-note">Your current stock covers this full batch.</p>`
+    }
     <div class="tool-table-shell">
       <div class="tool-table">
         <div class="tool-table-head">
@@ -12088,7 +12108,7 @@ function renderModuleQueue(options = {}) {
         ${plaSummary.materialRows
           .map(
             (material) => `
-              <div class="tool-table-row">
+              <div class="tool-table-row${material.shortfall > 0 ? " tool-table-row--warn" : material.owned > 0 ? " tool-table-row--ok" : ""}">
                 <span class="tool-table-label">${escapeHtml(material.name)}</span>
                 <span class="tool-table-value">${formatCount(material.required)}</span>
                 <input
@@ -12108,7 +12128,7 @@ function renderModuleQueue(options = {}) {
                   value="${escapeHtml(state.tools.pla.materialCosts[material.name] ?? "")}"
                   data-pla-cost="${escapeHtml(material.name)}"
                 />
-                <span class="tool-table-value">${material.shortfall ? formatCount(material.shortfall) : "Ready"}</span>
+                <span class="tool-table-value tool-table-shortfall${material.shortfall > 0 ? " is-short" : " is-ready"}">${material.shortfall ? formatCount(material.shortfall) : "✓"}</span>
               </div>
             `
           )
@@ -12134,13 +12154,19 @@ function renderModuleQueue(options = {}) {
     });
   });
 
+  const svTypeKey = (state.tools.sv.type ?? "Normal").toLowerCase();
+  const svTypeColor = TYPE_COLORS[svTypeKey] ?? "#59748d";
+
   const svCard = document.createElement("article");
   svCard.className = "module-card tool-station-card tool-station-card--sv";
   svCard.dataset.toolPanel = TOOL_PANEL_IDS.sv;
+  svCard.style.setProperty("--sv-type-color", svTypeColor);
   svCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
-        <span class="tool-card-orb" aria-hidden="true">SV</span>
+        <div class="tool-card-orb tool-card-orb--img" aria-hidden="true">
+          <img src="./assets/game-badges/sv-badge.png" alt="" />
+        </div>
         <div class="tool-card-copy">
           <span class="module-status live">Scarlet / Violet</span>
           <strong>Shiny Sandwich Maker</strong>
@@ -12151,43 +12177,44 @@ function renderModuleQueue(options = {}) {
     <p class="results-summary tool-note-band">
       Choose a target type to get the quick shiny sandwich base plus the flexible picnic version that works with almost any pair of Herba.
     </p>
-    <div class="tool-field-grid">
+    <div class="tool-sv-selector">
       <label class="select-shell compact-field tool-input-shell">
         <span>Target Type</span>
         <select data-sv-type>
           ${SV_SHINY_SANDWICH_RECIPES.map(
             (recipe) =>
-              `<option value="${escapeHtml(recipe.type)}"${recipe.type === state.tools.sv.type ? " selected" : ""}>${escapeHtml(
-                recipe.type
-              )}</option>`
+              `<option value="${escapeHtml(recipe.type)}"${recipe.type === state.tools.sv.type ? " selected" : ""}>${escapeHtml(recipe.type)}</option>`
           ).join("")}
         </select>
       </label>
+      <div class="tool-sv-type-badge" style="background:${escapeHtml(svTypeColor)}20;border-color:${escapeHtml(svTypeColor)}44;color:${escapeHtml(svTypeColor)}">
+        ${escapeHtml(svRecipe?.type ?? "Normal")}
+      </div>
     </div>
-    <div class="tool-detail-grid">
-      <article class="tool-detail-card">
-        <span class="meta-label">Minimal Base</span>
-        <strong>${escapeHtml(svRecipe?.type ?? "Normal")} · ${escapeHtml(
-          svRecipe?.minimalIngredient ?? "Tofu"
-        )}</strong>
-        <p class="results-summary">
-          ${escapeHtml(
-            [svRecipe?.minimalIngredient, ...(svRecipe?.minimalHerba ?? [])].filter(Boolean).join(" + ")
-          )}
-        </p>
+    <div class="tool-sv-recipe-cards">
+      <article class="tool-sv-recipe-card">
+        <span class="tool-sv-recipe-label">Minimal Base</span>
+        <strong class="tool-sv-ingredient">${escapeHtml(svRecipe?.minimalIngredient ?? "Tofu")}</strong>
+        <div class="tool-sv-herba-row">
+          ${(svRecipe?.minimalHerba ?? []).map((h) => `<span class="tool-sv-herba-chip">${escapeHtml(h)}</span>`).join("")}
+        </div>
+        <p class="results-summary">${escapeHtml([svRecipe?.minimalIngredient, ...(svRecipe?.minimalHerba ?? [])].filter(Boolean).join(" + "))}</p>
       </article>
-      <article class="tool-detail-card">
-        <span class="meta-label">Flexible Creative Mode</span>
-        <strong>${escapeHtml((svRecipe?.flexibleIngredients ?? []).join(" + "))}</strong>
-        <p class="results-summary">
-          Avoid ${escapeHtml((svRecipe?.flexibleHerbaExceptions ?? []).join(", "))}.
-        </p>
+      <article class="tool-sv-recipe-card">
+        <span class="tool-sv-recipe-label">Flexible Mode</span>
+        <strong class="tool-sv-ingredient">${escapeHtml((svRecipe?.flexibleIngredients ?? []).join(", "))}</strong>
+        ${svRecipe?.flexibleHerbaExceptions?.length ? `<p class="results-summary">Avoid: ${escapeHtml(svRecipe.flexibleHerbaExceptions.join(", "))}.</p>` : ""}
       </article>
     </div>
-    <div class="tool-stat-grid">
-      ${SV_SHINY_ODDS.map((entry) => renderToolStatChip(entry.label, entry.value)).join("")}
+    <div class="tool-sv-odds-grid">
+      ${SV_SHINY_ODDS.map((entry) => `
+        <div class="tool-sv-odds-chip">
+          <span>${escapeHtml(entry.label)}</span>
+          <strong>${escapeHtml(String(entry.value))}</strong>
+        </div>
+      `).join("")}
     </div>
-    <p class="results-summary">
+    <p class="results-summary tool-note-band">
       Best route: clear 60 outbreak spawns first, save before the picnic, then stack Sparkling Lv. 3 with the Shiny Charm for the 1/512 ceiling.
     </p>
   `;
@@ -12202,18 +12229,21 @@ function renderModuleQueue(options = {}) {
   supplyCard.innerHTML = `
     <div class="tool-card-head">
       <div class="tool-card-meta">
-        <span class="tool-card-orb" aria-hidden="true">LOG</span>
+        <div class="tool-card-orb tool-card-orb--icon" aria-hidden="true">◈</div>
         <div class="tool-card-copy">
           <span class="module-status live">Shared Utility</span>
           <strong>Supply Cost Tracker</strong>
         </div>
       </div>
-      <span class="toolbar-pill">Any game</span>
+      <div class="tool-supply-totals">
+        <span class="tool-supply-total-chip"><span>Items</span><strong>${formatCount(supplySummary.totalQuantity)}</strong></span>
+        <span class="tool-supply-total-chip tool-supply-total-chip--cost"><span>Total</span><strong>${formatMoney(supplySummary.totalCost)}</strong></span>
+      </div>
     </div>
     <p class="results-summary tool-note-band">
       Keep a running list of item costs and counts when you are pricing donuts, crafting batches, sandwich runs, or shopping lists.
     </p>
-    <div class="tool-stat-grid">
+    <div class="tool-stat-grid tool-stat-grid--supply">
       ${renderToolStatChip("Lines", formatCount(supplySummary.rows.length))}
       ${renderToolStatChip("Quantity", formatCount(supplySummary.totalQuantity))}
       ${renderToolStatChip("Total Cost", formatMoney(supplySummary.totalCost))}
