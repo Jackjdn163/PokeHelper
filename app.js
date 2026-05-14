@@ -5777,16 +5777,16 @@ function getSuggestedCatchGenderBadgeMeta(entry) {
 const POKEMONDB_HOME_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/normal";
 
 const HOME_GAME_ICON_URLS = {
-  lgpp: "./assets/game-badges/lgpe-pikachu.png",
-  lgpe: "./assets/game-badges/lgpe-eevee.png",
-  sw:   "./assets/game-badges/swsh-sword.png",
-  sh:   "./assets/game-badges/swsh-shield.png",
-  bd:   "./assets/game-badges/bdsp-diamond.png",
-  sp:   "./assets/game-badges/bdsp-pearl.png",
-  pla:  "./assets/game-badges/pla-arceus.png",
-  sc:   "./assets/game-badges/sv-scarlet.png",
-  vi:   "./assets/game-badges/sv-violet.png",
-  lza:  "./assets/game-badges/lza-emblem.png"
+  lgpp: "./assets/game-badges/home-lets-go-pikachu.png",
+  lgpe: "./assets/game-badges/home-lets-go-eevee.png",
+  sw:   "./assets/game-badges/home-sword.png",
+  sh:   "./assets/game-badges/home-shield.png",
+  bd:   "./assets/game-badges/home-brilliant-diamond.png",
+  sp:   "./assets/game-badges/home-shining-pearl.png",
+  pla:  "./assets/game-badges/home-legends-arceus.png",
+  sc:   "./assets/game-badges/home-scarlet.png",
+  vi:   "./assets/game-badges/home-violet.png",
+  lza:  "./assets/game-badges/home-legends-za.png"
 };
 
 // Maps each game version ID (as stored in state.tracker.games[gameId].versions) to its icon URL.
