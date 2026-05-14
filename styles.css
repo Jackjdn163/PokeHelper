@@ -8159,9 +8159,9 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 .maps-main-img--scroll {
-  max-width: 100%;
+  max-width: 80%;
   max-height: none;
-  width: 100%;
+  width: 80%;
   height: auto;
   object-fit: unset;
   border-radius: 16px;
