@@ -8210,6 +8210,21 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   overflow: hidden;
   border: 1px solid rgba(120, 160, 255, 0.15);
   box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
+  cursor: crosshair;
+}
+
+.maps-hisui-dim-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.maps-hisui-dim-overlay.is-active {
+  opacity: 1;
 }
 
 .maps-hisui-region-sprite {
@@ -8218,7 +8233,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   width: 100%;
   height: auto;
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity 180ms ease;
   pointer-events: none;
 }
 

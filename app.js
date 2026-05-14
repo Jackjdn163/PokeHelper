@@ -13768,56 +13768,102 @@ function buildHisuiOverlay() {
   baseImg.decoding  = "async";
   inner.appendChild(baseImg);
 
+  // Dark overlay shown when any region is hovered — dims the base map
+  const dimOverlay = document.createElement("div");
+  dimOverlay.className = "maps-hisui-dim-overlay";
+  inner.appendChild(dimOverlay);
+
   // Region sprite images — hidden by default, shown on hover
+  // Each is loaded into an offscreen canvas for pixel-perfect hit testing
   const spriteEls = {};
+  const spriteCanvases = {};
+
   for (const region of HISUI_REGIONS) {
     const sprite = document.createElement("img");
     sprite.className = "maps-hisui-region-sprite";
     sprite.src       = region.sprite;
     sprite.alt       = "";
-    sprite.decoding  = "async";
+    sprite.crossOrigin = "anonymous";
     sprite.dataset.regionId = region.id;
     inner.appendChild(sprite);
     spriteEls[region.id] = sprite;
-  }
 
-  // SVG hit layer on top — fully transparent, just for pointer events
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 100 56.25");
-  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.setAttribute("class", "maps-hisui-svg");
+    // Offscreen canvas for hit testing — drawn once image loads
+    const canvas = document.createElement("canvas");
+    spriteCanvases[region.id] = canvas;
+    sprite.addEventListener("load", () => {
+      canvas.width  = sprite.naturalWidth;
+      canvas.height = sprite.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(sprite, 0, 0);
+    }, { once: true });
+  }
 
   const tooltip = document.createElement("div");
   tooltip.className = "maps-region-tooltip hidden";
 
-  for (const region of HISUI_REGIONS) {
-    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    poly.setAttribute("points", region.points);
-    poly.setAttribute("fill", "transparent");
-    poly.setAttribute("stroke", "none");
-    poly.setAttribute("class", "hisui-region");
-    poly.dataset.regionId = region.id;
+  let activeRegionId = null;
 
-    const sprite = spriteEls[region.id];
-
-    poly.addEventListener("mouseenter", (e) => {
-      sprite.classList.add("is-visible");
-      tooltip.textContent = region.label;
-      tooltip.classList.remove("hidden");
-      positionTooltipFromSvg(e, tooltip, inner);
-    });
-    poly.addEventListener("mousemove", (e) => {
-      positionTooltipFromSvg(e, tooltip, inner);
-    });
-    poly.addEventListener("mouseleave", () => {
-      sprite.classList.remove("is-visible");
-      tooltip.classList.add("hidden");
-    });
-
-    svg.appendChild(poly);
+  function hitTestRegion(regionId, px, py) {
+    const canvas = spriteCanvases[regionId];
+    if (!canvas || canvas.width === 0) return false;
+    // px/py are fractions of the rendered image (0–1 each axis)
+    const ix = Math.floor(px * canvas.width);
+    const iy = Math.floor(py * canvas.height);
+    if (ix < 0 || iy < 0 || ix >= canvas.width || iy >= canvas.height) return false;
+    try {
+      const ctx = canvas.getContext("2d");
+      const pixel = ctx.getImageData(ix, iy, 1, 1).data;
+      return pixel[3] > 20; // non-transparent pixel = inside region
+    } catch {
+      return false;
+    }
   }
 
-  inner.appendChild(svg);
+  function setActiveRegion(regionId) {
+    if (activeRegionId === regionId) return;
+    // Hide old
+    if (activeRegionId) {
+      spriteEls[activeRegionId].classList.remove("is-visible");
+    }
+    activeRegionId = regionId;
+    if (regionId) {
+      spriteEls[regionId].classList.add("is-visible");
+      dimOverlay.classList.add("is-active");
+    } else {
+      dimOverlay.classList.remove("is-active");
+      tooltip.classList.add("hidden");
+    }
+  }
+
+  // Single mousemove listener on inner — checks all region canvases
+  inner.addEventListener("mousemove", (e) => {
+    const rect = inner.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top)  / rect.height;
+
+    let hit = null;
+    for (const region of HISUI_REGIONS) {
+      if (hitTestRegion(region.id, px, py)) {
+        hit = region;
+        break;
+      }
+    }
+
+    if (hit) {
+      setActiveRegion(hit.id);
+      tooltip.textContent = hit.label;
+      tooltip.classList.remove("hidden");
+      positionTooltipFromSvg(e, tooltip, inner);
+    } else {
+      setActiveRegion(null);
+    }
+  });
+
+  inner.addEventListener("mouseleave", () => {
+    setActiveRegion(null);
+  });
+
   inner.appendChild(tooltip);
   sizer.appendChild(inner);
   return sizer;
