@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import Anthropic from "npm:@anthropic-ai/sdk";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,6 @@ Deno.serve(async (req: Request) => {
 
   try {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
-    const model = Deno.env.get("AI_MODEL") || "gpt-4o-mini";
 
     if (!apiKey) {
       return new Response(
@@ -39,40 +39,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const client = new Anthropic({ apiKey });
+
     const systemContent = appContext
       ? `${SYSTEM_PROMPT}\n\n--- USER'S APP DATA ---\n${JSON.stringify(appContext, null, 2)}\n--- END APP DATA ---`
       : SYSTEM_PROMPT;
 
-    const openaiMessages = [
-      { role: "system", content: systemContent },
-      ...messages.slice(-20),
-    ];
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: openaiMessages,
-        max_tokens: 1024,
-        temperature: 0.7,
-      }),
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      system: [
+        {
+          type: "text",
+          text: systemContent,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: messages.slice(-20),
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("OpenAI error:", err);
-      return new Response(
-        JSON.stringify({ error: "AI request failed. Please try again." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content ?? "";
+    const reply = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
 
     return new Response(
       JSON.stringify({ reply }),
