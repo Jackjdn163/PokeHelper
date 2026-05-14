@@ -8194,7 +8194,23 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   height: auto;
 }
 
-/* ── Hisui SVG overlay ── */
+/* ── Hisui sizer + SVG overlay ── */
+
+.maps-hisui-sizer {
+  width: 100%;
+  max-width: 1200px;
+  flex-shrink: 0;
+}
+
+/* The inner wrap fills the sizer and maintains aspect via the image */
+.maps-hisui-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 160, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
+}
 
 .maps-hisui-svg {
   position: absolute;
@@ -8207,8 +8223,10 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 .hisui-region {
   pointer-events: all;
   cursor: pointer;
-  transition: fill 160ms ease, stroke-width 160ms ease;
+  transition: fill 140ms ease, stroke-width 120ms ease;
 }
+
+/* ── Shared tooltip ── */
 
 .maps-region-tooltip {
   position: absolute;
@@ -8234,100 +8252,42 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   pointer-events: none;
 }
 
-/* ── LZA wild zones ── */
+/* ── LZA wild zones SVG overlay ── */
 
 .maps-lza-wrap {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1 / 1;
+  max-width: 700px;
 }
 
-.maps-lza-zone-layer {
+.maps-lza-svg {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
-.maps-lza-pin {
-  position: absolute;
-  transform: translate(-50%, -50%);
+.lza-zone-group {
   pointer-events: all;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.maps-lza-hex {
-  width: 44px;
-  height: 44px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+.lza-zone-rect {
+  transition: fill 140ms ease, stroke-width 120ms ease;
 }
 
-.maps-lza-hex::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(20, 180, 110, 0.85);
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  transition: background 160ms ease;
-}
-
-.maps-lza-hex-inner {
-  position: relative;
-  z-index: 1;
+.lza-zone-label {
   font-family: "Oxanium", sans-serif;
-  font-size: 0.52rem;
+  font-size: 1.8px;
   font-weight: 700;
-  color: rgba(240, 255, 240, 0.95);
-  text-align: center;
-  line-height: 1.1;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  fill: rgba(180, 255, 210, 0.0);
+  letter-spacing: 0.1px;
   pointer-events: none;
-  max-width: 38px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  transition: fill 140ms ease;
 }
 
-.maps-lza-badge {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%) scale(0.85);
-  transform-origin: bottom center;
-  white-space: nowrap;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(6, 20, 14, 0.92);
-  border: 1px solid rgba(60, 210, 130, 0.4);
-  color: rgba(160, 240, 190, 0.95);
-  font-family: "Oxanium", sans-serif;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-}
-
-.maps-lza-pin.is-active .maps-lza-hex {
-  transform: scale(1.3);
-}
-
-.maps-lza-pin.is-active .maps-lza-hex::before {
-  background: rgba(40, 220, 140, 0.95);
-}
-
-.maps-lza-pin.is-active .maps-lza-badge {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
+.lza-zone-group.is-active .lza-zone-label {
+  fill: rgba(180, 255, 210, 0.95);
 }
 
 @media (max-width: 768px) {
