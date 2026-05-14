@@ -6537,7 +6537,8 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 /* ─── LZA Preset Buttons ──────────────────────────────── */
 
 .tool-preset-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-items: start;
 }
 
 .tool-preset-button {
@@ -6696,15 +6697,18 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 /* ─── Slot & Field Grids ──────────────────────────────── */
 
 .tool-slot-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  align-items: start;
 }
 
 .tool-field-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: start;
 }
 
 .tool-detail-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  align-items: start;
 }
 
 .tool-input-shell { min-width: 0; }
@@ -7264,7 +7268,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   .tool-slot-grid,
   .tool-detail-grid,
   .tool-field-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .tool-showcase-card,
