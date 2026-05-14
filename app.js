@@ -4024,7 +4024,7 @@ function refreshSuggestedCatchBadgeSeed() {
 }
 
 function isSuggestableLivingEntry(entry) {
-  return !entry.isForm || entry.syntheticKind === "gender";
+  return !entry.isForm || entry.syntheticKind === "gender" || entry.syntheticKind === "appearance";
 }
 
 function refreshRandomTargets() {
