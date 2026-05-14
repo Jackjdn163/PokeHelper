@@ -13783,7 +13783,7 @@ function buildHisuiOverlay(imgUrl) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 100 56.25");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.className = "maps-hisui-svg";
+  svg.setAttribute("class", "maps-hisui-svg");
 
   const tooltip = document.createElement("div");
   tooltip.className = "maps-region-tooltip hidden";
@@ -13841,7 +13841,7 @@ function buildLzaOverlay() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 100 100");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.className = "maps-lza-svg";
+  svg.setAttribute("class", "maps-lza-svg");
 
   const tooltip = document.createElement("div");
   tooltip.className = "maps-region-tooltip hidden";
