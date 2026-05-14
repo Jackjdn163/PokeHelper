@@ -8213,18 +8213,12 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   cursor: crosshair;
 }
 
-.maps-hisui-dim-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  opacity: 0;
-  transition: opacity 180ms ease;
-  pointer-events: none;
-  border-radius: inherit;
+.maps-hisui-base {
+  transition: filter 180ms ease;
 }
 
-.maps-hisui-dim-overlay.is-active {
-  opacity: 1;
+.maps-hisui-base.is-dimmed {
+  filter: brightness(0.45);
 }
 
 .maps-hisui-region-sprite {

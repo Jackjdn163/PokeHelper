@@ -13666,37 +13666,37 @@ const HISUI_REGIONS = [
     id: "obsidian",
     label: "Obsidian Fieldlands",
     sprite: "./assets/maps/Obsidian_Fieldlands.png",
-    points: "18,30 30,24 42,22 52,26 56,34 58,44 54,52 44,56 30,56 20,50 14,40"
+    hitMode: "floodfill"
   },
   {
     id: "crimson",
     label: "Crimson Mirelands",
     sprite: "./assets/maps/Crimson_Mirelands.png",
-    points: "56,34 68,28 80,28 90,34 94,44 90,52 80,56 66,56 56,50 52,42"
+    hitMode: "floodfill"
   },
   {
     id: "cobalt",
     label: "Cobalt Coastlands",
     sprite: "./assets/maps/Cobalt_Coastlands.png",
-    points: "76,12 90,8 100,14 100,32 94,42 84,44 76,36 70,26 72,16"
+    hitMode: "alpha"
   },
   {
     id: "coronet",
     label: "Coronet Highlands",
     sprite: "./assets/maps/Coronet_Highlands.png",
-    points: "40,14 54,8 68,12 74,22 72,34 64,40 52,42 40,38 34,28 36,18"
+    hitMode: "floodfill"
   },
   {
     id: "alabaster",
     label: "Alabaster Icelands",
     sprite: "./assets/maps/Alabaster_Icelands.png",
-    points: "34,2 52,0 66,4 72,14 68,24 54,28 40,26 30,18 28,8"
+    hitMode: "alpha"
   },
   {
     id: "jubilife",
     label: "Jubilife Village",
     sprite: "./assets/maps/Jubilife_Village.png",
-    points: "14,32 26,26 36,28 40,36 38,44 28,48 16,46 10,40"
+    hitMode: "floodfill"
   }
 ];
 
@@ -13760,18 +13760,13 @@ function buildHisuiOverlay() {
   const inner = document.createElement("div");
   inner.className = "maps-interactive-wrap maps-hisui-wrap";
 
-  // Base map always visible
+  // Base map always visible — dimmed via CSS class when a region is active
   const baseImg = document.createElement("img");
-  baseImg.className = "maps-overlay-img";
+  baseImg.className = "maps-overlay-img maps-hisui-base";
   baseImg.src       = "./assets/maps/Hisui_Map.png";
   baseImg.alt       = "Hisui";
   baseImg.decoding  = "async";
   inner.appendChild(baseImg);
-
-  // Dark overlay shown when any region is hovered — dims the base map
-  const dimOverlay = document.createElement("div");
-  dimOverlay.className = "maps-hisui-dim-overlay";
-  inner.appendChild(dimOverlay);
 
   // Region sprite images — hidden by default, shown on hover
   // Each is loaded into an offscreen canvas for pixel-perfect hit testing
@@ -13788,9 +13783,10 @@ function buildHisuiOverlay() {
     inner.appendChild(sprite);
     spriteEls[region.id] = sprite;
 
-    // Offscreen hit-mask: flood-fill from corners marks outside pixels.
-    // Any pixel NOT reachable from outside = inside the region (handles interior holes).
-    const hitMask = { data: null, width: 0, height: 0 };
+    // Build hit mask once the sprite loads.
+    // floodfill mode: BFS from corners over transparent pixels; anything unreachable = inside.
+    // alpha mode: direct alpha check (for open-border regions like Cobalt / Alabaster).
+    const hitMask = { data: null, alpha: null, width: 0, height: 0, mode: region.hitMode };
     spriteCanvases[region.id] = hitMask;
     sprite.addEventListener("load", () => {
       const W = sprite.naturalWidth;
@@ -13802,34 +13798,38 @@ function buildHisuiOverlay() {
       ctx.drawImage(sprite, 0, 0);
       const imgData = ctx.getImageData(0, 0, W, H).data;
 
-      // outside[i] = true means pixel i is outside all regions
-      const outside = new Uint8Array(W * H);
-      const queue = [];
-
-      function enqueue(x, y) {
-        const i = y * W + x;
-        if (x < 0 || y < 0 || x >= W || y >= H || outside[i]) return;
-        if (imgData[i * 4 + 3] > 20) return; // opaque pixel = region boundary, stop flood
-        outside[i] = 1;
-        queue.push(x, y);
-      }
-
-      // Seed from every pixel on all four edges
-      for (let x = 0; x < W; x++) { enqueue(x, 0); enqueue(x, H - 1); }
-      for (let y = 0; y < H; y++) { enqueue(0, y); enqueue(W - 1, y); }
-
-      // BFS flood fill
-      let qi = 0;
-      while (qi < queue.length) {
-        const x = queue[qi++];
-        const y = queue[qi++];
-        enqueue(x - 1, y); enqueue(x + 1, y);
-        enqueue(x, y - 1); enqueue(x, y + 1);
-      }
-
-      hitMask.data   = outside;
       hitMask.width  = W;
       hitMask.height = H;
+
+      if (region.hitMode === "floodfill") {
+        const outside = new Uint8Array(W * H);
+        const queue = [];
+
+        function enqueue(x, y) {
+          const i = y * W + x;
+          if (x < 0 || y < 0 || x >= W || y >= H || outside[i]) return;
+          if (imgData[i * 4 + 3] > 20) return;
+          outside[i] = 1;
+          queue.push(x, y);
+        }
+
+        for (let x = 0; x < W; x++) { enqueue(x, 0); enqueue(x, H - 1); }
+        for (let y = 0; y < H; y++) { enqueue(0, y); enqueue(W - 1, y); }
+
+        let qi = 0;
+        while (qi < queue.length) {
+          const x = queue[qi++];
+          const y = queue[qi++];
+          enqueue(x - 1, y); enqueue(x + 1, y);
+          enqueue(x, y - 1); enqueue(x, y + 1);
+        }
+        hitMask.data = outside;
+      } else {
+        // alpha mode — store raw alpha channel
+        const alpha = new Uint8Array(W * H);
+        for (let i = 0; i < W * H; i++) alpha[i] = imgData[i * 4 + 3];
+        hitMask.alpha = alpha;
+      }
     }, { once: true });
   }
 
@@ -13840,26 +13840,28 @@ function buildHisuiOverlay() {
 
   function hitTestRegion(regionId, px, py) {
     const mask = spriteCanvases[regionId];
-    if (!mask || !mask.data) return false;
+    if (!mask || mask.width === 0) return false;
     const ix = Math.floor(px * mask.width);
     const iy = Math.floor(py * mask.height);
     if (ix < 0 || iy < 0 || ix >= mask.width || iy >= mask.height) return false;
-    // inside = NOT marked as outside by flood fill
-    return mask.data[iy * mask.width + ix] === 0;
+    if (mask.mode === "floodfill") {
+      return mask.data !== null && mask.data[iy * mask.width + ix] === 0;
+    } else {
+      return mask.alpha !== null && mask.alpha[iy * mask.width + ix] > 20;
+    }
   }
 
   function setActiveRegion(regionId) {
     if (activeRegionId === regionId) return;
-    // Hide old
     if (activeRegionId) {
       spriteEls[activeRegionId].classList.remove("is-visible");
     }
     activeRegionId = regionId;
     if (regionId) {
       spriteEls[regionId].classList.add("is-visible");
-      dimOverlay.classList.add("is-active");
+      baseImg.classList.add("is-dimmed");
     } else {
-      dimOverlay.classList.remove("is-active");
+      baseImg.classList.remove("is-dimmed");
       tooltip.classList.add("hidden");
     }
   }
