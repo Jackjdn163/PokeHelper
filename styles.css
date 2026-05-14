@@ -6538,7 +6538,11 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 .tool-preset-grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  align-items: start;
+  align-items: stretch;
+}
+
+.tool-preset-button {
+  height: 100%;
 }
 
 .tool-preset-button {
