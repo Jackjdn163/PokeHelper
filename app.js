@@ -13650,7 +13650,31 @@ const MAPS_GAME_CATALOG = [
   }
 ];
 
-let mapsActiveGameId = MAPS_GAME_CATALOG[0].id;
+function showMapsSelectScreen() {
+  const selectScreen = document.getElementById("maps-select-screen");
+  const mapScreen    = document.getElementById("maps-map-screen");
+  if (!selectScreen || !mapScreen) return;
+  selectScreen.classList.remove("hidden");
+  mapScreen.classList.add("hidden");
+}
+
+function showMapsMapScreen(game) {
+  const selectScreen = document.getElementById("maps-select-screen");
+  const mapScreen    = document.getElementById("maps-map-screen");
+  const gameLabelEl  = document.getElementById("maps-map-game-label");
+  const titleEl      = document.getElementById("maps-map-title");
+  const imgEl        = document.getElementById("maps-main-img");
+  if (!selectScreen || !mapScreen || !gameLabelEl || !titleEl || !imgEl) return;
+
+  const mainMap = game.maps[0];
+  gameLabelEl.textContent = game.label;
+  titleEl.textContent     = mainMap.title;
+  imgEl.src               = mainMap.url;
+  imgEl.alt               = mainMap.title;
+
+  selectScreen.classList.add("hidden");
+  mapScreen.classList.remove("hidden");
+}
 
 function renderMapsTab(options = {}) {
   if (!shouldRenderForViews(["maps"], options.force)) {
@@ -13658,83 +13682,66 @@ function renderMapsTab(options = {}) {
   }
 
   const gameListEl = document.getElementById("maps-game-list");
-  const headerEl   = document.getElementById("maps-game-header");
-  const gridEl     = document.getElementById("maps-grid");
-  if (!gameListEl || !headerEl || !gridEl) return;
+  const backBtn    = document.getElementById("maps-back-btn");
+  if (!gameListEl) return;
 
-  // Build sidebar game list
+  // Back button
+  if (backBtn) {
+    backBtn.onclick = () => showMapsSelectScreen();
+  }
+
+  // Build game selection cards (only on first render or force)
+  if (gameListEl.childElementCount > 0 && !options.force) return;
   gameListEl.innerHTML = "";
+
   for (const game of MAPS_GAME_CATALOG) {
-    const icons = SUGGESTED_GAME_BADGE_SYMBOLS[game.id];
+    const icons     = SUGGESTED_GAME_BADGE_SYMBOLS[game.id];
     const iconPaths = Array.isArray(icons) ? icons : (icons ? [icons] : []);
-    const isSplit = iconPaths.length > 1;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "maps-game-btn" + (game.id === mapsActiveGameId ? " is-active" : "");
-    btn.dataset.gameId = game.id;
+    const card = document.createElement("button");
+    card.type      = "button";
+    card.className = "maps-game-card";
+    card.dataset.gameId = game.id;
 
-    const iconWrap = document.createElement("span");
-    iconWrap.className = "maps-game-btn-icon" + (isSplit ? " maps-game-btn-icon--split" : "");
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "maps-game-card-icons";
     for (const path of iconPaths) {
       const img = document.createElement("img");
-      img.src = path;
-      img.alt = "";
+      img.src     = path;
+      img.alt     = "";
       img.decoding = "async";
       iconWrap.appendChild(img);
     }
 
-    const label = document.createElement("span");
-    label.className = "maps-game-btn-label";
-    label.textContent = game.label;
+    const info = document.createElement("div");
+    info.className = "maps-game-card-info";
 
-    const count = document.createElement("span");
-    count.className = "maps-game-btn-count";
-    count.textContent = game.maps.length;
+    const labelEl = document.createElement("strong");
+    labelEl.className   = "maps-game-card-label";
+    labelEl.textContent = game.label;
 
-    btn.appendChild(iconWrap);
-    btn.appendChild(label);
-    btn.appendChild(count);
-    btn.addEventListener("click", () => {
-      mapsActiveGameId = game.id;
-      renderMapsTab({ force: true });
-    });
-    gameListEl.appendChild(btn);
+    const countEl = document.createElement("span");
+    countEl.className   = "maps-game-card-count";
+    countEl.textContent = game.maps.length === 1 ? "1 map" : `${game.maps.length} maps`;
+
+    info.appendChild(labelEl);
+    info.appendChild(countEl);
+
+    const arrow = document.createElement("span");
+    arrow.className   = "maps-game-card-arrow";
+    arrow.textContent = "→";
+    arrow.setAttribute("aria-hidden", "true");
+
+    card.appendChild(iconWrap);
+    card.appendChild(info);
+    card.appendChild(arrow);
+
+    card.addEventListener("click", () => showMapsMapScreen(game));
+    gameListEl.appendChild(card);
   }
 
-  // Render active game maps
-  const activeGame = MAPS_GAME_CATALOG.find((g) => g.id === mapsActiveGameId) ?? MAPS_GAME_CATALOG[0];
-
-  headerEl.innerHTML = "";
-  const heading = document.createElement("h2");
-  heading.className = "maps-game-heading";
-  heading.textContent = activeGame.label;
-  headerEl.appendChild(heading);
-
-  gridEl.innerHTML = "";
-  for (const map of activeGame.maps) {
-    const card = document.createElement("figure");
-    card.className = "map-card";
-
-    const imgWrap = document.createElement("div");
-    imgWrap.className = "map-card-img-wrap";
-
-    const img = document.createElement("img");
-    img.className = "map-card-img";
-    img.src = map.url;
-    img.alt = map.title;
-    img.decoding = "async";
-    img.loading = "lazy";
-    imgWrap.appendChild(img);
-
-    const caption = document.createElement("figcaption");
-    caption.className = "map-card-caption";
-    caption.textContent = map.title;
-
-    card.appendChild(imgWrap);
-    card.appendChild(caption);
-    gridEl.appendChild(card);
-  }
+  // Always start on the selection screen when the tab is rendered fresh
+  showMapsSelectScreen();
 }
 
 function renderSuggestors(options = {}) {

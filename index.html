@@ -1188,13 +1188,26 @@
       </main>
 
       <main class="workspace-shell app-view maps-shell" data-view-panel="maps">
-        <div class="maps-layout">
-          <aside class="maps-sidebar">
-            <div class="maps-sidebar-inner" id="maps-game-list"></div>
-          </aside>
-          <div class="maps-content">
-            <div class="maps-game-header" id="maps-game-header"></div>
-            <div class="maps-grid" id="maps-grid"></div>
+        <div class="maps-select-screen" id="maps-select-screen">
+          <div class="maps-select-header">
+            <p class="section-label">Maps</p>
+            <h2 class="maps-select-title">Select a Region</h2>
+          </div>
+          <div class="maps-game-selection-grid" id="maps-game-list"></div>
+        </div>
+        <div class="maps-map-screen hidden" id="maps-map-screen">
+          <div class="maps-map-topbar">
+            <button type="button" class="maps-back-btn" id="maps-back-btn">
+              <span class="maps-back-arrow" aria-hidden="true">&#8592;</span>
+              Back
+            </button>
+            <div class="maps-map-title-block">
+              <span class="section-label" id="maps-map-game-label"></span>
+              <h2 class="maps-map-title" id="maps-map-title"></h2>
+            </div>
+          </div>
+          <div class="maps-map-viewer" id="maps-map-viewer">
+            <img class="maps-main-img" id="maps-main-img" src="" alt="" />
           </div>
         </div>
       </main>
