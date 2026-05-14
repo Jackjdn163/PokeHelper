@@ -38,6 +38,8 @@ jobs:
           cp sw.js dist/sw.js
           cp game-tools-data.js dist/game-tools-data.js
           cp supabase-config.js dist/supabase-config.js
+          cp ai-panel.js dist/ai-panel.js
+          cp scroll-memory.js dist/scroll-memory.js
           cp manifest.webmanifest dist/manifest.webmanifest
           cp icon.svg dist/icon.svg
           cp .nojekyll dist/.nojekyll
