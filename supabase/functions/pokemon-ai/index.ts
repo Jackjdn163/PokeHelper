@@ -65,8 +65,13 @@ Deno.serve(async (req: Request) => {
     if (!response.ok) {
       const err = await response.text();
       console.error("OpenAI error:", err);
+      let friendlyError = "AI request failed. Please try again.";
+      try {
+        const parsed = JSON.parse(err);
+        if (parsed?.error?.message) friendlyError = parsed.error.message;
+      } catch { /* ignore */ }
       return new Response(
-        JSON.stringify({ error: "AI request failed. Please try again." }),
+        JSON.stringify({ error: friendlyError }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
