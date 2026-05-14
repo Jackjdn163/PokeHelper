@@ -7952,7 +7952,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 /* ─── Maps Tab ─────────────────────────────────────────────────────────────── */
 
-.maps-shell {
+.workspace-shell.maps-shell {
   display: flex;
   flex-direction: column;
   overflow: hidden;
