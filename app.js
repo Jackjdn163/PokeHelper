@@ -13788,14 +13788,48 @@ function buildHisuiOverlay() {
     inner.appendChild(sprite);
     spriteEls[region.id] = sprite;
 
-    // Offscreen canvas for hit testing — drawn once image loads
-    const canvas = document.createElement("canvas");
-    spriteCanvases[region.id] = canvas;
+    // Offscreen hit-mask: flood-fill from corners marks outside pixels.
+    // Any pixel NOT reachable from outside = inside the region (handles interior holes).
+    const hitMask = { data: null, width: 0, height: 0 };
+    spriteCanvases[region.id] = hitMask;
     sprite.addEventListener("load", () => {
-      canvas.width  = sprite.naturalWidth;
-      canvas.height = sprite.naturalHeight;
-      const ctx = canvas.getContext("2d");
+      const W = sprite.naturalWidth;
+      const H = sprite.naturalHeight;
+      const tmpCanvas = document.createElement("canvas");
+      tmpCanvas.width  = W;
+      tmpCanvas.height = H;
+      const ctx = tmpCanvas.getContext("2d");
       ctx.drawImage(sprite, 0, 0);
+      const imgData = ctx.getImageData(0, 0, W, H).data;
+
+      // outside[i] = true means pixel i is outside all regions
+      const outside = new Uint8Array(W * H);
+      const queue = [];
+
+      function enqueue(x, y) {
+        const i = y * W + x;
+        if (x < 0 || y < 0 || x >= W || y >= H || outside[i]) return;
+        if (imgData[i * 4 + 3] > 20) return; // opaque pixel = region boundary, stop flood
+        outside[i] = 1;
+        queue.push(x, y);
+      }
+
+      // Seed from every pixel on all four edges
+      for (let x = 0; x < W; x++) { enqueue(x, 0); enqueue(x, H - 1); }
+      for (let y = 0; y < H; y++) { enqueue(0, y); enqueue(W - 1, y); }
+
+      // BFS flood fill
+      let qi = 0;
+      while (qi < queue.length) {
+        const x = queue[qi++];
+        const y = queue[qi++];
+        enqueue(x - 1, y); enqueue(x + 1, y);
+        enqueue(x, y - 1); enqueue(x, y + 1);
+      }
+
+      hitMask.data   = outside;
+      hitMask.width  = W;
+      hitMask.height = H;
     }, { once: true });
   }
 
@@ -13805,19 +13839,13 @@ function buildHisuiOverlay() {
   let activeRegionId = null;
 
   function hitTestRegion(regionId, px, py) {
-    const canvas = spriteCanvases[regionId];
-    if (!canvas || canvas.width === 0) return false;
-    // px/py are fractions of the rendered image (0–1 each axis)
-    const ix = Math.floor(px * canvas.width);
-    const iy = Math.floor(py * canvas.height);
-    if (ix < 0 || iy < 0 || ix >= canvas.width || iy >= canvas.height) return false;
-    try {
-      const ctx = canvas.getContext("2d");
-      const pixel = ctx.getImageData(ix, iy, 1, 1).data;
-      return pixel[3] > 20; // non-transparent pixel = inside region
-    } catch {
-      return false;
-    }
+    const mask = spriteCanvases[regionId];
+    if (!mask || !mask.data) return false;
+    const ix = Math.floor(px * mask.width);
+    const iy = Math.floor(py * mask.height);
+    if (ix < 0 || iy < 0 || ix >= mask.width || iy >= mask.height) return false;
+    // inside = NOT marked as outside by flood fill
+    return mask.data[iy * mask.width + ix] === 0;
   }
 
   function setActiveRegion(regionId) {
