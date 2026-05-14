@@ -8147,6 +8147,185 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
 }
 
+/* ── Scrollable map (Galar) ── */
+
+.maps-map-viewer--scroll {
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.maps-main-img--scroll {
+  max-width: 100%;
+  max-height: none;
+  width: 100%;
+  height: auto;
+  object-fit: unset;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 160, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
+  display: block;
+}
+
+/* ── Interactive map wrapper ── */
+
+.maps-map-viewer--interactive {
+  padding: 24px;
+  align-items: flex-start;
+}
+
+.maps-interactive-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 160, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
+  flex-shrink: 0;
+}
+
+.maps-overlay-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Hisui SVG overlay ── */
+
+.maps-hisui-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hisui-region {
+  pointer-events: all;
+  cursor: pointer;
+  transition: fill 160ms ease, stroke-width 160ms ease;
+}
+
+.maps-region-tooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(6, 10, 28, 0.92);
+  border: 1px solid rgba(120, 200, 255, 0.3);
+  color: rgba(210, 240, 255, 0.95);
+  font-family: "Oxanium", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 24px rgba(2, 6, 20, 0.4);
+  transition: opacity 100ms ease;
+}
+
+.maps-region-tooltip.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── LZA wild zones ── */
+
+.maps-lza-wrap {
+  aspect-ratio: 16 / 9;
+}
+
+.maps-lza-zone-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.maps-lza-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.maps-lza-hex {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+
+.maps-lza-hex::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 180, 110, 0.85);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transition: background 160ms ease;
+}
+
+.maps-lza-hex-inner {
+  position: relative;
+  z-index: 1;
+  font-family: "Oxanium", sans-serif;
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: rgba(240, 255, 240, 0.95);
+  text-align: center;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  max-width: 38px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maps-lza-badge {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.85);
+  transform-origin: bottom center;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(6, 20, 14, 0.92);
+  border: 1px solid rgba(60, 210, 130, 0.4);
+  color: rgba(160, 240, 190, 0.95);
+  font-family: "Oxanium", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.maps-lza-pin.is-active .maps-lza-hex {
+  transform: scale(1.3);
+}
+
+.maps-lza-pin.is-active .maps-lza-hex::before {
+  background: rgba(40, 220, 140, 0.95);
+}
+
+.maps-lza-pin.is-active .maps-lza-badge {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
 @media (max-width: 768px) {
   .maps-select-screen {
     padding: 24px 20px;

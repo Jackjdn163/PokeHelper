@@ -13658,19 +13658,225 @@ function showMapsSelectScreen() {
   mapScreen.classList.add("hidden");
 }
 
+// ── Hisui region hover data ───────────────────────────────────────────────────
+// Polygons expressed as percentage coords (x%, y%) relative to image dims.
+// Image is 1920×1080 native aspect; the SVG viewBox matches.
+const HISUI_REGIONS = [
+  {
+    id: "obsidian",
+    label: "Obsidian Fieldlands",
+    color: "rgba(80,200,120,0.55)",
+    stroke: "rgba(80,220,130,0.9)",
+    // bottom-left grassy plains
+    points: "24,46 34,40 42,38 50,42 54,50 56,60 50,68 42,72 32,68 22,60"
+  },
+  {
+    id: "crimson",
+    label: "Crimson Mirelands",
+    color: "rgba(200,220,60,0.5)",
+    stroke: "rgba(180,230,50,0.9)",
+    // right-centre yellow wetlands
+    points: "57,48 67,42 78,44 84,52 86,62 80,70 70,74 58,70 54,60"
+  },
+  {
+    id: "cobalt",
+    label: "Cobalt Coastlands",
+    color: "rgba(220,80,60,0.5)",
+    stroke: "rgba(240,90,70,0.9)",
+    // far right volcanic coast
+    points: "80,22 92,18 100,26 100,44 94,52 86,50 80,42 76,30"
+  },
+  {
+    id: "coronet",
+    label: "Coronet Highlands",
+    color: "rgba(190,80,230,0.5)",
+    stroke: "rgba(200,100,255,0.9)",
+    // central mountain
+    points: "42,28 54,22 66,26 70,36 68,46 58,50 48,48 40,40 38,32"
+  },
+  {
+    id: "alabaster",
+    label: "Alabaster Icelands",
+    color: "rgba(80,200,240,0.5)",
+    stroke: "rgba(100,220,255,0.9)",
+    // top-centre icy area
+    points: "38,6 52,2 62,4 66,16 62,26 52,28 42,26 34,16"
+  },
+  {
+    id: "jubilife",
+    label: "Jubilife Village",
+    color: "rgba(80,230,180,0.55)",
+    stroke: "rgba(90,240,190,0.9)",
+    // small village bottom-left
+    points: "18,40 28,36 36,38 38,46 34,52 24,54 16,50"
+  }
+];
+
+// ── LZA wild zones ────────────────────────────────────────────────────────────
+// The reference image is 1920×1080. Zones are % of natural image size.
+// The webp provided shows zones over the Lumiose City bird's-eye map.
+const LZA_WILD_ZONES = [
+  { id: "promenade",    label: "Promenade",       x: 50,  y: 18,  r: 5.5 },
+  { id: "north-blvd",  label: "North Boulevard",  x: 50,  y: 8,   r: 4   },
+  { id: "east-blvd",   label: "East Boulevard",   x: 67,  y: 32,  r: 4   },
+  { id: "south-blvd",  label: "South Boulevard",  x: 50,  y: 82,  r: 4   },
+  { id: "west-blvd",   label: "West Boulevard",   x: 30,  y: 32,  r: 4   },
+  { id: "northern",    label: "Northern District", x: 50,  y: 28,  r: 5   },
+  { id: "eastern",     label: "Eastern District",  x: 65,  y: 50,  r: 5   },
+  { id: "southern",    label: "Southern District", x: 50,  y: 70,  r: 5   },
+  { id: "western",     label: "Western District",  x: 34,  y: 50,  r: 5   },
+  { id: "center",      label: "Central Plaza",     x: 50,  y: 50,  r: 6.5 }
+];
+
+function buildHisuiOverlay(imgUrl) {
+  const wrap = document.createElement("div");
+  wrap.className = "maps-interactive-wrap maps-hisui-wrap";
+
+  const img = document.createElement("img");
+  img.className   = "maps-overlay-img";
+  img.src         = imgUrl;
+  img.alt         = "Hisui";
+  img.decoding    = "async";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 100 56.25");
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  svg.className = "maps-hisui-svg";
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "maps-region-tooltip hidden";
+
+  for (const region of HISUI_REGIONS) {
+    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    poly.setAttribute("points", region.points);
+    poly.setAttribute("fill", region.color.replace(/[\d.]+\)$/, "0)"));
+    poly.setAttribute("stroke", region.stroke);
+    poly.setAttribute("stroke-width", "0.5");
+    poly.setAttribute("stroke-linejoin", "round");
+    poly.setAttribute("class", "hisui-region");
+    poly.dataset.regionId = region.id;
+
+    poly.addEventListener("mouseenter", (e) => {
+      poly.setAttribute("fill", region.color);
+      poly.setAttribute("stroke-width", "0.8");
+      tooltip.textContent = region.label;
+      tooltip.classList.remove("hidden");
+      positionTooltipFromSvg(e, tooltip, wrap);
+    });
+    poly.addEventListener("mousemove", (e) => {
+      positionTooltipFromSvg(e, tooltip, wrap);
+    });
+    poly.addEventListener("mouseleave", () => {
+      poly.setAttribute("fill", region.color.replace(/[\d.]+\)$/, "0)"));
+      poly.setAttribute("stroke-width", "0.5");
+      tooltip.classList.add("hidden");
+    });
+
+    svg.appendChild(poly);
+  }
+
+  wrap.appendChild(img);
+  wrap.appendChild(svg);
+  wrap.appendChild(tooltip);
+  return wrap;
+}
+
+function buildLzaOverlay(imgUrl) {
+  const wrap = document.createElement("div");
+  wrap.className = "maps-interactive-wrap maps-lza-wrap";
+
+  const img = document.createElement("img");
+  img.className   = "maps-overlay-img";
+  img.src         = imgUrl;
+  img.alt         = "Lumiose City Wild Zones";
+  img.decoding    = "async";
+
+  const zoneLayer = document.createElement("div");
+  zoneLayer.className = "maps-lza-zone-layer";
+
+  for (const zone of LZA_WILD_ZONES) {
+    const pin = document.createElement("div");
+    pin.className = "maps-lza-pin";
+    pin.style.left = `${zone.x}%`;
+    pin.style.top  = `${zone.y}%`;
+
+    const hex = document.createElement("div");
+    hex.className = "maps-lza-hex";
+
+    const inner = document.createElement("div");
+    inner.className = "maps-lza-hex-inner";
+    inner.textContent = zone.label.split(" ")[0];
+
+    const badge = document.createElement("div");
+    badge.className = "maps-lza-badge";
+    badge.textContent = zone.label;
+
+    hex.appendChild(inner);
+    pin.appendChild(hex);
+    pin.appendChild(badge);
+
+    pin.addEventListener("mouseenter", () => pin.classList.add("is-active"));
+    pin.addEventListener("mouseleave", () => pin.classList.remove("is-active"));
+
+    zoneLayer.appendChild(pin);
+  }
+
+  wrap.appendChild(img);
+  wrap.appendChild(zoneLayer);
+  return wrap;
+}
+
+function positionTooltipFromSvg(mouseEvent, tooltip, container) {
+  const rect = container.getBoundingClientRect();
+  const x = mouseEvent.clientX - rect.left + 14;
+  const y = mouseEvent.clientY - rect.top  - 36;
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top  = `${y}px`;
+}
+
 function showMapsMapScreen(game) {
   const selectScreen = document.getElementById("maps-select-screen");
   const mapScreen    = document.getElementById("maps-map-screen");
   const gameLabelEl  = document.getElementById("maps-map-game-label");
   const titleEl      = document.getElementById("maps-map-title");
-  const imgEl        = document.getElementById("maps-main-img");
-  if (!selectScreen || !mapScreen || !gameLabelEl || !titleEl || !imgEl) return;
+  const viewer       = document.getElementById("maps-map-viewer");
+  if (!selectScreen || !mapScreen || !gameLabelEl || !titleEl || !viewer) return;
 
   const mainMap = game.maps[0];
   gameLabelEl.textContent = game.label;
   titleEl.textContent     = mainMap.title;
-  imgEl.src               = mainMap.url;
-  imgEl.alt               = mainMap.title;
+
+  viewer.replaceChildren();
+  viewer.className = "maps-map-viewer";
+
+  if (game.id === "pla") {
+    // Hisui — use the full detailed map with region overlay
+    const hisuiUrl = "./assets/maps/261b9-pokemon-legends-arceus-hisui-full-map-all-areas-jpg.jpg";
+    viewer.classList.add("maps-map-viewer--interactive");
+    viewer.appendChild(buildHisuiOverlay(hisuiUrl));
+  } else if (game.id === "lza") {
+    // Legends: Z-A — wild zone overlay on the Lumiose bird's-eye map
+    const lzaUrl = "./assets/maps/Pokemon-Legends-ZA-Wild-Zones.webp";
+    titleEl.textContent = "Lumiose City — Wild Zones";
+    viewer.classList.add("maps-map-viewer--interactive");
+    viewer.appendChild(buildLzaOverlay(lzaUrl));
+  } else if (game.id === "swsh") {
+    // Galar — full scrollable image, no height cap
+    viewer.classList.add("maps-map-viewer--scroll");
+    const img = document.createElement("img");
+    img.className  = "maps-main-img maps-main-img--scroll";
+    img.src        = mainMap.url;
+    img.alt        = mainMap.title;
+    img.decoding   = "async";
+    viewer.appendChild(img);
+  } else {
+    const img = document.createElement("img");
+    img.className = "maps-main-img";
+    img.src       = mainMap.url;
+    img.alt       = mainMap.title;
+    img.decoding  = "async";
+    viewer.appendChild(img);
+  }
 
   selectScreen.classList.add("hidden");
   mapScreen.classList.remove("hidden");
