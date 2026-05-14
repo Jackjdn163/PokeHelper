@@ -7,6 +7,30 @@
 
   const history = [];
 
+  // Keys whose raw values are safe to include (small scalars / short strings)
+  const SCALAR_KEYS = ["trainer", "profile", "journey", "game-availability"];
+  // Keys that are large arrays/objects — summarise instead of dumping
+  const SUMMARY_KEYS = ["caught", "shiny", "hunt", "pokedex", "pokepilot", "dexter"];
+
+  function summariseValue(key, raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return { count: parsed.length };
+      if (parsed && typeof parsed === "object") {
+        // For caught maps: count truthy values
+        const entries = Object.entries(parsed);
+        if (entries.length > 20) {
+          const caught = entries.filter(([, v]) => v).length;
+          return { total: entries.length, caught };
+        }
+        return parsed;
+      }
+      return parsed;
+    } catch {
+      return raw?.length > 200 ? raw.slice(0, 200) + "…" : raw;
+    }
+  }
+
   function collectAppContext() {
     const ctx = {};
 
@@ -18,23 +42,20 @@
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key) continue;
-        if (
-          key.includes("dexter") ||
-          key.includes("pokepilot") ||
-          key.includes("pokedex") ||
-          key.includes("caught") ||
-          key.includes("shiny") ||
-          key.includes("hunt") ||
-          key.includes("journey") ||
-          key.includes("trainer") ||
-          key.includes("game-availability") ||
-          key.includes("profile")
-        ) {
-          try {
-            ctx[key] = JSON.parse(localStorage.getItem(key));
-          } catch {
-            ctx[key] = localStorage.getItem(key);
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+
+        const isScalar = SCALAR_KEYS.some((k) => key.includes(k));
+        const isSummary = SUMMARY_KEYS.some((k) => key.includes(k));
+
+        if (isScalar) {
+          // Only include if the value is small
+          if (raw.length <= 2000) {
+            try { ctx[key] = JSON.parse(raw); } catch { ctx[key] = raw; }
           }
+        } else if (isSummary) {
+          // Summarise large data rather than dumping it
+          ctx[key + "_summary"] = summariseValue(key, raw);
         }
       }
     } catch { /* localStorage unavailable */ }
