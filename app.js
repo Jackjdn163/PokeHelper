@@ -13658,57 +13658,45 @@ function showMapsSelectScreen() {
   mapScreen.classList.add("hidden");
 }
 
-// ── Hisui region hover data ───────────────────────────────────────────────────
-// Polygons expressed as percentage coords (x%, y%) relative to image dims.
-// Image is 1920×1080 native aspect; the SVG viewBox matches.
+// ── Hisui region sprite + hit-polygon data ────────────────────────────────────
+// All sprites are the same canvas size as Hisui_Map.png so they stack exactly.
+// Hit polygons use percentage coords (0-100 x, 0-56.25 y) matching the SVG viewBox.
 const HISUI_REGIONS = [
   {
     id: "obsidian",
     label: "Obsidian Fieldlands",
-    color: "rgba(80,200,120,0.55)",
-    stroke: "rgba(80,220,130,0.9)",
-    // bottom-left grassy plains
-    points: "24,46 34,40 42,38 50,42 54,50 56,60 50,68 42,72 32,68 22,60"
+    sprite: "./assets/maps/Obsidian_Fieldlands.png",
+    points: "18,30 30,24 42,22 52,26 56,34 58,44 54,52 44,56 30,56 20,50 14,40"
   },
   {
     id: "crimson",
     label: "Crimson Mirelands",
-    color: "rgba(200,220,60,0.5)",
-    stroke: "rgba(180,230,50,0.9)",
-    // right-centre yellow wetlands
-    points: "57,48 67,42 78,44 84,52 86,62 80,70 70,74 58,70 54,60"
+    sprite: "./assets/maps/Crimson_Mirelands.png",
+    points: "56,34 68,28 80,28 90,34 94,44 90,52 80,56 66,56 56,50 52,42"
   },
   {
     id: "cobalt",
     label: "Cobalt Coastlands",
-    color: "rgba(220,80,60,0.5)",
-    stroke: "rgba(240,90,70,0.9)",
-    // far right volcanic coast
-    points: "80,22 92,18 100,26 100,44 94,52 86,50 80,42 76,30"
+    sprite: "./assets/maps/Cobalt_Coastlands.png",
+    points: "76,12 90,8 100,14 100,32 94,42 84,44 76,36 70,26 72,16"
   },
   {
     id: "coronet",
     label: "Coronet Highlands",
-    color: "rgba(190,80,230,0.5)",
-    stroke: "rgba(200,100,255,0.9)",
-    // central mountain
-    points: "42,28 54,22 66,26 70,36 68,46 58,50 48,48 40,40 38,32"
+    sprite: "./assets/maps/Coronet_Highlands.png",
+    points: "40,14 54,8 68,12 74,22 72,34 64,40 52,42 40,38 34,28 36,18"
   },
   {
     id: "alabaster",
     label: "Alabaster Icelands",
-    color: "rgba(80,200,240,0.5)",
-    stroke: "rgba(100,220,255,0.9)",
-    // top-centre icy area
-    points: "38,6 52,2 62,4 66,16 62,26 52,28 42,26 34,16"
+    sprite: "./assets/maps/Alabaster_Icelands.png",
+    points: "34,2 52,0 66,4 72,14 68,24 54,28 40,26 30,18 28,8"
   },
   {
     id: "jubilife",
     label: "Jubilife Village",
-    color: "rgba(80,230,180,0.55)",
-    stroke: "rgba(90,240,190,0.9)",
-    // small village bottom-left
-    points: "18,40 28,36 36,38 38,46 34,52 24,54 16,50"
+    sprite: "./assets/maps/Jubilife_Village.png",
+    points: "14,32 26,26 36,28 40,36 38,44 28,48 16,46 10,40"
   }
 ];
 
@@ -13765,21 +13753,35 @@ const LZA_WILD_ZONES = [
   { id: "zone17",     label: "Zone 17",             cx: 74,   cy: 73,   w: 5,   h: 4  },
 ];
 
-function buildHisuiOverlay(imgUrl) {
-  // Outer sizer: padding-bottom trick forces 16:9 so the SVG always matches the image
+function buildHisuiOverlay() {
   const sizer = document.createElement("div");
   sizer.className = "maps-hisui-sizer";
 
   const inner = document.createElement("div");
   inner.className = "maps-interactive-wrap maps-hisui-wrap";
 
-  const img = document.createElement("img");
-  img.className   = "maps-overlay-img";
-  img.src         = imgUrl;
-  img.alt         = "Hisui";
-  img.decoding    = "async";
+  // Base map always visible
+  const baseImg = document.createElement("img");
+  baseImg.className = "maps-overlay-img";
+  baseImg.src       = "./assets/maps/Hisui_Map.png";
+  baseImg.alt       = "Hisui";
+  baseImg.decoding  = "async";
+  inner.appendChild(baseImg);
 
-  // SVG viewBox matches the 16:9 logical space (100 × 56.25)
+  // Region sprite images — hidden by default, shown on hover
+  const spriteEls = {};
+  for (const region of HISUI_REGIONS) {
+    const sprite = document.createElement("img");
+    sprite.className = "maps-hisui-region-sprite";
+    sprite.src       = region.sprite;
+    sprite.alt       = "";
+    sprite.decoding  = "async";
+    sprite.dataset.regionId = region.id;
+    inner.appendChild(sprite);
+    spriteEls[region.id] = sprite;
+  }
+
+  // SVG hit layer on top — fully transparent, just for pointer events
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 100 56.25");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -13792,15 +13794,14 @@ function buildHisuiOverlay(imgUrl) {
     const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     poly.setAttribute("points", region.points);
     poly.setAttribute("fill", "transparent");
-    poly.setAttribute("stroke", region.stroke);
-    poly.setAttribute("stroke-width", "0.5");
-    poly.setAttribute("stroke-linejoin", "round");
+    poly.setAttribute("stroke", "none");
     poly.setAttribute("class", "hisui-region");
     poly.dataset.regionId = region.id;
 
+    const sprite = spriteEls[region.id];
+
     poly.addEventListener("mouseenter", (e) => {
-      poly.setAttribute("fill", region.color);
-      poly.setAttribute("stroke-width", "0.9");
+      sprite.classList.add("is-visible");
       tooltip.textContent = region.label;
       tooltip.classList.remove("hidden");
       positionTooltipFromSvg(e, tooltip, inner);
@@ -13809,15 +13810,13 @@ function buildHisuiOverlay(imgUrl) {
       positionTooltipFromSvg(e, tooltip, inner);
     });
     poly.addEventListener("mouseleave", () => {
-      poly.setAttribute("fill", "transparent");
-      poly.setAttribute("stroke-width", "0.5");
+      sprite.classList.remove("is-visible");
       tooltip.classList.add("hidden");
     });
 
     svg.appendChild(poly);
   }
 
-  inner.appendChild(img);
   inner.appendChild(svg);
   inner.appendChild(tooltip);
   sizer.appendChild(inner);
@@ -13922,10 +13921,8 @@ function showMapsMapScreen(game) {
   viewer.className = "maps-map-viewer";
 
   if (game.id === "pla") {
-    // Hisui — use the full detailed map with region overlay
-    const hisuiUrl = "./assets/maps/261b9-pokemon-legends-arceus-hisui-full-map-all-areas-jpg.jpg";
     viewer.classList.add("maps-map-viewer--interactive");
-    viewer.appendChild(buildHisuiOverlay(hisuiUrl));
+    viewer.appendChild(buildHisuiOverlay());
   } else if (game.id === "lza") {
     titleEl.textContent = "Lumiose City — Wild Zones";
     viewer.classList.add("maps-map-viewer--interactive");

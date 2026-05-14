@@ -8212,6 +8212,20 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
 }
 
+.maps-hisui-region-sprite {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.maps-hisui-region-sprite.is-visible {
+  opacity: 1;
+}
+
 .maps-hisui-svg {
   position: absolute;
   inset: 0;
@@ -8223,7 +8237,6 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 .hisui-region {
   pointer-events: all;
   cursor: pointer;
-  transition: fill 140ms ease, stroke-width 120ms ease;
 }
 
 /* ── Shared tooltip ── */
