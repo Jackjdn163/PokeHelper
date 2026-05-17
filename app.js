@@ -1,4 +1,4 @@
-const APP_CHUNK_VERSION = "97";
+const APP_CHUNK_VERSION = "100";
 const APP_CHUNKS = [
   "./scripts/app/00-config-data-state.js",
   "./scripts/app/01-storage-profiles-cloud.js",

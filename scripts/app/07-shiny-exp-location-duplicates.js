@@ -2077,7 +2077,171 @@ async function loadSpeciesByBaseNumber(baseNumber) {
   return payload;
 }
 
-function collectMissingEvolutionCoverageTargets(node, targets = [], seenSpecies = new Set()) {
+const EVOLUTION_REGIONAL_FORM_TOKENS = ["alola", "galar", "hisui", "paldea"];
+const EVOLUTION_FORM_PATH_GROUPS = [
+  {
+    key: "flower",
+    familyNames: new Set(["flabebe", "floette", "florges"]),
+    tokens: ["red", "yellow", "orange", "blue", "white"],
+    defaultToken: "red"
+  },
+  {
+    key: "sea",
+    familyNames: new Set(["shellos", "gastrodon"]),
+    tokens: ["east"],
+    defaultToken: "west"
+  },
+  {
+    key: "season",
+    familyNames: new Set(["deerling", "sawsbuck"]),
+    tokens: ["summer", "autumn", "winter"],
+    defaultToken: "spring"
+  },
+  {
+    key: "cloak",
+    familyNames: new Set(["burmy", "wormadam"]),
+    tokens: ["sandy", "trash"],
+    defaultToken: "plant"
+  },
+  {
+    key: "authenticity",
+    familyNames: new Set(["sinistea", "polteageist"]),
+    tokens: ["antique"],
+    defaultToken: "phony"
+  },
+  {
+    key: "matcha",
+    familyNames: new Set(["poltchageist", "sinistcha"]),
+    tokens: [
+      { match: "artisan", path: "rare" },
+      { match: "masterpiece", path: "rare" }
+    ],
+    defaultToken: "common"
+  }
+];
+
+function getEvolutionEntryName(entry) {
+  return String(entry?.name || "").trim().toLowerCase();
+}
+
+function getEvolutionEntryBaseName(entry) {
+  return String(entry?.basePokemonName || entry?.name || "").trim().toLowerCase();
+}
+
+function getEvolutionEntryFormFlags(entry) {
+  return new Set(Array.isArray(entry?.formFlags) ? entry.formFlags.map((flag) => String(flag).toLowerCase()) : []);
+}
+
+function getEvolutionRegionalPath(entry) {
+  const name = getEvolutionEntryName(entry);
+  return EVOLUTION_REGIONAL_FORM_TOKENS.find((token) => name.includes(`-${token}`)) || "base";
+}
+
+function getEvolutionGroupedFormPath(entry) {
+  const baseName = getEvolutionEntryBaseName(entry);
+  const name = getEvolutionEntryName(entry);
+  const variantLabel = String(entry?.variantLabel || "").trim().toLowerCase();
+
+  const group = EVOLUTION_FORM_PATH_GROUPS.find((item) => item.familyNames.has(baseName));
+  if (!group) {
+    return null;
+  }
+
+  const token = group.tokens.find((candidate) => {
+    const match = typeof candidate === "string" ? candidate : candidate.match;
+    return name === `${baseName}-${match}` || name.endsWith(`-${match}`) || variantLabel.includes(match);
+  });
+
+  if (!token && name && name !== baseName) {
+    return `${group.key}:custom:${name}`;
+  }
+
+  const path = typeof token === "string" ? token : token?.path;
+
+  return `${group.key}:${path || group.defaultToken}`;
+}
+
+function getEvolutionGenderPath(entry) {
+  const name = getEvolutionEntryName(entry);
+  const variantLabel = String(entry?.variantLabel || "").trim().toLowerCase();
+  const genderText = `${name} ${variantLabel}`;
+
+  if (/(^|[-\s])female($|[-\s])/.test(genderText)) {
+    return "female";
+  }
+
+  if (/(^|[-\s])male($|[-\s])/.test(genderText)) {
+    return "male";
+  }
+
+  return null;
+}
+
+function getEvolutionRequirementGenderPath(evolutionNode) {
+  const details = Array.isArray(evolutionNode?.evolution_details) ? evolutionNode.evolution_details : [];
+
+  if (details.some((detail) => Number(detail?.gender) === 1)) {
+    return "female";
+  }
+
+  if (details.some((detail) => Number(detail?.gender) === 2)) {
+    return "male";
+  }
+
+  return null;
+}
+
+function getEvolutionPathSignature(entry) {
+  return {
+    regionalPath: getEvolutionRegionalPath(entry),
+    groupedFormPath: getEvolutionGroupedFormPath(entry),
+    genderPath: getEvolutionGenderPath(entry)
+  };
+}
+
+function isBlockedDuplicateEvolutionTarget(entry) {
+  const name = getEvolutionEntryName(entry);
+  const formFlags = getEvolutionEntryFormFlags(entry);
+  return name.includes("-gmax") || name.includes("-mega") || formFlags.has("gmax") || formFlags.has("mega");
+}
+
+function canDuplicateEvolutionTargetMatchSource(sourceEntry, targetEntry, evolutionNode = null) {
+  if (isBlockedDuplicateEvolutionTarget(targetEntry)) {
+    return false;
+  }
+
+  if (!sourceEntry) {
+    return true;
+  }
+
+  const sourcePath = getEvolutionPathSignature(sourceEntry);
+  const targetPath = getEvolutionPathSignature(targetEntry);
+  const requiredGenderPath = getEvolutionRequirementGenderPath(evolutionNode);
+
+  if (sourcePath.regionalPath !== targetPath.regionalPath) {
+    return false;
+  }
+
+  if (targetPath.groupedFormPath && sourcePath.groupedFormPath !== targetPath.groupedFormPath) {
+    return false;
+  }
+
+  if (requiredGenderPath && sourcePath.genderPath && sourcePath.genderPath !== requiredGenderPath) {
+    return false;
+  }
+
+  if (targetPath.genderPath && sourcePath.genderPath && sourcePath.genderPath !== targetPath.genderPath) {
+    return false;
+  }
+
+  if (targetPath.genderPath && requiredGenderPath && targetPath.genderPath !== requiredGenderPath) {
+    return false;
+  }
+
+  return true;
+}
+
+function collectMissingEvolutionCoverageTargets(node, sourceEntry = null, targets = [], seenSpecies = new Set()) {
   if (!node?.evolves_to?.length) {
     return targets;
   }
@@ -2088,20 +2252,61 @@ function collectMissingEvolutionCoverageTargets(node, targets = [], seenSpecies 
       return;
     }
 
-    if (!seenSpecies.has(speciesName) && !isCaught(speciesName)) {
-      seenSpecies.add(speciesName);
-      targets.push({
-        speciesName,
-        displayName: titleCase(speciesName)
-      });
-    }
+    collectMissingEvolutionSpeciesTargets(speciesName, sourceEntry, nextNode, targets, seenSpecies);
   });
 
   node.evolves_to.forEach((nextNode) => {
-    collectMissingEvolutionCoverageTargets(nextNode, targets, seenSpecies);
+    collectMissingEvolutionCoverageTargets(nextNode, sourceEntry, targets, seenSpecies);
   });
 
   return targets;
+}
+
+function getEvolutionCoverageEntriesForSpecies(speciesName, sourceEntry = null, evolutionNode = null) {
+  const normalizedName = String(speciesName || "").trim().toLowerCase();
+  if (!normalizedName) {
+    return [];
+  }
+
+  return state.entries
+    .filter((entry) => {
+      const entryName = String(entry.name || "").trim().toLowerCase();
+      const entryBaseName = String(entry.basePokemonName || entry.name || "").trim().toLowerCase();
+      return entryName === normalizedName || entryBaseName === normalizedName;
+    })
+    .filter((entry) => canDuplicateEvolutionTargetMatchSource(sourceEntry, entry, evolutionNode))
+    .sort(compareEntriesWithinGroup);
+}
+
+function collectMissingEvolutionSpeciesTargets(speciesName, sourceEntry, evolutionNode, targets, seenTargets) {
+  const normalizedName = String(speciesName || "").trim().toLowerCase();
+  const coverageEntries = getEvolutionCoverageEntriesForSpecies(normalizedName, sourceEntry, evolutionNode);
+
+  if (!coverageEntries.length) {
+    if (!seenTargets.has(normalizedName) && !sourceEntry && !isCaught(normalizedName)) {
+      seenTargets.add(normalizedName);
+      targets.push({
+        speciesName: normalizedName,
+        entryName: normalizedName,
+        displayName: titleCase(normalizedName)
+      });
+    }
+    return;
+  }
+
+  coverageEntries.forEach((entry) => {
+    const entryName = String(entry.name || "").trim().toLowerCase();
+    if (!entryName || seenTargets.has(entryName) || isCaught(entry.name)) {
+      return;
+    }
+
+    seenTargets.add(entryName);
+    targets.push({
+      speciesName: normalizedName,
+      entryName,
+      displayName: entry.displayName || titleCase(entryName)
+    });
+  });
 }
 
 function summarizeDuplicateEvolutionAssignments(assignments = []) {
@@ -2109,11 +2314,12 @@ function summarizeDuplicateEvolutionAssignments(assignments = []) {
 
   assignments.forEach((assignment) => {
     const speciesName = String(assignment?.speciesName || "").trim().toLowerCase();
-    if (!speciesName) {
+    const entryName = String(assignment?.entryName || speciesName).trim().toLowerCase();
+    if (!entryName) {
       return;
     }
 
-    const existing = groupedAssignments.find((item) => item.speciesName === speciesName);
+    const existing = groupedAssignments.find((item) => item.entryName === entryName);
     if (existing) {
       existing.count += 1;
       return;
@@ -2121,6 +2327,7 @@ function summarizeDuplicateEvolutionAssignments(assignments = []) {
 
     groupedAssignments.push({
       speciesName,
+      entryName,
       displayName: assignment.displayName || titleCase(speciesName),
       count: 1
     });
@@ -2205,7 +2412,7 @@ async function buildDuplicatePlannerRecord(entry) {
     const chain = await loadEvolutionChain(species.evolution_chain?.url ?? "");
     const speciesName = entry.basePokemonName ?? species.name ?? entry.name;
     const currentNode = findEvolutionNode(chain?.chain, speciesName);
-    const missingCoverageTargets = collectMissingEvolutionCoverageTargets(currentNode);
+    const missingCoverageTargets = collectMissingEvolutionCoverageTargets(currentNode, entry);
     evolveAssignments = missingCoverageTargets.slice(0, duplicateCount);
     evolveCount = evolveAssignments.length;
     evolutionDataReady = true;
