@@ -1,34 +1,65 @@
 (function () {
   "use strict";
 
-  const SUPABASE_URL = window.DEXTER_SUPABASE_CONFIG?.url || "";
-  const EDGE_FN_URL = SUPABASE_URL + "/functions/v1/pokemon-ai";
-  const ANON_KEY = window.DEXTER_SUPABASE_CONFIG?.publishableKey || "";
+  const SUPABASE_CONFIG = window.DEXTER_SUPABASE_CONFIG || {};
+  const AI_SUPABASE_URL = SUPABASE_CONFIG.aiUrl || SUPABASE_CONFIG.url || "";
+  const EDGE_FN_URL = AI_SUPABASE_URL + "/functions/v1/pokemon-ai";
+  const ANON_KEY = SUPABASE_CONFIG.aiPublishableKey || SUPABASE_CONFIG.publishableKey || "";
 
   const history = [];
 
-  // Keys whose raw values are safe to include (small scalars / short strings)
-  const SCALAR_KEYS = ["trainer", "profile", "journey", "game-availability"];
-  // Keys that are large arrays/objects — summarise instead of dumping
-  const SUMMARY_KEYS = ["caught", "shiny", "hunt", "pokedex", "pokepilot", "dexter"];
+  function countTruthyValues(value) {
+    if (!value || typeof value !== "object") return 0;
+    return Object.values(value).filter(Boolean).length;
+  }
 
-  function summariseValue(key, raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return { count: parsed.length };
-      if (parsed && typeof parsed === "object") {
-        // For caught maps: count truthy values
-        const entries = Object.entries(parsed);
-        if (entries.length > 20) {
-          const caught = entries.filter(([, v]) => v).length;
-          return { total: entries.length, caught };
-        }
-        return parsed;
+  function compactStateContext() {
+    const state = window.__dexterState;
+    if (!state || typeof state !== "object") return null;
+
+    const activeProfileId = state.profileMeta?.activeProfileId ?? null;
+    const activeProfile = Array.isArray(state.profileMeta?.profiles)
+      ? state.profileMeta.profiles.find((profile) => profile.id === activeProfileId)
+      : null;
+    const trackerGames = state.tracker?.games && typeof state.tracker.games === "object"
+      ? Object.entries(state.tracker.games).map(([gameId, gameState]) => ({
+          gameId,
+          milestone: gameState?.milestone ?? null,
+          progress: gameState?.progress ?? null,
+          hallOfFame: Boolean(gameState?.hallOfFame),
+          postgame: Boolean(gameState?.postgame)
+        }))
+      : [];
+
+    return {
+      activeView: state.ui?.activeView ?? null,
+      activeProfile: activeProfile ? { id: activeProfile.id, name: activeProfile.name } : null,
+      currentPokemon: state.currentPokemon
+        ? {
+            name: state.currentPokemon.displayName || state.currentPokemon.name,
+            dexNumber: state.currentPokemon.dexNumber,
+            types: state.currentPokemon.types
+          }
+        : null,
+      archive: {
+        totalEntries: Array.isArray(state.entries) ? state.entries.length : null,
+        baseCount: state.archiveStats?.baseCount ?? null,
+        formCount: state.archiveStats?.formCount ?? null,
+        caught: countTruthyValues(state.caughtMap),
+        shiny: countTruthyValues(state.shinyMap)
+      },
+      filters: {
+        game: state.filters?.game ?? null,
+        query: state.filters?.query ?? null,
+        ownedGameOnly: Boolean(state.filters?.ownedGameOnly)
+      },
+      journeySelectedGame: state.ui?.journeySelectedGame ?? null,
+      trackerGames,
+      shinyHub: {
+        selectedGameId: state.shinyHub?.selectedGameId ?? null,
+        selectedTargetName: state.shinyHub?.selectedTargetName ?? null
       }
-      return parsed;
-    } catch {
-      return raw?.length > 200 ? raw.slice(0, 200) + "…" : raw;
-    }
+    };
   }
 
   function collectAppContext() {
@@ -38,27 +69,8 @@
       Object.assign(ctx, window.POKEPILOT_AI_CONTEXT);
     }
 
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-
-        const isScalar = SCALAR_KEYS.some((k) => key.includes(k));
-        const isSummary = SUMMARY_KEYS.some((k) => key.includes(k));
-
-        if (isScalar) {
-          // Only include if the value is small
-          if (raw.length <= 2000) {
-            try { ctx[key] = JSON.parse(raw); } catch { ctx[key] = raw; }
-          }
-        } else if (isSummary) {
-          // Summarise large data rather than dumping it
-          ctx[key + "_summary"] = summariseValue(key, raw);
-        }
-      }
-    } catch { /* localStorage unavailable */ }
+    const stateContext = compactStateContext();
+    if (stateContext) ctx.appState = stateContext;
 
     try {
       const trainerName = document.getElementById("landing-profile-metric")?.textContent?.trim();
@@ -80,7 +92,13 @@
       if (activeHuntTarget) ctx.activeHuntTarget = activeHuntTarget;
     } catch { /* DOM not ready */ }
 
-    return Object.keys(ctx).length ? ctx : null;
+    const serialized = JSON.stringify(ctx);
+    return serialized.length > 12000
+      ? {
+          appState: ctx.appState ?? null,
+          note: "Context was trimmed to avoid oversized AI requests."
+        }
+      : Object.keys(ctx).length ? ctx : null;
   }
 
   function dismissWelcome() {
@@ -146,7 +164,7 @@
           "Authorization": `Bearer ${ANON_KEY}`,
           "Apikey": ANON_KEY,
         },
-        body: JSON.stringify({ messages: history, appContext: collectAppContext() }),
+        body: JSON.stringify({ messages: history.slice(-8), appContext: collectAppContext() }),
       });
 
       const data = await res.json();
@@ -229,7 +247,7 @@
       inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
     });
 
-    updateModelPill(SUPABASE_URL ? "Ready" : "Offline");
+    updateModelPill(AI_SUPABASE_URL && ANON_KEY ? "Ready" : "Offline");
     renderWelcome();
   }
 
