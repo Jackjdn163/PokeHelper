@@ -13886,9 +13886,10 @@ function buildLzaOverlay() {
 
   const img = document.createElement("img");
   img.className  = "maps-overlay-img";
-  img.src        = "./assets/maps/3Pok\u00e9mon_Legends_ZA_4096.png";
+  img.src        = "./assets/maps/3Pok%C3%A9mon_Legends_ZA_4096.png";
   img.alt        = "Lumiose City";
   img.decoding   = "async";
+  wrap.appendChild(img);
 
   const tooltip = document.createElement("div");
   tooltip.className = "maps-region-tooltip hidden";
@@ -13929,7 +13930,6 @@ function buildLzaOverlay() {
     wrap.appendChild(pin);
   }
 
-  wrap.appendChild(img);
   wrap.appendChild(tooltip);
   return wrap;
 }
