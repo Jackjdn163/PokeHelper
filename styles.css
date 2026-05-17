@@ -8274,42 +8274,101 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   pointer-events: none;
 }
 
-/* ── LZA wild zones SVG overlay ── */
+/* ── LZA badge pins overlay ── */
 
 .maps-lza-wrap {
   aspect-ratio: 1 / 1;
   max-width: 700px;
 }
 
-.maps-lza-svg {
+.lza-badge-pin {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.lza-zone-group {
-  pointer-events: all;
+  transform: translate(-50%, -50%);
   cursor: pointer;
+  z-index: 2;
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
 }
 
-.lza-zone-rect {
-  transition: fill 140ms ease, stroke-width 120ms ease;
+.lza-badge-pin.is-hovered {
+  transform: translate(-50%, -50%) scale(1.4);
+  z-index: 10;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7));
 }
 
-.lza-zone-label {
-  font-family: "Oxanium", sans-serif;
-  font-size: 1.8px;
-  font-weight: 700;
-  fill: rgba(180, 255, 210, 0.0);
-  letter-spacing: 0.1px;
+.lza-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 38px;
   pointer-events: none;
-  transition: fill 140ms ease;
+  user-select: none;
 }
 
-.lza-zone-group.is-active .lza-zone-label {
-  fill: rgba(180, 255, 210, 0.95);
+.lza-badge-crown {
+  font-size: 10px;
+  color: #f5c518;
+  line-height: 1;
+  margin-bottom: -1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  z-index: 2;
+}
+
+.lza-badge-shield {
+  width: 32px;
+  height: 32px;
+  background: #0d2a2e;
+  border: 2px solid #c9921a;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 0 0 1.5px rgba(255,210,60,0.3);
+}
+
+.lza-badge-num {
+  font-size: 10px;
+  font-weight: 800;
+  color: #b5e852;
+  font-family: "Oxanium", sans-serif;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.lza-badge-wings {
+  display: flex;
+  gap: 4px;
+  margin-top: -4px;
+  position: relative;
+  z-index: 1;
+}
+
+.lza-badge-wing {
+  font-size: 9px;
+  color: #4ab8e8;
+  line-height: 1;
+}
+
+.lza-badge-wing-l {
+  transform: scaleX(-1);
+}
+
+@media (max-width: 600px) {
+  .lza-badge {
+    width: 28px;
+  }
+  .lza-badge-shield {
+    width: 24px;
+    height: 24px;
+  }
+  .lza-badge-num {
+    font-size: 8px;
+  }
+  .lza-badge-crown {
+    font-size: 8px;
+  }
 }
 
 @media (max-width: 768px) {

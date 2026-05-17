@@ -13710,47 +13710,28 @@ const HISUI_REGIONS = [
 //   - Conversion: webp_x_pct → (webp_x/1024 - 0.1) / 0.8 * 100 for x
 //                 webp_y_pct → (webp_y/576  - 0.1) / 0.8 * 100 for y
 // Each zone has: cx/cy = centre % on square map, w/h = size % on square map.
+// cx/cy are % positions on the square map image for badge center placement
 const LZA_WILD_ZONES = [
-  // Zone 28 — Central Plaza (big circle centre)
-  { id: "center",     label: "Central Plaza",      cx: 50,   cy: 50,   w: 9,   h: 9  },
-  // Zone 3 — North inner ring
-  { id: "zone3",      label: "Zone 3",              cx: 50,   cy: 28,   w: 6,   h: 5  },
-  // Zone 2 — South-east inner
-  { id: "zone2",      label: "Zone 2",              cx: 60,   cy: 65,   w: 6,   h: 5  },
-  // Zone 7 — West inner
-  { id: "zone7",      label: "Zone 7",              cx: 37,   cy: 47,   w: 5,   h: 5  },
-  // Zone 8 — East inner
-  { id: "zone8",      label: "Zone 8",              cx: 63,   cy: 43,   w: 5,   h: 5  },
-  // Zone 5 (SW) — South-west mid
-  { id: "zone5sw",    label: "Zone 5 (SW)",         cx: 34,   cy: 55,   w: 5,   h: 5  },
-  // Zone 5 (S)  — South-centre mid
-  { id: "zone5s",     label: "Zone 5 (S)",          cx: 44,   cy: 61,   w: 5,   h: 5  },
-  // Zone 16 — South lower mid
-  { id: "zone16",     label: "Zone 16",             cx: 42,   cy: 70,   w: 5,   h: 5  },
-  // Zone 4 — North outer rect
-  { id: "zone4",      label: "Zone 4",              cx: 54,   cy: 14,   w: 8,   h: 5  },
-  // Zone 12 — South outer rect
-  { id: "zone12",     label: "Zone 12",             cx: 47,   cy: 82,   w: 8,   h: 6  },
-  // Zone 10 — West outer rect
-  { id: "zone10",     label: "Zone 10",             cx: 24,   cy: 63,   w: 7,   h: 6  },
-  // Zone 11 — East outer rect
-  { id: "zone11",     label: "Zone 11",             cx: 74,   cy: 57,   w: 7,   h: 5  },
-  // Zone 13 — North-top outer rect
-  { id: "zone13",     label: "Zone 13",             cx: 46,   cy: 7,    w: 6,   h: 4  },
-  // Zone 1 — South-bottom outer rect
-  { id: "zone1",      label: "Zone 1",              cx: 52,   cy: 91,   w: 7,   h: 4  },
-  // Zone 14 — West-mid outer
-  { id: "zone14",     label: "Zone 14",             cx: 24,   cy: 42,   w: 5,   h: 4  },
-  // Zone 18 — NW outer
-  { id: "zone18",     label: "Zone 18",             cx: 22,   cy: 27,   w: 5,   h: 4  },
-  // Zone 15 — NE outer
-  { id: "zone15",     label: "Zone 15",             cx: 78,   cy: 22,   w: 6,   h: 4  },
-  // Zone 19 — East-upper outer
-  { id: "zone19",     label: "Zone 19",             cx: 79,   cy: 33,   w: 5,   h: 4  },
-  // Zone 6 — East lower outer
-  { id: "zone6",      label: "Zone 6",              cx: 82,   cy: 48,   w: 5,   h: 4  },
-  // Zone 17 — SE outer
-  { id: "zone17",     label: "Zone 17",             cx: 74,   cy: 73,   w: 5,   h: 4  },
+  { id: "zone1",   label: "Zone 1",         badge: 1,  cx: 52,   cy: 91  },
+  { id: "zone2",   label: "Zone 2",         badge: 2,  cx: 61,   cy: 67  },
+  { id: "zone3",   label: "Zone 3",         badge: 3,  cx: 50,   cy: 30  },
+  { id: "zone4",   label: "Zone 4",         badge: 4,  cx: 54,   cy: 15  },
+  { id: "zone5",   label: "Zone 5",         badge: 5,  cx: 44,   cy: 62  },
+  { id: "zone6",   label: "Zone 6",         badge: 6,  cx: 82,   cy: 50  },
+  { id: "zone7",   label: "Zone 7",         badge: 7,  cx: 37,   cy: 48  },
+  { id: "zone8",   label: "Zone 8",         badge: 8,  cx: 63,   cy: 44  },
+  { id: "zone9",   label: "Zone 9",         badge: 9,  cx: 24,   cy: 57  },
+  { id: "zone10",  label: "Zone 10",        badge: 10, cx: 22,   cy: 67  },
+  { id: "zone11",  label: "Zone 11",        badge: 11, cx: 74,   cy: 60  },
+  { id: "zone12",  label: "Zone 12",        badge: 12, cx: 45,   cy: 83  },
+  { id: "zone13",  label: "Zone 13",        badge: 13, cx: 46,   cy: 8   },
+  { id: "zone14",  label: "Zone 14",        badge: 14, cx: 23,   cy: 43  },
+  { id: "zone15",  label: "Zone 15",        badge: 15, cx: 79,   cy: 23  },
+  { id: "zone16",  label: "Zone 16",        badge: 16, cx: 40,   cy: 72  },
+  { id: "zone17",  label: "Zone 17",        badge: 17, cx: 72,   cy: 75  },
+  { id: "zone18",  label: "Zone 18",        badge: 18, cx: 21,   cy: 28  },
+  { id: "zone19",  label: "Zone 19",        badge: 19, cx: 80,   cy: 34  },
+  { id: "center",  label: "Central Plaza",  badge: 20, cx: 50,   cy: 51  },
 ];
 
 function buildHisuiOverlay() {
@@ -13900,75 +13881,55 @@ function buildHisuiOverlay() {
 }
 
 function buildLzaOverlay() {
-  // Base map is the proper square Lumiose City image; zones drawn as SVG on top
-  const baseUrl = "./assets/maps/lza-lumiose-city.png";
-
   const wrap = document.createElement("div");
   wrap.className = "maps-interactive-wrap maps-lza-wrap";
 
   const img = document.createElement("img");
   img.className  = "maps-overlay-img";
-  img.src        = baseUrl;
+  img.src        = "./assets/maps/3Pok\u00e9mon_Legends_ZA_4096.png";
   img.alt        = "Lumiose City";
   img.decoding   = "async";
-
-  // SVG viewBox = 0 0 100 100 since the map is square
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 100 100");
-  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.setAttribute("class", "maps-lza-svg");
 
   const tooltip = document.createElement("div");
   tooltip.className = "maps-region-tooltip hidden";
 
   for (const zone of LZA_WILD_ZONES) {
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x",      String(zone.cx - zone.w / 2));
-    rect.setAttribute("y",      String(zone.cy - zone.h / 2));
-    rect.setAttribute("width",  String(zone.w));
-    rect.setAttribute("height", String(zone.h));
-    rect.setAttribute("rx",     "1.2");
-    rect.setAttribute("fill",   "rgba(30,210,110,0.18)");
-    rect.setAttribute("stroke", "rgba(60,230,130,0.85)");
-    rect.setAttribute("stroke-width", "0.6");
-    rect.setAttribute("class",  "lza-zone-rect");
+    const pin = document.createElement("div");
+    pin.className = "lza-badge-pin";
+    pin.style.left = `${zone.cx}%`;
+    pin.style.top  = `${zone.cy}%`;
 
-    // Label badge centred in the rect
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x",            String(zone.cx));
-    text.setAttribute("y",            String(zone.cy + 0.5));
-    text.setAttribute("text-anchor",  "middle");
-    text.setAttribute("dominant-baseline", "middle");
-    text.setAttribute("class",        "lza-zone-label");
-    text.textContent = zone.label;
+    const badge = document.createElement("div");
+    badge.className = "lza-badge";
+    badge.innerHTML = `
+      <div class="lza-badge-crown">♛</div>
+      <div class="lza-badge-shield">
+        <span class="lza-badge-num">${zone.badge}</span>
+      </div>
+      <div class="lza-badge-wings">
+        <span class="lza-badge-wing lza-badge-wing-l">❧</span>
+        <span class="lza-badge-wing lza-badge-wing-r">❧</span>
+      </div>
+    `;
 
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("class", "lza-zone-group");
-    g.dataset.zoneId = zone.id;
-    g.appendChild(rect);
-    g.appendChild(text);
+    pin.appendChild(badge);
 
-    g.addEventListener("mouseenter", (e) => {
-      rect.setAttribute("fill", "rgba(40,230,120,0.42)");
-      rect.setAttribute("stroke-width", "1");
-      g.setAttribute("class", "lza-zone-group is-active");
+    pin.addEventListener("mouseenter", (e) => {
+      pin.classList.add("is-hovered");
       tooltip.textContent = zone.label;
       tooltip.classList.remove("hidden");
       positionTooltipFromSvg(e, tooltip, wrap);
     });
-    g.addEventListener("mousemove", (e) => positionTooltipFromSvg(e, tooltip, wrap));
-    g.addEventListener("mouseleave", () => {
-      rect.setAttribute("fill", "rgba(30,210,110,0.18)");
-      rect.setAttribute("stroke-width", "0.6");
-      g.setAttribute("class", "lza-zone-group");
+    pin.addEventListener("mousemove", (e) => positionTooltipFromSvg(e, tooltip, wrap));
+    pin.addEventListener("mouseleave", () => {
+      pin.classList.remove("is-hovered");
       tooltip.classList.add("hidden");
     });
 
-    svg.appendChild(g);
+    wrap.appendChild(pin);
   }
 
   wrap.appendChild(img);
-  wrap.appendChild(svg);
   wrap.appendChild(tooltip);
   return wrap;
 }
