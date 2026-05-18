@@ -1683,7 +1683,7 @@ function isEntryAvailableInGame(entry, gameId) {
     return true;
   }
 
-  if (!isAvailableInGame(entry.baseNumber, gameId)) {
+  if (!isAvailableInTrackedGameScope(entry.baseNumber, gameId)) {
     return false;
   }
 
@@ -1735,12 +1735,45 @@ function getGameAvailabilityRecords(baseNumber) {
   return GAME_CATALOG.map((game) => {
     const detail =
       state.gameAvailabilityDetailsByGame.get(game.id) ?? createGameAvailabilityDetail(game.id);
+    const trackerGameState = state.tracker.games[game.id];
+    const ownsBaseGame = Boolean(trackerGameState?.owned);
+    const hasDlcCoverage = gameHasDlcCoverage(game.id);
+    const ownsDlc = trackerHasDlc(game.id);
+    const segmentRecords = detail.segments.map((segment) => {
+      const segmentKind = segment.kind ?? "segment";
+      const segmentAvailable = segment.speciesSet.has(baseNumber);
+      const dlcLocked = Boolean(
+        segmentAvailable && ownsBaseGame && hasDlcCoverage && segmentKind === "dlc" && !ownsDlc
+      );
+
+      return {
+        id: segment.id,
+        kind: segmentKind,
+        label: segment.label,
+        sourceLabel: segment.sourceLabel ?? segment.label,
+        available: segmentAvailable,
+        catchable: segmentAvailable && !dlcLocked,
+        dlcLocked,
+        versionNative: segment.versionNative,
+        defaultVersionLabel: segment.defaultVersionLabel,
+        versionLabel: getAvailabilitySegmentVersionLabel(
+          {
+            ...segment,
+            available: segmentAvailable
+          },
+          baseNumber
+        )
+      };
+    });
 
     return {
       ...game,
       available: isAvailableInGame(baseNumber, game.id),
       owned: isAvailableInOwnedGameSelection(baseNumber, game.id),
       active: state.tracker.activeGame === game.id,
+      hasDlcCoverage,
+      dlcOwned: ownsDlc,
+      dlcBlocked: segmentRecords.some((segment) => segment.dlcLocked),
       versionExclusiveLabel: isAvailableInGame(baseNumber, game.id)
         ? getVersionExclusiveLabel(game.id, baseNumber)
         : "",
@@ -1748,22 +1781,7 @@ function getGameAvailabilityRecords(baseNumber) {
         ? getVersionExclusiveBadgeClasses(game.id, baseNumber)
         : [],
       sourceLabel: SWITCH_GAME_AVAILABILITY[game.id]?.label ?? "Tracked switch coverage",
-      segmentRecords: detail.segments.map((segment) => ({
-        id: segment.id,
-        kind: segment.kind ?? "segment",
-        label: segment.label,
-        sourceLabel: segment.sourceLabel ?? segment.label,
-        available: segment.speciesSet.has(baseNumber),
-        versionNative: segment.versionNative,
-        defaultVersionLabel: segment.defaultVersionLabel,
-        versionLabel: getAvailabilitySegmentVersionLabel(
-          {
-            ...segment,
-            available: segment.speciesSet.has(baseNumber)
-          },
-          baseNumber
-        )
-      }))
+      segmentRecords
     };
   });
 }
@@ -1834,13 +1852,19 @@ function renderGameAvailability(baseNumber) {
       const dlcAvailable = record.segmentRecords.some(
         (segment) => segment.kind === "dlc" && segment.available
       );
+      const dlcCatchable = record.segmentRecords.some(
+        (segment) => segment.kind === "dlc" && segment.catchable
+      );
 
-      if (mainAvailable && hasDlc && dlcAvailable) {
+      if (mainAvailable && hasDlc && dlcCatchable) {
         badge.classList.add("available");
         badge.textContent = "Main + DLC";
       } else if (mainAvailable) {
         badge.classList.add("available");
         badge.textContent = "Main Game";
+      } else if (record.dlcBlocked) {
+        badge.classList.add("unavailable");
+        badge.textContent = "DLC Off";
       } else if (dlcAvailable) {
         badge.classList.add("owned");
         badge.textContent = "DLC Only";
@@ -1880,7 +1904,7 @@ function renderGameAvailability(baseNumber) {
           segmentCard.classList.add("syncing");
         } else if (!state.gameAvailabilityReady) {
           segmentCard.classList.add("unavailable");
-        } else if (segment.available) {
+        } else if (segment.catchable) {
           segmentCard.classList.add("available");
         } else {
           segmentCard.classList.add("unavailable");
@@ -1907,6 +1931,8 @@ function renderGameAvailability(baseNumber) {
           status.textContent = "Syncing";
         } else if (!state.gameAvailabilityReady) {
           status.textContent = "Unknown";
+        } else if (segment.dlcLocked) {
+          status.textContent = "DLC off";
         } else if (segment.available) {
           status.textContent = "In Dex";
         } else {
@@ -1920,7 +1946,7 @@ function renderGameAvailability(baseNumber) {
       card.appendChild(segmentRow);
     }
 
-    if (record.owned || record.active || record.versionExclusiveLabel) {
+    if (record.owned || record.active || record.versionExclusiveLabel || record.dlcBlocked) {
       const flags = document.createElement("div");
       flags.className = "availability-card-flags";
 
@@ -1947,6 +1973,13 @@ function renderGameAvailability(baseNumber) {
         ownedBadge.className = "availability-badge owned";
         ownedBadge.textContent = "Owned";
         flags.appendChild(ownedBadge);
+      }
+
+      if (record.dlcBlocked) {
+        const dlcBlockedBadge = document.createElement("span");
+        dlcBlockedBadge.className = "availability-badge unavailable";
+        dlcBlockedBadge.textContent = "DLC Not Owned";
+        flags.appendChild(dlcBlockedBadge);
       }
 
       card.appendChild(flags);

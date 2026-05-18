@@ -352,6 +352,13 @@ function loadTrackerState() {
       ...createDefaultJourneyChecks(game.id),
       ...(loadedGameState.journeyChecks ?? {})
     };
+    normalizedGameState.hasDlc = gameHasDlcCoverage(game)
+      ? Boolean(
+          loadedGameState.hasDlc ??
+            baseGameState.hasDlc ??
+            getJourneyConfig(game.id)?.dlc?.some((item) => normalizedGameState.journeyChecks[item.id])
+        )
+      : false;
 
     if (gameHasSeparateVersions(game)) {
       normalizedGameState.versions = {

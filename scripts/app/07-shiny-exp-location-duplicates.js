@@ -130,7 +130,7 @@ function getGameShinyHuntableEntries(gameId) {
 
   return getBaseEntries()
     .filter(
-      (entry) => isAvailableInGame(entry.baseNumber, gameId) && !isShinyLockedInGame(entry.name, gameId)
+      (entry) => isAvailableInTrackedGameScope(entry.baseNumber, gameId) && !isShinyLockedInGame(entry.name, gameId)
     )
     .sort((left, right) => compareEntriesByGameDexOrder(left, right, gameId));
 }
@@ -142,7 +142,7 @@ function getGameShinyLockedEntries(gameId) {
 
   return getBaseEntries()
     .filter(
-      (entry) => isAvailableInGame(entry.baseNumber, gameId) && isShinyLockedInGame(entry.name, gameId)
+      (entry) => isAvailableInTrackedGameScope(entry.baseNumber, gameId) && isShinyLockedInGame(entry.name, gameId)
     )
     .sort((left, right) => compareEntriesByGameDexOrder(left, right, gameId));
 }
@@ -483,7 +483,7 @@ function isBreedableTarget(pokemon) {
 
 function getShinyPlan(gameId, pokemon) {
   const basePlan = SHINY_HUNT_METHODS[gameId];
-  const available = pokemon ? isAvailableInGame(pokemon.baseNumber, gameId) : true;
+  const available = pokemon ? isAvailableInTrackedGameScope(pokemon.baseNumber, gameId) : true;
   const breedable = isBreedableTarget(pokemon);
 
   if (!pokemon) {
@@ -681,7 +681,7 @@ function renderShinyHelper(pokemon = state.currentPokemon, options = {}) {
         flags.appendChild(makeTag("Owned"));
       }
 
-      if (isAvailableInGame(pokemon.baseNumber, game.id) && isShiny(pokemon.name)) {
+      if (isAvailableInTrackedGameScope(pokemon.baseNumber, game.id) && isShiny(pokemon.name)) {
         flags.appendChild(makeTag("Shiny Caught"));
       }
 
@@ -1491,6 +1491,246 @@ const GAME_LOCATION_MAPS = {
   }
 };
 
+function normalizePokemonDbLocationKey(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’'`]/g, "")
+    .replace(/♀/g, " female")
+    .replace(/♂/g, " male")
+    .replace(/type:\s*null/gi, "type null")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+}
+
+function getPokemonDbLocationDataUrl() {
+  return new URL(POKEMONDB_LOCATION_DATA_URL, document.baseURI).href;
+}
+
+async function loadPokemonDbLocationIndex() {
+  if (state.pokemonDbLocationIndex) {
+    return state.pokemonDbLocationIndex;
+  }
+
+  if (!state.pokemonDbLocationPromise) {
+    state.pokemonDbLocationPromise = fetchJsonCached(getPokemonDbLocationDataUrl())
+      .then((payload) => {
+        state.pokemonDbLocationIndex = payload;
+        state.pokemonDbLocationError = false;
+        return payload;
+      })
+      .catch((error) => {
+        state.pokemonDbLocationError = true;
+        state.pokemonDbLocationPromise = null;
+        throw error;
+      });
+  }
+
+  return state.pokemonDbLocationPromise;
+}
+
+function getPokemonDbLocationLookupKeys(pokemon) {
+  const keys = new Set(
+    [
+      pokemon?.name,
+      pokemon?.speciesName,
+      pokemon?.basePokemonName,
+      pokemon?.displayName,
+      pokemon?.baseDisplayName
+    ]
+      .map(normalizePokemonDbLocationKey)
+      .filter(Boolean)
+  );
+
+  [...keys].forEach((key) => {
+    [
+      "-alola",
+      "-galar",
+      "-hisui",
+      "-paldea",
+      "-female",
+      "-male",
+      "-mega",
+      "-gmax",
+      "-origin"
+    ].forEach((suffix) => {
+      if (key.endsWith(suffix)) {
+        keys.add(key.slice(0, -suffix.length));
+      }
+    });
+  });
+
+  return [...keys];
+}
+
+function getPokemonDbLocationRecords(pokemon, index) {
+  const recordsByPokemon = index?.recordsByPokemon ?? {};
+  for (const key of getPokemonDbLocationLookupKeys(pokemon)) {
+    const records = recordsByPokemon[key];
+    if (Array.isArray(records) && records.length) {
+      return records;
+    }
+  }
+
+  return [];
+}
+
+function formatPokemonDbVersions(versions = []) {
+  const labels = {
+    all: "All versions",
+    lets_go_pikachu: "Let's Go Pikachu",
+    lets_go_eevee: "Let's Go Eevee",
+    sword: "Sword",
+    shield: "Shield",
+    brilliant_diamond: "Brilliant Diamond",
+    shining_pearl: "Shining Pearl",
+    scarlet: "Scarlet",
+    violet: "Violet"
+  };
+
+  return versions.map((version) => labels[version] ?? titleCase(version.replace(/_/g, " "))).join(" / ");
+}
+
+function formatPokemonDbStatus(status) {
+  switch (status) {
+    case "available":
+      return "Locations";
+    case "transfer":
+      return "Transfer";
+    case "unavailable":
+      return "Unavailable";
+    case "unknown":
+      return "Pending";
+    default:
+      return "PokemonDB";
+  }
+}
+
+function cleanPokemonDbAreaName(area, routePrefix = "") {
+  const cleaned = String(area ?? "")
+    .replace(/^(?:Max Raid Battles|Mass outbreaks|Grand Underground|Underground|Pok(?:e|\u00e9) Radar):\s*/i, "")
+    .replace(/\.$/, "")
+    .trim();
+
+  if (routePrefix && /^\d+[a-z]?$/i.test(cleaned)) {
+    return `${routePrefix} ${cleaned}`;
+  }
+
+  return cleaned;
+}
+
+function getPokemonDbLocationAreas(record) {
+  if (record?.s !== "available") {
+    return [];
+  }
+
+  const unavailableTokens = ["not available", "location data not yet available", "trade", "migrate", "transfer"];
+  const rawLocation = String(record.l ?? "");
+  if (unavailableTokens.some((token) => rawLocation.toLowerCase().includes(token))) {
+    return [];
+  }
+
+  let routePrefix = "";
+  return rawLocation
+    .split(/\s*(?:\||,|;)\s*/)
+    .map((area) => {
+      const prefixMatch = area.trim().match(/^(Route|Sea Route)\s+/i);
+      if (prefixMatch) {
+        routePrefix = titleCase(prefixMatch[1]);
+      }
+      return cleanPokemonDbAreaName(area, routePrefix);
+    })
+    .filter(Boolean);
+}
+
+function mergeLocationAreas(...areaGroups) {
+  const merged = [];
+  const seen = new Set();
+
+  areaGroups.flat().forEach((area) => {
+    const normalizedArea = normalizeMapToken(area);
+    if (!normalizedArea || seen.has(normalizedArea)) {
+      return;
+    }
+
+    seen.add(normalizedArea);
+    merged.push(area);
+  });
+
+  return merged;
+}
+
+function groupPokemonDbRecordsByGame(records = []) {
+  const grouped = new Map();
+
+  records.forEach((record) => {
+    if (!record?.g) {
+      return;
+    }
+
+    if (!grouped.has(record.g)) {
+      grouped.set(record.g, {
+        records: [],
+        availableRecords: [],
+        transferRecords: [],
+        unknownRecords: [],
+        unavailableRecords: [],
+        areas: []
+      });
+    }
+
+    const group = grouped.get(record.g);
+    group.records.push(record);
+    if (record.s === "available") {
+      group.availableRecords.push(record);
+      group.areas = mergeLocationAreas(group.areas, getPokemonDbLocationAreas(record));
+    } else if (record.s === "transfer") {
+      group.transferRecords.push(record);
+    } else if (record.s === "unknown") {
+      group.unknownRecords.push(record);
+    } else if (record.s === "unavailable") {
+      group.unavailableRecords.push(record);
+    }
+  });
+
+  return grouped;
+}
+
+function getPokemonDbVersionSummary(records = []) {
+  const versions = [
+    ...new Set(records.flatMap((record) => (Array.isArray(record.v) ? record.v : [])).filter(Boolean))
+  ];
+  return versions.length ? formatPokemonDbVersions(versions) : "";
+}
+
+function getPokemonDbSourceRows(record) {
+  return [
+    ...(record.pokemonDbAvailableRecords ?? []),
+    ...(record.pokemonDbTransferRecords ?? []),
+    ...(record.pokemonDbUnknownRecords ?? [])
+  ];
+}
+
+function getPokemonDbSourceNote(record) {
+  const availableVersions = getPokemonDbVersionSummary(record.pokemonDbAvailableRecords);
+  if (record.pokemonDbAvailableRecords?.length && availableVersions) {
+    return `PokemonDB source: ${availableVersions}.`;
+  }
+
+  const transferVersions = getPokemonDbVersionSummary(record.pokemonDbTransferRecords);
+  if (record.pokemonDbTransferRecords?.length && transferVersions) {
+    return `PokemonDB lists this for ${transferVersions} by transfer or migration.`;
+  }
+
+  if (record.pokemonDbUnknownRecords?.length) {
+    return "PokemonDB has this game tracked, but exact location rows are still pending.";
+  }
+
+  return "";
+}
+
 async function loadLocationEntries(url) {
   if (!url) {
     return [];
@@ -1750,7 +1990,7 @@ function buildLocationSurfaceStatus(surfaceRecord) {
           surfaceRecord.highlightedRegions.length === 1 ? "" : "s"
         }`
       : "";
-    return `${surfaceRecord.matchedAreas.length} archived area${
+    return `${surfaceRecord.matchedAreas.length} location${
       surfaceRecord.matchedAreas.length === 1 ? "" : "s"
     } matched${zoneSuffix}`;
   }
@@ -1779,20 +2019,44 @@ function buildLocationSurfaceNote(surfaceRecord) {
   return "Exact route locations are not attached to this surface in the current archive yet.";
 }
 
-function buildLocationGameRecords(pokemon, locations = []) {
+function buildLocationGameRecords(pokemon, locations = [], pokemonDbRecords = []) {
   const grouped = summarizeLocationGroups(locations);
+  const pokemonDbByGame = groupPokemonDbRecordsByGame(pokemonDbRecords);
 
   return GAME_CATALOG.map((game) => {
-    const areas = [...(grouped.get(game.id) ?? [])];
-    const overallAvailable =
-      areas.length > 0 || (state.gameAvailabilityReady && isAvailableInGame(pokemon.baseNumber, game.id));
-    const surfaceRecords = buildLocationSurfaceRecords(game.id, pokemon.baseNumber, areas, overallAvailable);
-    const available = overallAvailable || surfaceRecords.length > 0;
+    const archivedAreas = [...(grouped.get(game.id) ?? [])];
+    const pokemonDbGame = pokemonDbByGame.get(game.id) ?? {
+      records: [],
+      availableRecords: [],
+      transferRecords: [],
+      unknownRecords: [],
+      unavailableRecords: [],
+      areas: []
+    };
+    const areas = mergeLocationAreas(pokemonDbGame.areas, archivedAreas);
+    const pokemonDbUnavailableOnly =
+      pokemonDbGame.records.length > 0 && pokemonDbGame.records.every((record) => record.s === "unavailable");
+    const trackedCoverageAllowsCatch =
+      !state.gameAvailabilityReady || isAvailableInTrackedGameScope(pokemon.baseNumber, game.id);
+    const archiveAvailable =
+      trackedCoverageAllowsCatch &&
+      (archivedAreas.length > 0 ||
+        (state.gameAvailabilityReady && isAvailableInTrackedGameScope(pokemon.baseNumber, game.id)));
+    const routeAvailable = trackedCoverageAllowsCatch && (areas.length > 0 || (!pokemonDbUnavailableOnly && archiveAvailable));
+    const transferAvailable = pokemonDbGame.transferRecords.length > 0;
+    const surfaceRecords = trackedCoverageAllowsCatch
+      ? buildLocationSurfaceRecords(game.id, pokemon.baseNumber, areas, routeAvailable)
+      : [];
 
     return {
       ...game,
-      available,
+      available: routeAvailable || transferAvailable || surfaceRecords.length > 0,
       areas,
+      archivedAreas,
+      pokemonDbRecords: pokemonDbGame.records,
+      pokemonDbAvailableRecords: pokemonDbGame.availableRecords,
+      pokemonDbTransferRecords: pokemonDbGame.transferRecords,
+      pokemonDbUnknownRecords: pokemonDbGame.unknownRecords,
       baseNumber: pokemon.baseNumber,
       surfaceRecords
     };
@@ -1800,15 +2064,21 @@ function buildLocationGameRecords(pokemon, locations = []) {
 }
 
 function describeLocationRecord(record) {
+  const sourceNote = getPokemonDbSourceNote(record);
   if (record.areas.length) {
     const preview = record.areas.slice(0, 4).join(" · ");
     const suffix =
       record.surfaceRecords?.length > 1
         ? ` Use the surface tabs to compare ${record.shortName}'s main-game and DLC breakdowns.`
         : "";
-    return record.areas.length > 4
+    const locationText = record.areas.length > 4
       ? `${preview} · +${record.areas.length - 4} more.${suffix}`
       : `${preview}.${suffix}`;
+    return sourceNote ? `${locationText} ${sourceNote}` : locationText;
+  }
+
+  if (sourceNote) {
+    return sourceNote;
   }
 
   if (record.id === "lza") {
@@ -1836,10 +2106,12 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
 
   const status = document.createElement("span");
   status.className = "location-card-status";
-  if (record.surfaceRecords.length > 1) {
+  if (record.areas.length) {
+    status.textContent = `${record.areas.length} location${record.areas.length === 1 ? "" : "s"}`;
+  } else if (record.pokemonDbTransferRecords?.length) {
+    status.textContent = "Transfer";
+  } else if (record.surfaceRecords.length > 1) {
     status.textContent = `${record.surfaceRecords.length} map views`;
-  } else if (record.areas.length) {
-    status.textContent = `${record.areas.length} area${record.areas.length === 1 ? "" : "s"}`;
   } else {
     status.textContent = "Coverage";
   }
@@ -1854,6 +2126,46 @@ function buildLocationRecordCard(record, noteText = describeLocationRecord(recor
 
     const activeSurface = getActiveLocationSurfaceRecord(record);
     if (!activeSurface) {
+      const toolbar = document.createElement("div");
+      toolbar.className = "location-map-toolbar";
+
+      const toolbarTitle = document.createElement("strong");
+      toolbarTitle.textContent = "Location Breakdown";
+
+      const badge = document.createElement("span");
+      badge.className = "location-map-badge";
+      badge.textContent = `${record.shortName} · PokemonDB`;
+
+      toolbar.append(toolbarTitle, badge);
+      shell.appendChild(toolbar);
+
+      const meta = document.createElement("div");
+      meta.className = "location-map-meta";
+
+      const sourceName = document.createElement("strong");
+      sourceName.textContent = record.name;
+
+      const sourceStatus = document.createElement("span");
+      sourceStatus.className = "location-map-status";
+      sourceStatus.textContent = getPokemonDbSourceRows(record).map((row) => formatPokemonDbStatus(row.s)).join(" · ");
+
+      meta.append(sourceName, sourceStatus);
+      shell.appendChild(meta);
+
+      const sourceNote = document.createElement("p");
+      sourceNote.className = "location-map-surface-note";
+      sourceNote.textContent = getPokemonDbSourceNote(record);
+      shell.appendChild(sourceNote);
+
+      const legend = document.createElement("div");
+      legend.className = "location-map-legend";
+      getPokemonDbSourceRows(record).forEach((row) => {
+        const chip = document.createElement("span");
+        chip.className = "location-map-chip";
+        chip.textContent = `${formatPokemonDbVersions(row.v)} · ${row.l}`;
+        legend.appendChild(chip);
+      });
+      shell.appendChild(legend);
       return;
     }
 
@@ -2026,13 +2338,20 @@ async function renderLocationIntel(pokemon) {
   elements.locationList.replaceChildren();
 
   try {
-    const locations = pokemon?.encounterUrl ? await loadLocationEntries(pokemon.encounterUrl) : [];
+    const [locations, pokemonDbIndex] = await Promise.all([
+      pokemon?.encounterUrl ? loadLocationEntries(pokemon.encounterUrl) : [],
+      loadPokemonDbLocationIndex().catch(() => null)
+    ]);
     if (!state.currentPokemon || state.currentPokemon.name !== pokemon.name) {
       return;
     }
 
-    const records = buildLocationGameRecords(pokemon, locations);
-    elements.locationSummary.textContent = records.length ? `${records.length} games` : "No route data";
+    const pokemonDbRecords = getPokemonDbLocationRecords(pokemon, pokemonDbIndex);
+    const records = buildLocationGameRecords(pokemon, locations, pokemonDbRecords);
+    const pokemonDbLinked = records.some((record) => record.pokemonDbRecords?.length);
+    elements.locationSummary.textContent = records.length
+      ? `${records.length} games${pokemonDbLinked ? " · PokemonDB" : ""}`
+      : "No route data";
 
     if (!records.length) {
       const empty = document.createElement("p");

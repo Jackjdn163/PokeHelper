@@ -4026,10 +4026,6 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   margin-top: 0;
 }
 
-.location-card p {
-  margin-top: 0;
-}
-
 .no-signal {
   padding: 30px 20px;
   border-radius: 18px;
@@ -4661,6 +4657,16 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 .tracker-toggle input {
   accent-color: var(--cyan);
+}
+
+.journey-dlc-toggle {
+  justify-self: start;
+}
+
+.journey-dlc-toggle.active {
+  border-color: rgba(118, 229, 172, 0.28);
+  background: rgba(38, 151, 105, 0.12);
+  color: #dfffea;
 }
 
 .archive-feature-toggle {

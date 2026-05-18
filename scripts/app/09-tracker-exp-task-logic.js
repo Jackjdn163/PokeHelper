@@ -220,7 +220,9 @@ function getJourneyFocusSuggestion(gameId) {
     };
   }
 
-  const nextDlc = (config.dlc ?? []).find((item) => !trackerState.journeyChecks?.[item.id]);
+  const nextDlc = trackerHasDlc(gameId)
+    ? (config.dlc ?? []).find((item) => !trackerState.journeyChecks?.[item.id])
+    : null;
   if (nextDlc) {
     return {
       title: "DLC",
@@ -397,6 +399,8 @@ function renderTracker(options = {}) {
   const legendaryEntries = getJourneyLegendaryEntries(selectedGame.id);
   const legendaryCaught = legendaryEntries.reduce((sum, record) => sum + Number(record.caught), 0);
   const versionRecords = getJourneyVersionExclusiveRecords(selectedGame.id);
+  const hasDlcCoverage = gameHasDlcCoverage(selectedGame);
+  const hasDlcOwned = trackerHasDlc(selectedGame.id);
   const detailShell = document.createElement("div");
   detailShell.className = "journey-detail-shell";
 
@@ -685,14 +689,63 @@ function renderTracker(options = {}) {
   dlcTitle.textContent = "DLC";
   const dlcCompleted = (config.dlc ?? []).reduce((sum, item) => sum + Number(trackerState.journeyChecks?.[item.id]), 0);
   const dlcCount = document.createElement("span");
-  dlcCount.textContent = config.dlc.length ? `${dlcCompleted}/${config.dlc.length}` : "No DLC";
+  dlcCount.textContent = !hasDlcCoverage
+    ? "No DLC"
+    : hasDlcOwned
+      ? config.dlc.length
+        ? `${dlcCompleted}/${config.dlc.length}`
+        : "Owned"
+      : "Not owned";
   dlcHead.append(dlcTitle, dlcCount);
   dlcCard.appendChild(dlcHead);
-  if (config.dlc.length) {
+
+  if (hasDlcCoverage) {
+    const dlcOwnedLabel = document.createElement("label");
+    dlcOwnedLabel.className = "tracker-toggle journey-dlc-toggle";
+    dlcOwnedLabel.classList.toggle("active", hasDlcOwned);
+
+    const dlcOwnedInput = document.createElement("input");
+    dlcOwnedInput.type = "checkbox";
+    dlcOwnedInput.checked = hasDlcOwned;
+    dlcOwnedInput.addEventListener("change", () => {
+      trackerState.hasDlc = dlcOwnedInput.checked;
+      state.randomTargets = [];
+      state.shinyTargets = [];
+      state.ui.selectedRandomTargetName = null;
+      state.ui.selectedShinyTargetName = null;
+      state.shinyHub.suggestionMap[selectedGame.id] = [];
+      if (state.shinyHub.selectedGameId === selectedGame.id) {
+        state.shinyHub.selectedTargetName = null;
+      }
+      saveUiSessionState();
+      saveShinyHubState();
+      syncJourneyDerivedTrackerState(selectedGame, trackerState);
+      refreshTrackerConnectedViews();
+    });
+
+    const dlcOwnedText = document.createElement("span");
+    dlcOwnedText.textContent = "I own the DLC";
+    dlcOwnedLabel.append(dlcOwnedInput, dlcOwnedText);
+
+    const dlcOwnedNote = document.createElement("p");
+    dlcOwnedNote.className = "journey-card-copy";
+    dlcOwnedNote.textContent = hasDlcOwned
+      ? "DLC Pokémon count as obtainable for owned-game gaps, suggestions, shiny pools, and this journey checklist."
+      : "DLC Pokémon are excluded from owned-game gaps, suggestions, shiny pools, and catchable coverage until this is checked.";
+
+    dlcCard.append(dlcOwnedLabel, dlcOwnedNote);
+  }
+
+  if (config.dlc.length && hasDlcOwned) {
     const dlcList = document.createElement("div");
     dlcList.className = "journey-checklist";
     config.dlc.forEach((item) => dlcList.appendChild(createJourneyToggle(selectedGame, trackerState, item)));
     dlcCard.appendChild(dlcList);
+  } else if (config.dlc.length && !hasDlcOwned) {
+    const dlcLocked = document.createElement("p");
+    dlcLocked.className = "journey-card-copy";
+    dlcLocked.textContent = "DLC objectives are hidden until this save is marked as owning DLC.";
+    dlcCard.appendChild(dlcLocked);
   } else {
     const dlcEmpty = document.createElement("p");
     dlcEmpty.className = "journey-card-copy";
@@ -1098,10 +1151,16 @@ function getSuggestedCatchEntry() {
 }
 
 function getSuggestedShinyEntry() {
-  const visible = getVisibleArchiveEntries().filter((entry) => !isShinyDexLocked(entry.name));
+  const applyOwnedCoverageFilter = (entries) =>
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? entries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
+      : entries;
+
+  const visible = applyOwnedCoverageFilter(getVisibleArchiveEntries()).filter((entry) => !isShinyDexLocked(entry.name));
+  const archivePool = applyOwnedCoverageFilter(state.entries);
   return (
     visible.find((entry) => isCaught(entry.name) && !isShiny(entry.name)) ||
-    state.entries.find((entry) => !isShinyDexLocked(entry.name) && isCaught(entry.name) && !isShiny(entry.name)) ||
+    archivePool.find((entry) => !isShinyDexLocked(entry.name) && isCaught(entry.name) && !isShiny(entry.name)) ||
     null
   );
 }

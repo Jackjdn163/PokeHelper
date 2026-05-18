@@ -41,6 +41,7 @@ const HYBRIDSHIVAM_HQ_IMAGE_BASE_URL =
   "https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/imagesHQ";
 const POKESS_HOME_THUMBNAIL_BASE_URL =
   "https://raw.githubusercontent.com/Or1onCL/PokeSS/main/pokemon-home-thumbnail";
+const POKEMONDB_LOCATION_DATA_URL = "./assets/data/pokemondb-location-index.json?v=1";
 const POKEARTH_MAP_VIEWBOXES = {
   "lgpe-kanto": "0 0 200 618",
   "swsh-galar": "0 0 728 1420",
@@ -2302,6 +2303,9 @@ const state = {
   detailCache: new Map(),
   evolutionChainCache: new Map(),
   locationCache: new Map(),
+  pokemonDbLocationIndex: null,
+  pokemonDbLocationPromise: null,
+  pokemonDbLocationError: false,
   typeFavoritePoolCache: new Map(),
   apiCache: loadApiCache(),
   gameAvailabilityByGame: cachedGameAvailability.map,

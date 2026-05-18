@@ -44,7 +44,15 @@ function renderCollections(options = {}) {
     ownedGames.length && state.gameAvailabilityReady
       ? suggestableLivingEntries.filter((entry) => !isCaught(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber))
       : suggestableLivingEntries.filter((entry) => !isCaught(entry.name));
-  const shinySeedPool = baseEntries.filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name));
+  const shinySeedPool =
+    ownedGames.length && state.gameAvailabilityReady
+      ? baseEntries.filter(
+          (entry) =>
+            !isCaught(entry.name) &&
+            !isShinyDexLocked(entry.name) &&
+            isAvailableInOwnedCoverage(entry.baseNumber)
+        )
+      : baseEntries.filter((entry) => !isCaught(entry.name) && !isShinyDexLocked(entry.name));
 
   if ((!state.randomTargets.length && catchSeedPool.length) || (!state.shinyTargets.length && shinySeedPool.length)) {
     refreshRandomTargets();
@@ -781,7 +789,7 @@ function renderHomeOrganizer(options = {}) {
         getBaseEntries().find((entry) => entry.baseNumber === state.currentPokemon.baseNumber) ??
         null;
       const available = state.gameAvailabilityReady
-        ? isAvailableInGame(state.currentPokemon.baseNumber, game.id)
+        ? isAvailableInTrackedGameScope(state.currentPokemon.baseNumber, game.id)
         : false;
       const action = document.createElement("button");
       action.type = "button";

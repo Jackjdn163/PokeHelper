@@ -368,6 +368,18 @@ function gameHasSeparateVersions(game) {
   return getGameVersions(game).length > 0;
 }
 
+function gameHasDlcCoverage(gameOrId) {
+  const gameId = typeof gameOrId === "string" ? gameOrId : gameOrId?.id;
+  const availabilitySegments = SWITCH_GAME_AVAILABILITY[gameId]?.segments ?? [];
+  const journeyDlcItems = getJourneyConfig(gameId)?.dlc ?? [];
+
+  return journeyDlcItems.length > 0 || availabilitySegments.some((segment) => segment.kind === "dlc");
+}
+
+function trackerHasDlc(gameId) {
+  return Boolean(gameHasDlcCoverage(gameId) && state.tracker.games[gameId]?.hasDlc);
+}
+
 function createDefaultGameVersionState(game) {
   return Object.fromEntries(getGameVersions(game).map((version) => [version.id, false]));
 }
@@ -465,6 +477,7 @@ function syncJourneyDerivedTrackerState(game, trackerState) {
   };
   trackerState.hours = String(trackerState.hours ?? "");
   trackerState.trainerId = String(trackerState.trainerId ?? "");
+  trackerState.hasDlc = gameHasDlcCoverage(game) ? Boolean(trackerState.hasDlc) : false;
 
   const progressDone = (config.progressIds ?? []).filter((id) => trackerState.journeyChecks[id]).length;
   trackerState.progress = Math.min(progressDone, Number(game.progressMax) || progressDone);
@@ -489,6 +502,7 @@ function createDefaultTrackerState() {
           milestone: game.milestones[0],
           hallOfFame: false,
           postgame: false,
+          hasDlc: false,
           focus: "",
           hours: "",
           trainerId: "",

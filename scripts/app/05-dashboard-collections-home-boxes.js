@@ -1079,7 +1079,7 @@ function getGameChecklistEntries(gameId) {
     return [];
   }
 
-  return getBaseEntries().filter((entry) => isAvailableInGame(entry.baseNumber, gameId));
+  return getBaseEntries().filter((entry) => isAvailableInTrackedGameScope(entry.baseNumber, gameId));
 }
 
 function getGameChecklistProgress(gameId) {

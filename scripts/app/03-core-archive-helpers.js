@@ -221,15 +221,41 @@ function getOwnedGameIds() {
   return GAME_CATALOG.filter((game) => state.tracker.games[game.id]?.owned).map((game) => game.id);
 }
 
-function isAvailableInOwnedGameSelection(baseNumber, gameId) {
-  if (!isAvailableInGame(baseNumber, gameId)) {
-    return false;
+function getAvailabilitySegmentsForDlcScope(gameId, includeDlc = true) {
+  const detail = state.gameAvailabilityDetailsByGame.get(gameId);
+  const segments = (detail?.segments ?? []).filter((segment) => segment?.speciesSet?.size);
+
+  if (!segments.length) {
+    return null;
   }
 
+  return includeDlc ? segments : segments.filter((segment) => segment.kind !== "dlc");
+}
+
+function isAvailableInGameDlcScope(baseNumber, gameId, includeDlc = true) {
+  const segments = getAvailabilitySegmentsForDlcScope(gameId, includeDlc);
+
+  if (!segments) {
+    return isAvailableInGame(baseNumber, gameId);
+  }
+
+  return segments.some((segment) => segment.speciesSet.has(baseNumber));
+}
+
+function isAvailableInTrackedGameScope(baseNumber, gameId) {
+  const includeDlc = !gameHasDlcCoverage(gameId) || trackerHasDlc(gameId);
+  return isAvailableInGameDlcScope(baseNumber, gameId, includeDlc);
+}
+
+function isAvailableInOwnedGameSelection(baseNumber, gameId) {
   const game = getGameMeta(gameId);
   const trackerGameState = state.tracker.games[gameId];
 
   if (!game || !trackerGameState?.owned) {
+    return false;
+  }
+
+  if (!isAvailableInTrackedGameScope(baseNumber, gameId)) {
     return false;
   }
 
@@ -282,7 +308,7 @@ function isEntryExclusiveToOwnedGameSelection(entry, gameId) {
 
 function isAvailableViaOwnedDynamaxAdventure(baseNumber) {
   const trackerGameState = state.tracker.games.swsh;
-  if (!trackerGameState?.owned) {
+  if (!trackerGameState?.owned || !trackerHasDlc("swsh")) {
     return false;
   }
 
@@ -398,7 +424,12 @@ function refreshRandomTargets() {
       ? missingBaseEntries.filter((entry) => isAvailableInOwnedCoverage(entry.baseNumber))
       : missingBaseEntries;
   const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !entry.isForm && !isShinyDexLocked(entry.name));
-  const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
+  const shinyPool =
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? shinyEligibleBaseEntries.filter(
+          (entry) => !isShiny(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber)
+        )
+      : shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
   refreshSuggestedCatchBadgeSeed();
   state.randomTargets = shuffleEntries(catchPool).slice(0, 8);
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
@@ -420,7 +451,12 @@ function rerollRandomTargetBoard() {
 function rerollShinyTargetBoard() {
   const missingBaseEntries = state.entries.filter((entry) => !entry.isForm && !isCaught(entry.name));
   const shinyEligibleBaseEntries = missingBaseEntries.filter((entry) => !isShinyDexLocked(entry.name));
-  const shinyPool = shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
+  const shinyPool =
+    getOwnedGameIds().length && state.gameAvailabilityReady
+      ? shinyEligibleBaseEntries.filter(
+          (entry) => !isShiny(entry.name) && isAvailableInOwnedCoverage(entry.baseNumber)
+        )
+      : shinyEligibleBaseEntries.filter((entry) => !isShiny(entry.name));
   state.shinyTargets = shuffleEntries(shinyPool).slice(0, 2);
   state.ui.selectedShinyTargetName = null;
   ensureSuggestedBoardSelections();
