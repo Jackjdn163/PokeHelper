@@ -2256,6 +2256,116 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   --entry-accent-border: rgba(255, 129, 200, 0.24);
 }
 
+.dex-entry.has-version-exclusive,
+.archive-grid-card.has-version-exclusive {
+  --archive-version-border: rgba(89, 200, 255, 0.4);
+  --archive-version-ring: rgba(89, 200, 255, 0.16);
+  --archive-version-surface: rgba(89, 200, 255, 0.14);
+  --archive-version-glow: rgba(89, 200, 255, 0.24);
+  position: relative;
+  border-color: var(--archive-version-border);
+  box-shadow:
+    inset 0 0 0 1px var(--archive-version-ring),
+    0 16px 34px rgba(5, 11, 25, 0.28);
+}
+
+.dex-entry.has-version-exclusive::before,
+.archive-grid-card.has-version-exclusive::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 88% 18%, var(--archive-version-glow), transparent 42%),
+    linear-gradient(90deg, var(--archive-version-surface), transparent 48%);
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dex-entry.has-version-exclusive > *,
+.archive-grid-card.has-version-exclusive > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dex-entry.has-version-exclusive.caught,
+.archive-grid-card.has-version-exclusive.caught {
+  border-color: color-mix(in srgb, var(--archive-version-border) 68%, rgba(78, 218, 162, 0.48));
+}
+
+.dex-entry.has-version-exclusive.version-sword,
+.archive-grid-card.has-version-exclusive.version-sword {
+  --archive-version-border: rgba(97, 189, 255, 0.48);
+  --archive-version-ring: rgba(97, 189, 255, 0.18);
+  --archive-version-surface: rgba(52, 138, 255, 0.18);
+  --archive-version-glow: rgba(97, 189, 255, 0.3);
+}
+
+.dex-entry.has-version-exclusive.version-shield,
+.archive-grid-card.has-version-exclusive.version-shield {
+  --archive-version-border: rgba(255, 106, 144, 0.48);
+  --archive-version-ring: rgba(255, 106, 144, 0.18);
+  --archive-version-surface: rgba(255, 75, 124, 0.18);
+  --archive-version-glow: rgba(255, 106, 144, 0.3);
+}
+
+.dex-entry.has-version-exclusive.version-brilliant-diamond,
+.archive-grid-card.has-version-exclusive.version-brilliant-diamond {
+  --archive-version-border: rgba(119, 177, 255, 0.46);
+  --archive-version-ring: rgba(119, 177, 255, 0.17);
+  --archive-version-surface: rgba(82, 145, 255, 0.16);
+  --archive-version-glow: rgba(119, 177, 255, 0.28);
+}
+
+.dex-entry.has-version-exclusive.version-shining-pearl,
+.archive-grid-card.has-version-exclusive.version-shining-pearl {
+  --archive-version-border: rgba(246, 164, 217, 0.46);
+  --archive-version-ring: rgba(246, 164, 217, 0.17);
+  --archive-version-surface: rgba(244, 112, 203, 0.16);
+  --archive-version-glow: rgba(246, 164, 217, 0.28);
+}
+
+.dex-entry.has-version-exclusive.version-scarlet,
+.archive-grid-card.has-version-exclusive.version-scarlet {
+  --archive-version-border: rgba(255, 110, 88, 0.46);
+  --archive-version-ring: rgba(255, 110, 88, 0.17);
+  --archive-version-surface: rgba(255, 86, 61, 0.16);
+  --archive-version-glow: rgba(255, 110, 88, 0.28);
+}
+
+.dex-entry.has-version-exclusive.version-violet,
+.archive-grid-card.has-version-exclusive.version-violet {
+  --archive-version-border: rgba(145, 112, 255, 0.46);
+  --archive-version-ring: rgba(145, 112, 255, 0.17);
+  --archive-version-surface: rgba(122, 91, 255, 0.16);
+  --archive-version-glow: rgba(145, 112, 255, 0.28);
+}
+
+.dex-entry.has-version-exclusive.version-lets-go-pikachu,
+.archive-grid-card.has-version-exclusive.version-lets-go-pikachu {
+  --archive-version-border: rgba(244, 210, 88, 0.46);
+  --archive-version-ring: rgba(244, 210, 88, 0.17);
+  --archive-version-surface: rgba(255, 217, 82, 0.16);
+  --archive-version-glow: rgba(244, 210, 88, 0.28);
+}
+
+.dex-entry.has-version-exclusive.version-lets-go-eevee,
+.archive-grid-card.has-version-exclusive.version-lets-go-eevee {
+  --archive-version-border: rgba(198, 147, 105, 0.46);
+  --archive-version-ring: rgba(198, 147, 105, 0.17);
+  --archive-version-surface: rgba(194, 130, 78, 0.16);
+  --archive-version-glow: rgba(198, 147, 105, 0.28);
+}
+
+.dex-entry.has-version-exclusive.multi-version-exclusive,
+.archive-grid-card.has-version-exclusive.multi-version-exclusive {
+  --archive-version-border: rgba(186, 154, 255, 0.44);
+  --archive-version-ring: rgba(186, 154, 255, 0.16);
+  --archive-version-surface: rgba(113, 177, 255, 0.12);
+  --archive-version-glow: rgba(245, 157, 220, 0.24);
+}
+
 .entry-toggle {
   position: relative;
   display: block;
@@ -2808,6 +2918,18 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   color: #ffbbdf;
   background: rgba(255, 129, 200, 0.12);
   border-color: rgba(255, 129, 200, 0.22);
+}
+
+.tag-chip--version-exclusive {
+  color: #dbeafe;
+  background: linear-gradient(135deg, rgba(89, 200, 255, 0.14), rgba(173, 120, 255, 0.1));
+  border-color: rgba(118, 221, 255, 0.22);
+}
+
+.dex-entry.caught .tag-chip--version-exclusive {
+  color: #dbeafe;
+  background: linear-gradient(135deg, rgba(89, 200, 255, 0.14), rgba(173, 120, 255, 0.1));
+  border-color: rgba(118, 221, 255, 0.22);
 }
 
 .detail-head {
@@ -8292,14 +8414,6 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   border: 1px solid rgba(120, 160, 255, 0.15);
   box-shadow: 0 20px 60px rgba(2, 4, 16, 0.55);
   cursor: pointer;
-}
-
-.maps-hisui-base {
-  transition: filter 180ms ease;
-}
-
-.maps-hisui-base.is-dimmed {
-  filter: brightness(0.45);
 }
 
 .maps-hisui-region-sprite {

@@ -1737,12 +1737,6 @@ const HOME_BOX_COMPATIBILITY_RULES = [
   },
   {
     tag: "Dex Only",
-    reason: "Sky Forme is visible in the living dex, but HOME does not preserve it as its own boxed form.",
-    archiveVisible: true,
-    matches: (entry) => /^shaymin-sky$/.test(entry.name)
-  },
-  {
-    tag: "Dex Only",
     reason: "This form depends on an item or mask that HOME does not preserve as its own boxed form.",
     matches: (entry) =>
       /^(dialga-origin|palkia-origin|giratina-origin|genesect-(burn|chill|douse|shock)|ogerpon-(wellspring-mask|hearthflame-mask|cornerstone-mask)|zacian-crowned|zamazenta-crowned)$/.test(

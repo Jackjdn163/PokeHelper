@@ -595,6 +595,10 @@ function renderShinyHelper(pokemon = state.currentPokemon, options = {}) {
     return;
   }
 
+  if (!elements.huntFocus || !elements.huntSummary || !elements.huntGrid) {
+    return;
+  }
+
   const activeGame = getGameMeta(getActiveGameId());
   const summaryTarget = pokemon?.displayName ?? "your next target";
 

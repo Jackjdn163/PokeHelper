@@ -724,6 +724,37 @@ function updateLivingDexCount(entry, nextCount) {
   setStatus(describeCaughtCountChange(entry, previousCount, normalizedCount));
 }
 
+function getActiveArchiveVersionExclusiveMeta(entry) {
+  const gameId = state.filters.game;
+  if (!entry || !gameId || gameId === "all" || !state.gameAvailabilityReady) {
+    return null;
+  }
+
+  const versions = getVersionExclusiveVersions(gameId, entry.baseNumber);
+  if (!versions.length) {
+    return null;
+  }
+
+  return {
+    label: getVersionExclusiveLabel(gameId, entry.baseNumber),
+    classes: getVersionExclusiveBadgeClasses(gameId, entry.baseNumber)
+  };
+}
+
+function applyArchiveVersionExclusiveCardState(card, entry) {
+  const meta = getActiveArchiveVersionExclusiveMeta(entry);
+  card.classList.toggle("has-version-exclusive", Boolean(meta));
+
+  if (!meta) {
+    return null;
+  }
+
+  card.classList.add(...meta.classes);
+  card.dataset.versionExclusive = meta.label;
+  card.title = card.title ? `${card.title} - ${meta.label}` : meta.label;
+  return meta;
+}
+
 function changeLivingDexCount(entry, delta) {
   updateLivingDexCount(entry, getCaughtCount(entry.name) + delta);
 }
@@ -792,6 +823,7 @@ function buildDexEntryListNode(entry) {
   card.classList.toggle("caught", tracked);
   card.classList.toggle("is-form", entry.isForm);
   card.classList.toggle("count-mode", duplicateMode);
+  const versionExclusiveMeta = applyArchiveVersionExclusiveCardState(card, entry);
 
   if (duplicateMode) {
     toggle.classList.add("count-mode");
@@ -848,6 +880,9 @@ function buildDexEntryListNode(entry) {
   tags.slice(0, 2).forEach((label) => {
     entryTags.appendChild(makeTag(label, label === "Shiny" ? null : accentKey));
   });
+  if (versionExclusiveMeta?.label) {
+    entryTags.appendChild(makeTag(versionExclusiveMeta.label, "version-exclusive"));
+  }
 
   state.archiveRender.renderedCardsByName.set(entry.name, card);
   return instance;
@@ -871,6 +906,7 @@ function buildDexEntryGridNode(entry) {
   card.classList.toggle("is-form", entry.isForm);
   card.classList.toggle("count-mode", duplicateMode);
   card.dataset.accent = getEntryAccentKey(entry);
+  applyArchiveVersionExclusiveCardState(card, entry);
 
   openButton.type = "button";
   openButton.className = "archive-grid-open";

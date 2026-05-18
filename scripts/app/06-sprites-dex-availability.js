@@ -681,12 +681,23 @@ function commitDexIndexState(snapshot, options = {}) {
         }))
         .filter((entry) => entry.id && entry.name)
     : [];
-  const normalizedEntries = Array.isArray(snapshot?.entries)
+  const normalizedSnapshotEntries = Array.isArray(snapshot?.entries)
     ? snapshot.entries.map(normalizeCachedDexEntry).filter(Boolean)
     : [];
-  const normalizedParkedEntries = Array.isArray(snapshot?.parkedEntries)
+  const normalizedSnapshotParkedEntries = Array.isArray(snapshot?.parkedEntries)
     ? snapshot.parkedEntries.map(normalizeCachedDexEntry).filter(Boolean)
     : [];
+  const normalizedEntriesByName = new Map();
+
+  [...normalizedSnapshotEntries, ...normalizedSnapshotParkedEntries].forEach((entry) => {
+    normalizedEntriesByName.set(entry.name, entry);
+  });
+
+  const normalizedAllEntries = [...normalizedEntriesByName.values()].sort(
+    (left, right) => left.baseNumber - right.baseNumber || compareEntriesWithinGroup(left, right)
+  );
+  const normalizedEntries = normalizedAllEntries.filter((entry) => !entry.parkedOnly);
+  const normalizedParkedEntries = normalizedAllEntries.filter((entry) => entry.parkedOnly);
 
   if (!normalizedEntries.length || !baseEntries.length) {
     return false;

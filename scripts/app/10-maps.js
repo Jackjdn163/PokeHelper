@@ -77,14 +77,15 @@ function showMapsSelectScreen() {
 }
 
 // ── Hisui region sprite + hit-polygon data ────────────────────────────────────
-// All sprites are the same canvas size as Hisui_Map.png so they stack exactly.
-// Hit polygons use percentage coords (0-100 x, 0-56.25 y) matching the SVG viewBox.
+// Visible sprites are full-size overlays; hit sprites preserve the original mask behavior.
+const HISUI_OVERLAY_ASSET_VERSION = "110";
 const HISUI_REGIONS = [
   {
     id: "obsidian",
     label: "Obsidian Fieldlands",
     mapTitle: "Obsidian Fieldlands",
     sprite: "./assets/maps/Obsidian_Fieldlands.png",
+    hitSprite: "./assets/maps/hisui-hitmasks/Obsidian_Fieldlands.png",
     hitMode: "floodfill"
   },
   {
@@ -92,6 +93,7 @@ const HISUI_REGIONS = [
     label: "Crimson Mirelands",
     mapTitle: "Crimson Mirelands",
     sprite: "./assets/maps/Crimson_Mirelands.png",
+    hitSprite: "./assets/maps/hisui-hitmasks/Crimson_Mirelands.png",
     hitMode: "floodfill"
   },
   {
@@ -99,13 +101,15 @@ const HISUI_REGIONS = [
     label: "Cobalt Coastlands",
     mapTitle: "Cobalt Coastlands",
     sprite: "./assets/maps/Cobalt_Coastlands.png",
-    hitMode: "alpha"
+    hitMode: "floodfill",
+    closedEdges: ["right"]
   },
   {
     id: "coronet",
     label: "Coronet Highlands",
     mapTitle: "Coronet Highlands",
     sprite: "./assets/maps/Coronet_Highlands.png",
+    hitSprite: "./assets/maps/hisui-hitmasks/Coronet_Highlands.png",
     hitMode: "floodfill"
   },
   {
@@ -113,16 +117,21 @@ const HISUI_REGIONS = [
     label: "Alabaster Icelands",
     mapTitle: "Alabaster Icelands",
     sprite: "./assets/maps/Alabaster_Icelands.png",
-    hitMode: "alpha"
+    hitMode: "floodfill"
   },
   {
     id: "jubilife",
     label: "Jubilife Village",
     mapTitle: "Jubilife Village",
     sprite: "./assets/maps/Jubilife_Village.png",
+    hitSprite: "./assets/maps/hisui-hitmasks/Jubilife_Village.png",
     hitMode: "floodfill"
   }
 ];
+
+function getVersionedHisuiOverlayAsset(path) {
+  return `${path}?v=${HISUI_OVERLAY_ASSET_VERSION}`;
+}
 
 // ── LZA wild zones ────────────────────────────────────────────────────────────
 // Base map: lza-lumiose-city-4096.png (4096x4096, square, city fills the frame).
@@ -208,8 +217,19 @@ function buildHisuiOverlay(onRegionSelect = null) {
         queue.push(x, y);
       }
 
-      for (let x = 0; x < W; x++) { enqueue(x, 0); enqueue(x, H - 1); }
-      for (let y = 0; y < H; y++) { enqueue(0, y); enqueue(W - 1, y); }
+      const closedEdges = new Set(region.closedEdges ?? []);
+      if (!closedEdges.has("top")) {
+        for (let x = 0; x < W; x++) enqueue(x, 0);
+      }
+      if (!closedEdges.has("bottom")) {
+        for (let x = 0; x < W; x++) enqueue(x, H - 1);
+      }
+      if (!closedEdges.has("left")) {
+        for (let y = 0; y < H; y++) enqueue(0, y);
+      }
+      if (!closedEdges.has("right")) {
+        for (let y = 0; y < H; y++) enqueue(W - 1, y);
+      }
 
       let qi = 0;
       while (qi < queue.length) {
@@ -233,18 +253,24 @@ function buildHisuiOverlay(onRegionSelect = null) {
     sprite.crossOrigin = "anonymous";
     sprite.dataset.regionId = region.id;
 
-    // Build hit mask once the sprite loads.
+    // Build hit mask once the preserved mask sprite loads.
     // floodfill mode: BFS from corners over transparent pixels; anything unreachable = inside.
-    // alpha mode: direct alpha check (for open-border regions like Cobalt / Alabaster).
+    // alpha mode: direct alpha check for any fallback stroke-only masks.
     const hitMask = { data: null, alpha: null, width: 0, height: 0, mode: region.hitMode };
     spriteCanvases[region.id] = hitMask;
-    sprite.addEventListener("load", () => buildRegionHitMask(sprite, region, hitMask), { once: true });
-    sprite.src = region.sprite;
+
+    const hitSprite = document.createElement("img");
+    hitSprite.alt = "";
+    hitSprite.crossOrigin = "anonymous";
+    hitSprite.addEventListener("load", () => buildRegionHitMask(hitSprite, region, hitMask), { once: true });
+    hitSprite.src = getVersionedHisuiOverlayAsset(region.hitSprite ?? region.sprite);
+
+    sprite.src = getVersionedHisuiOverlayAsset(region.sprite);
     inner.appendChild(sprite);
     spriteEls[region.id] = sprite;
 
-    if (sprite.complete && sprite.naturalWidth > 0) {
-      buildRegionHitMask(sprite, region, hitMask);
+    if (hitSprite.complete && hitSprite.naturalWidth > 0) {
+      buildRegionHitMask(hitSprite, region, hitMask);
     }
   }
 
@@ -274,9 +300,7 @@ function buildHisuiOverlay(onRegionSelect = null) {
     activeRegionId = regionId;
     if (regionId) {
       spriteEls[regionId].classList.add("is-visible");
-      baseImg.classList.add("is-dimmed");
     } else {
-      baseImg.classList.remove("is-dimmed");
       tooltip.classList.add("hidden");
     }
   }
