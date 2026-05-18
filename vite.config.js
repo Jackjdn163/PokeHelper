@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 const runtimeAssetTargets = [
+  "app.js",
   "ai-panel.js",
   "assets",
   "game-tools-data.js",

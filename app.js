@@ -1,4 +1,5 @@
-const APP_CHUNK_VERSION = "103";
+const APP_CHUNK_VERSION = "104";
+const VERCEL_TELEMETRY_HOSTS = ["pokepilot.site", "www.pokepilot.site"];
 const APP_CHUNKS = [
   "./scripts/app/00-config-data-state.js",
   "./scripts/app/01-storage-profiles-cloud.js",
@@ -14,6 +15,65 @@ const APP_CHUNKS = [
   "./scripts/app/11-scan-dex-rendering.js",
   "./scripts/app/12-events-bootstrap.js"
 ];
+
+function isVercelTelemetryHost(hostname = window.location.hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  return normalized.endsWith(".vercel.app") || VERCEL_TELEMETRY_HOSTS.includes(normalized);
+}
+
+function initVercelTelemetry() {
+  if (!isVercelTelemetryHost()) {
+    return;
+  }
+
+  injectVercelAnalytics();
+  injectVercelSpeedInsights();
+}
+
+function injectTelemetryScript(src, dataset) {
+  if (document.head.querySelector(`script[src*="${src}"]`)) {
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.src = src;
+  script.defer = true;
+
+  Object.entries(dataset).forEach(([key, value]) => {
+    script.dataset[key] = value;
+  });
+
+  document.head.appendChild(script);
+}
+
+function injectVercelAnalytics() {
+  if (!window.va) {
+    window.va = function va(...params) {
+      window.vaq = window.vaq || [];
+      window.vaq.push(params);
+    };
+  }
+
+  window.vam = "production";
+  injectTelemetryScript("/_vercel/insights/script.js", {
+    sdkn: "@vercel/analytics",
+    sdkv: "2.0.1"
+  });
+}
+
+function injectVercelSpeedInsights() {
+  if (!window.si) {
+    window.si = function si(...params) {
+      window.siq = window.siq || [];
+      window.siq.push(params);
+    };
+  }
+
+  injectTelemetryScript("/_vercel/speed-insights/script.js", {
+    sdkn: "@vercel/speed-insights",
+    sdkv: "2.0.0"
+  });
+}
 
 function buildVersionedChunkUrl(path) {
   const url = new URL(path, document.baseURI);
@@ -62,4 +122,5 @@ async function loadAppChunks() {
   }
 }
 
+initVercelTelemetry();
 loadAppChunks().catch(showBootFailure);
