@@ -1,4 +1,4 @@
-const APP_CHUNK_VERSION = "102";
+const APP_CHUNK_VERSION = "103";
 const APP_CHUNKS = [
   "./scripts/app/00-config-data-state.js",
   "./scripts/app/01-storage-profiles-cloud.js",
@@ -16,13 +16,13 @@ const APP_CHUNKS = [
 ];
 
 function buildVersionedChunkUrl(path) {
-  const url = new URL(path, import.meta.url);
+  const url = new URL(path, document.baseURI);
   url.searchParams.set("v", APP_CHUNK_VERSION);
   return url;
 }
 
 function rewriteBundledModuleSpecifiers(source) {
-  const gameToolsUrl = new URL("./game-tools-data.js", import.meta.url).href;
+  const gameToolsUrl = new URL("./game-tools-data.js", document.baseURI).href;
   return source.replace(
     'from "./game-tools-data.js";',
     "from " + JSON.stringify(gameToolsUrl) + ";"
