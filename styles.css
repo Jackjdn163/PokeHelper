@@ -3941,6 +3941,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 }
 
 .collection-panel-shell,
+.exp-panel-shell,
 .tracker-panel-shell,
 .vault-panel-shell,
 .home-panel-shell {
@@ -4085,6 +4086,26 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 .vault-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
+}
+
+.collection-card--bookmarks,
+.collection-card--unobtainable {
+  align-self: stretch;
+  display: grid;
+  align-content: start;
+}
+
+.collection-card--bookmarks {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.collection-card--unobtainable {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.collection-card--bookmarks .collection-list,
+.collection-card--unobtainable .collection-list {
+  min-height: 0;
 }
 
 .vault-stack {
@@ -5002,6 +5023,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .journey-detail-hero,
@@ -5095,8 +5117,21 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
 
 .journey-sections-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: minmax(280px, 4fr) minmax(0, 8fr);
   gap: 14px;
+  align-items: start;
+}
+
+.journey-section-stack {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-content: start;
+}
+
+.journey-section-stack > .journey-section-card {
+  grid-column: 1 / -1;
 }
 
 .journey-section-card {
@@ -5132,6 +5167,7 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+  align-items: start;
 }
 
 .journey-column {
@@ -5469,7 +5505,8 @@ body[data-active-view="landing"] .landing-shell .panel:not(.dashboard-sidebar) {
   }
 
   .journey-select-grid,
-  .journey-meta-grid {
+  .journey-meta-grid,
+  .journey-sections-grid {
     grid-template-columns: 1fr;
   }
 

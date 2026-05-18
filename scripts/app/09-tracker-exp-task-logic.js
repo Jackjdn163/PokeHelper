@@ -560,6 +560,10 @@ function renderTracker(options = {}) {
 
   const grid = document.createElement("div");
   grid.className = "journey-sections-grid";
+  const primaryStack = document.createElement("div");
+  primaryStack.className = "journey-section-stack journey-section-stack--primary";
+  const secondaryStack = document.createElement("div");
+  secondaryStack.className = "journey-section-stack journey-section-stack--secondary";
 
   const storyCard = document.createElement("article");
   storyCard.className = "journey-section-card journey-section-card--story";
@@ -747,7 +751,9 @@ function renderTracker(options = {}) {
     exclusivesCard.appendChild(exclusivesList);
   }
 
-  grid.append(storyCard, columnsCard, pokedexCard, legendaryCard, postgameCard, dlcCard, exclusivesCard);
+  primaryStack.append(storyCard, pokedexCard, postgameCard, dlcCard);
+  secondaryStack.append(columnsCard, legendaryCard, exclusivesCard);
+  grid.append(primaryStack, secondaryStack);
   detailShell.append(hero, metaGrid, versionCard, focusCard, grid);
   elements.journeyShell.appendChild(detailShell);
 }
