@@ -192,6 +192,64 @@ function saveProfileStoredObject(baseKey, value) {
   saveStoredObject(getProfileStorageKey(baseKey), value);
 }
 
+function createDefaultFirstRunState() {
+  return {
+    dismissed: false,
+    completed: false,
+    guest: false,
+    completedAt: null
+  };
+}
+
+function loadFirstRunState() {
+  const loaded = loadStoredObject(FIRST_RUN_STORAGE_KEY, createDefaultFirstRunState());
+
+  return {
+    dismissed: Boolean(loaded?.dismissed),
+    completed: Boolean(loaded?.completed),
+    guest: Boolean(loaded?.guest),
+    completedAt: loaded?.completedAt ? String(loaded.completedAt) : null
+  };
+}
+
+function saveFirstRunState() {
+  saveStoredObject(FIRST_RUN_STORAGE_KEY, state.firstRun);
+}
+
+function createDefaultProfileSetupState() {
+  return {
+    completed: false,
+    mainGoal: DEFAULT_MAIN_GOAL_ID,
+    favoritePokemonName: null,
+    finishedAt: null
+  };
+}
+
+function normalizeProfileSetupState(value = {}) {
+  const mainGoal = MAIN_GOAL_OPTION_IDS.has(value?.mainGoal) ? value.mainGoal : DEFAULT_MAIN_GOAL_ID;
+  return {
+    completed: Boolean(value?.completed),
+    mainGoal,
+    favoritePokemonName: value?.favoritePokemonName ? String(value.favoritePokemonName) : null,
+    finishedAt: value?.finishedAt ? String(value.finishedAt) : null
+  };
+}
+
+function loadProfileSetupState() {
+  return normalizeProfileSetupState(
+    loadProfileStoredObject(PROFILE_SETUP_STORAGE_KEY, createDefaultProfileSetupState())
+  );
+}
+
+function saveProfileSetupState() {
+  saveProfileStoredObject(PROFILE_SETUP_STORAGE_KEY, state.profileSetup);
+  markCloudDirty();
+}
+
+function getMainGoalOption(goalId = state.profileSetup?.mainGoal) {
+  return MAIN_GOAL_OPTIONS.find((option) => option.id === goalId) ?? MAIN_GOAL_OPTIONS[0];
+}
+
 function createToolRowId() {
   return `tool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -533,6 +591,8 @@ function getCloudProfileFieldFallback(field) {
     case "bookmarksMap":
     case "favoriteTypes":
       return {};
+    case "profileSetup":
+      return createDefaultProfileSetupState();
     case "tracker":
       return createDefaultTrackerState();
     case "expPlan":
@@ -560,6 +620,10 @@ function getCloudProfileFieldFallback(field) {
 function cloneCloudProfileField(field, value) {
   if (field === "caughtMap") {
     return normalizeCaughtMap(value);
+  }
+
+  if (field === "profileSetup") {
+    return normalizeProfileSetupState(value);
   }
 
   return cloneJson(value, getCloudProfileFieldFallback(field));
@@ -597,6 +661,7 @@ function buildProfileCloudPayload(profileId) {
     favoritesMap: readCloudFieldForProfile(profileId, FAVORITES_STORAGE_KEY, "favoritesMap"),
     bookmarksMap: readCloudFieldForProfile(profileId, BOOKMARKS_STORAGE_KEY, "bookmarksMap"),
     favoriteTypes: readCloudFieldForProfile(profileId, FAVORITE_TYPES_STORAGE_KEY, "favoriteTypes"),
+    profileSetup: readCloudFieldForProfile(profileId, PROFILE_SETUP_STORAGE_KEY, "profileSetup"),
     gameChecklistState: readCloudFieldForProfile(profileId, GAME_CHECKLIST_STORAGE_KEY, "gameChecklistState"),
     homeBoxes: readCloudFieldForProfile(profileId, HOME_BOX_STORAGE_KEY, "homeBoxes"),
     shinyHub: readCloudFieldForProfile(profileId, SHINY_HUB_STORAGE_KEY, "shinyHub"),
@@ -683,6 +748,10 @@ function writeProfileCloudPayload(profileId, payload) {
   saveStoredObject(
     getProfileScopedStorageKey(FAVORITE_TYPES_STORAGE_KEY, profileId),
     cloneJson(normalizedPayload.favoriteTypes, {})
+  );
+  saveStoredObject(
+    getProfileScopedStorageKey(PROFILE_SETUP_STORAGE_KEY, profileId),
+    normalizeProfileSetupState(normalizedPayload.profileSetup)
   );
   saveStoredObject(
     getProfileScopedStorageKey(GAME_CHECKLIST_STORAGE_KEY, profileId),

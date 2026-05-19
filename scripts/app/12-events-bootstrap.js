@@ -30,6 +30,10 @@ elements.currentScanOpenButton.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 elements.currentScanClearButton.addEventListener("click", clearCurrentScan);
+elements.sessionButton.addEventListener("click", () => {
+  openFirstRunHelper("welcome");
+});
+elements.undoActionButton.addEventListener("click", undoLastAction);
 
 elements.detailTabButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -119,6 +123,23 @@ elements.favoritePickerClearButton.addEventListener("click", () => {
   syncFavoriteDisplays();
   setStatus(`${label} type favorite cleared.`);
 });
+elements.firstRunCloseButton.addEventListener("click", closeFirstRunHelper);
+elements.firstRunBackButton.addEventListener("click", goToPreviousFirstRunStep);
+elements.firstRunNextButton.addEventListener("click", goToNextFirstRunStep);
+elements.firstRunContent.addEventListener("click", (event) => {
+  const favoriteButton = event.target.closest("[data-first-run-favorite-name]");
+  if (favoriteButton) {
+    chooseFirstRunFavorite(favoriteButton.dataset.firstRunFavoriteName);
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-first-run-action]");
+  if (actionButton) {
+    void handleFirstRunAction(actionButton.dataset.firstRunAction);
+  }
+});
+elements.firstRunContent.addEventListener("input", handleFirstRunInput);
+elements.firstRunContent.addEventListener("change", handleFirstRunChange);
 elements.landingTargetCatchButton.addEventListener("click", markSuggestedTargetCaught);
 elements.landingShinyLogButton.addEventListener("click", markSuggestedTargetShiny);
 elements.landingTargetRerollButton.addEventListener("click", () => {
@@ -130,6 +151,10 @@ elements.landingShinyRerollButton.addEventListener("click", () => {
   rerollShinyTargetBoard();
   renderCollections();
   setStatus("Suggested shiny targets rerolled.");
+});
+elements.achievementLoadMoreButton.addEventListener("click", () => {
+  state.ui.achievementVisibleCount += ACHIEVEMENT_LOAD_MORE_COUNT;
+  renderCollections();
 });
 elements.shinySuggestCatchButton.addEventListener("click", () => {
   catchSelectedShinyHubTarget();
@@ -247,6 +272,15 @@ elements.clearBoxButton.addEventListener("click", () => {
     return;
   }
 
+  const boxedNames = currentBox.entries
+    .filter((entry) => isBoxedInHome(entry.name))
+    .map((entry) => entry.name);
+  if (boxedNames.length) {
+    recordUndoAction({
+      label: `${currentBox.name} HOME clear`,
+      homeNames: boxedNames
+    });
+  }
   currentBox.entries.forEach((entry) => {
     delete state.homeBoxes.boxedMap[entry.name];
   });
@@ -391,6 +425,7 @@ elements.expLevel100Button.addEventListener("click", () => {
 });
 
 renderModuleQueue();
+renderUndoActionButton();
 const bootedFromDexCache = hydrateDexIndexFromCache();
 renderActiveView();
 flushDeferredViewRenders();
@@ -405,6 +440,9 @@ renderHomeOrganizer();
 renderShinyHelper();
 renderSuggestors();
 void renderExpPlanner();
+if (shouldAutoOpenFirstRunHelper()) {
+  openFirstRunHelper("welcome");
+}
 registerOfflineSupport();
 void ensureCloudClient().then(() => {
   if (state.cloud.user) {

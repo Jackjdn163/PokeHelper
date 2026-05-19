@@ -1,6 +1,300 @@
 // Collection rendering, trainer vault, HOME organizer, and tool workbench
 // Source chunk generated from the original app.js lines 10931-12503.
 
+const ACHIEVEMENT_STARTER_NAMES = [
+  "bulbasaur",
+  "charmander",
+  "squirtle",
+  "chikorita",
+  "cyndaquil",
+  "totodile",
+  "treecko",
+  "torchic",
+  "mudkip",
+  "turtwig",
+  "chimchar",
+  "piplup",
+  "snivy",
+  "tepig",
+  "oshawott",
+  "chespin",
+  "fennekin",
+  "froakie",
+  "rowlet",
+  "litten",
+  "popplio",
+  "grookey",
+  "scorbunny",
+  "sobble",
+  "sprigatito",
+  "fuecoco",
+  "quaxly"
+];
+const ACHIEVEMENT_KANTO_STARTERS = ["bulbasaur", "charmander", "squirtle"];
+const ACHIEVEMENT_EEVEELUTIONS = [
+  "eevee",
+  "vaporeon",
+  "jolteon",
+  "flareon",
+  "espeon",
+  "umbreon",
+  "leafeon",
+  "glaceon",
+  "sylveon"
+];
+const ACHIEVEMENT_PSEUDO_BASES = [
+  "dratini",
+  "larvitar",
+  "bagon",
+  "beldum",
+  "gible",
+  "deino",
+  "goomy",
+  "jangmo-o",
+  "dreepy",
+  "frigibax"
+];
+
+function createThresholdAchievement(id, title, detail, target, getValue, tone = "standard") {
+  return {
+    id,
+    title,
+    detail,
+    target,
+    tone,
+    evaluate(context) {
+      const current = Math.max(0, Number(getValue(context)) || 0);
+      return {
+        current,
+        target,
+        unlocked: target > 0 && current >= target
+      };
+    }
+  };
+}
+
+function createGenerationAchievement(label) {
+  return {
+    id: `completed-gen-${label}`,
+    title: `Completed Gen ${label}`,
+    detail: `Catch every base species from Generation ${label}.`,
+    target: 1,
+    tone: "generation",
+    evaluate(context) {
+      const record = context.generationMap.get(label);
+      const total = Number(record?.total) || 0;
+      const current = Number(record?.caughtCount) || 0;
+      return {
+        current,
+        target: total || 1,
+        unlocked: total > 0 && current >= total
+      };
+    }
+  };
+}
+
+function createNameSetAchievement(id, title, detail, names, tone = "collection") {
+  return {
+    id,
+    title,
+    detail,
+    target: names.length,
+    tone,
+    evaluate(context) {
+      const current = context.countCaughtNames(names);
+      return {
+        current,
+        target: names.length,
+        unlocked: current >= names.length
+      };
+    }
+  };
+}
+
+const ACHIEVEMENT_DEFINITIONS = [
+  createThresholdAchievement("first-catch", "First Catch", "Register your first living-dex Pokémon.", 1, (context) => context.caughtBaseCount),
+  createThresholdAchievement("twenty-five-species", "25 Species Logged", "Catch 25 base species.", 25, (context) => context.caughtBaseCount),
+  createThresholdAchievement("fifty-species", "50 Species Logged", "Catch 50 base species.", 50, (context) => context.caughtBaseCount),
+  createThresholdAchievement("hundred-species", "100 Species Logged", "Catch 100 base species.", 100, (context) => context.caughtBaseCount),
+  createThresholdAchievement("kanto-count", "151 Club", "Catch 151 base species.", 151, (context) => context.caughtBaseCount),
+  createThresholdAchievement("quarter-dex", "250 Species Logged", "Catch 250 base species.", 250, (context) => context.caughtBaseCount),
+  createThresholdAchievement("five-hundred-species", "500 Species Logged", "Catch 500 base species.", 500, (context) => context.caughtBaseCount),
+  createThresholdAchievement("seven-fifty-species", "750 Species Logged", "Catch 750 base species.", 750, (context) => context.caughtBaseCount),
+  createThresholdAchievement("thousand-species", "1,000 Species Logged", "Catch 1,000 base species.", 1000, (context) => context.caughtBaseCount),
+  ...GENERATION_RANGES.map((range) => createGenerationAchievement(range.label)),
+  createThresholdAchievement("first-shiny", "First Shiny", "Log your first shiny Pokémon.", 1, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("ten-shinies", "10 Shinies", "Log 10 shiny Pokémon.", 10, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("twenty-five-shinies", "25 Shinies", "Log 25 shiny Pokémon.", 25, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("fifty-shinies", "50 Shinies", "Log 50 shiny Pokémon.", 50, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("hundred-shinies", "100 Shinies", "Log 100 shiny Pokémon.", 100, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("two-fifty-shinies", "250 Shinies", "Log 250 shiny Pokémon.", 250, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("five-hundred-shinies", "500 Shinies", "Log 500 shiny Pokémon.", 500, (context) => context.shinyEntryCount, "shiny"),
+  createThresholdAchievement("first-home-slot", "First HOME Slot", "Place your first Pokémon into a HOME box slot.", 1, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("twenty-five-home", "25 HOME Slots Filled", "Fill 25 HOME organizer slots.", 25, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("fifty-home", "50 HOME Slots Filled", "Fill 50 HOME organizer slots.", 50, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("hundred-home", "100 HOME Slots Filled", "Fill 100 HOME organizer slots.", 100, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("two-fifty-home", "250 HOME Slots Filled", "Fill 250 HOME organizer slots.", 250, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("five-hundred-home", "500 HOME Slots Filled", "Fill 500 HOME organizer slots.", 500, (context) => context.boxedCount, "home"),
+  createThresholdAchievement("first-save", "First Save Tracked", "Mark one game as owned in Journey.", 1, (context) => context.ownedGameCount, "journey"),
+  createThresholdAchievement("three-games", "Three Games Tracked", "Track three owned games.", 3, (context) => context.ownedGameCount, "journey"),
+  createThresholdAchievement("all-games", "Current Library Set", "Track every current game family.", GAME_CATALOG.length, (context) => context.ownedGameCount, "journey"),
+  createThresholdAchievement(
+    "all-releases",
+    "Full Release Shelf",
+    "Track every individual current release.",
+    GAME_CATALOG.reduce((sum, game) => sum + Math.max(1, getGameVersions(game).length), 0),
+    (context) => context.ownedReleaseCount,
+    "journey"
+  ),
+  createThresholdAchievement("active-save", "Active Save Set", "Choose an active Journey save.", 1, (context) => context.activeSaveSet, "journey"),
+  createThresholdAchievement("first-clear", "First Game Cleared", "Mark one tracked game as cleared.", 1, (context) => context.clearedCount, "journey"),
+  createThresholdAchievement("three-clears", "Three Games Cleared", "Clear three tracked game journeys.", 3, (context) => context.clearedCount, "journey"),
+  createThresholdAchievement("dlc-ready", "DLC Ready", "Mark DLC ownership for at least one supported game.", 1, (context) => context.dlcOwnedCount, "journey"),
+  createThresholdAchievement("first-favorite", "First Favorite", "Add one Pokémon to your Vault favorites.", 1, (context) => context.favoriteCount, "social"),
+  createThresholdAchievement("five-favorites", "Favorite Five", "Add five Pokémon to your Vault favorites.", 5, (context) => context.favoriteCount, "social"),
+  createThresholdAchievement("ten-favorites", "Favorite Ten", "Add ten Pokémon to your Vault favorites.", 10, (context) => context.favoriteCount, "social"),
+  createThresholdAchievement("bookmark-scout", "Bookmark Scout", "Bookmark five Pokémon.", 5, (context) => context.bookmarkCount, "social"),
+  createThresholdAchievement("bookmark-board", "Bookmark Board", "Bookmark 20 Pokémon.", 20, (context) => context.bookmarkCount, "social"),
+  createNameSetAchievement("kanto-starters", "Kanto Starter Trio", "Catch Bulbasaur, Charmander, and Squirtle.", ACHIEVEMENT_KANTO_STARTERS, "starter"),
+  createNameSetAchievement("all-starters", "All Starters Collected", "Catch every first-stage starter Pokémon.", ACHIEVEMENT_STARTER_NAMES, "starter"),
+  createNameSetAchievement("eeveelution-master", "Eeveelution Master", "Catch Eevee and all eight Eeveelutions.", ACHIEVEMENT_EEVEELUTIONS, "starter"),
+  createNameSetAchievement("pseudo-powerhouse", "Pseudo Powerhouse", "Catch each pseudo-legendary base line starter.", ACHIEVEMENT_PSEUDO_BASES, "collection"),
+  createThresholdAchievement("type-curator", "Type Curator", "Fill six type-favorite showcase slots.", 6, (context) => context.favoriteTypeCount, "social"),
+  createThresholdAchievement("type-museum", "Type Museum", "Fill every type-favorite showcase slot.", TYPE_NAMES.length, (context) => context.favoriteTypeCount, "social")
+];
+
+function getAchievementContext({
+  baseEntries,
+  shinyDexEntries,
+  caughtBaseCount,
+  shinyEntryCount,
+  boxedCount,
+  favoriteEntries,
+  bookmarkEntries,
+  favoriteTypeCount,
+  generationBreakdown,
+  ownedGames,
+  ownedReleaseCount,
+  clearedCount
+}) {
+  const generationMap = new Map(generationBreakdown.map((record) => [record.label, record]));
+  const ownedGameCount = ownedGames.length;
+  const dlcOwnedCount = GAME_CATALOG.reduce(
+    (sum, game) => sum + Number(Boolean(state.tracker.games[game.id]?.owned && trackerHasDlc(game.id))),
+    0
+  );
+
+  return {
+    baseEntries,
+    shinyDexEntries,
+    caughtBaseCount,
+    shinyEntryCount,
+    boxedCount,
+    favoriteCount: favoriteEntries.length,
+    bookmarkCount: bookmarkEntries.length,
+    favoriteTypeCount,
+    generationMap,
+    ownedGameCount,
+    ownedReleaseCount,
+    clearedCount,
+    activeSaveSet: state.tracker.activeGame && state.tracker.activeGame !== "none" ? 1 : 0,
+    dlcOwnedCount,
+    countCaughtNames(names) {
+      return names.reduce((sum, name) => sum + Number(Boolean(state.entriesByName.has(name) && isCaught(name))), 0);
+    }
+  };
+}
+
+function getAchievementResults(context) {
+  return ACHIEVEMENT_DEFINITIONS.map((definition, index) => {
+    const rawResult = definition.evaluate(context);
+    const target = Math.max(1, Number(rawResult.target ?? definition.target) || 1);
+    const current = Math.max(0, Number(rawResult.current) || 0);
+    const progress = Math.min(1, current / target);
+
+    return {
+      ...definition,
+      index,
+      current,
+      target,
+      progress,
+      unlocked: Boolean(rawResult.unlocked)
+    };
+  });
+}
+
+function createAchievementBadge(result, options = {}) {
+  const badge = document.createElement("article");
+  badge.className = `achievement-badge achievement-badge--${result.tone ?? "standard"}`;
+  badge.classList.toggle("unlocked", result.unlocked);
+  badge.classList.toggle("locked", !result.unlocked);
+
+  const emblem = document.createElement("span");
+  emblem.className = "achievement-emblem";
+  emblem.textContent = result.unlocked ? "OK" : String(result.index + 1).padStart(2, "0");
+
+  const copy = document.createElement("div");
+  copy.className = "achievement-copy";
+  const title = document.createElement("strong");
+  title.textContent = result.title;
+  const detail = document.createElement("span");
+  detail.textContent = options.compact
+    ? result.unlocked
+      ? "Unlocked"
+      : `${formatPercent(result.progress)}`
+    : result.detail;
+  copy.append(title, detail);
+
+  const progress = document.createElement("div");
+  progress.className = "achievement-progress";
+  const fill = document.createElement("span");
+  fill.style.width = `${Math.round(result.progress * 100)}%`;
+  progress.appendChild(fill);
+
+  const meta = document.createElement("small");
+  meta.className = "achievement-meta";
+  meta.textContent = result.unlocked
+    ? "Unlocked"
+    : `${formatCount(Math.min(result.current, result.target))}/${formatCount(result.target)}`;
+
+  badge.append(emblem, copy, progress, meta);
+  return badge;
+}
+
+function renderAchievementBadges(results) {
+  const unlockedCount = results.reduce((sum, result) => sum + Number(result.unlocked), 0);
+  const totalCount = results.length;
+  const nextLocked = results.find((result) => !result.unlocked);
+  const sortedPreview = [...results].sort(
+    (left, right) =>
+      Number(right.unlocked) - Number(left.unlocked) ||
+      right.progress - left.progress ||
+      left.index - right.index
+  );
+
+  elements.landingAchievementSummary.textContent = `${formatCount(unlockedCount)}/${formatCount(totalCount)} unlocked${
+    nextLocked ? ` · Next: ${nextLocked.title}` : " · All badges complete"
+  }`;
+  elements.landingAchievementGrid.replaceChildren();
+  sortedPreview.slice(0, 8).forEach((result) => {
+    elements.landingAchievementGrid.appendChild(createAchievementBadge(result, { compact: true }));
+  });
+
+  elements.achievementCount.textContent = `${formatCount(unlockedCount)}/${formatCount(totalCount)}`;
+  elements.achievementSummary.textContent = nextLocked
+    ? `${formatCount(unlockedCount)} unlocked. Next target: ${nextLocked.title}.`
+    : "Every current achievement badge is unlocked.";
+  elements.achievementList.replaceChildren();
+
+  const visibleCount = Math.min(state.ui.achievementVisibleCount, totalCount);
+  results.slice(0, visibleCount).forEach((result) => {
+    elements.achievementList.appendChild(createAchievementBadge(result));
+  });
+
+  elements.achievementLoadMoreButton.hidden = visibleCount >= totalCount;
+  elements.achievementLoadMoreButton.textContent = `Load More (${formatCount(Math.max(0, totalCount - visibleCount))} left)`;
+}
+
 function renderCollections(options = {}) {
   if (!shouldRenderForViews(["landing", "collection", "vault"], options.force)) {
     return;
@@ -90,13 +384,30 @@ function renderCollections(options = {}) {
       shinyRatio: shinyEligibleEntries.length ? shinyCount / shinyEligibleEntries.length : 0
     };
   });
+  const achievementContext = getAchievementContext({
+    baseEntries,
+    shinyDexEntries,
+    caughtBaseCount,
+    shinyEntryCount,
+    boxedCount,
+    favoriteEntries,
+    bookmarkEntries,
+    favoriteTypeCount,
+    generationBreakdown,
+    ownedGames,
+    ownedReleaseCount,
+    clearedCount
+  });
+  const achievementResults = getAchievementResults(achievementContext);
 
+  const mainGoal = getMainGoalOption();
+  const mainGoalPrefix = state.profileSetup.completed ? `Main goal: ${mainGoal.label}. ` : "";
   elements.landingWelcome.textContent = `Welcome back, ${profile.name}`;
-  elements.landingSummary.textContent = state.randomTargets.length
+  elements.landingSummary.textContent = mainGoalPrefix + (state.randomTargets.length
     ? `Here’s your progress at a glance. ${state.randomTargets.length} living dex suggestions and ${state.shinyTargets.length} shiny goals are queued up for this profile.`
     : ownedReleaseCount
       ? "Your tracker is loaded. Reroll the hunt board or jump into Dex to plan the next capture."
-      : "Your living form archive is online. Mark the games you own and start logging catches to build tailored hunt suggestions.";
+      : "Your living form archive is online. Mark the games you own and start logging catches to build tailored hunt suggestions.");
   elements.landingProfileMetric.textContent = profile.name;
   elements.landingLivingMetric.textContent = `${formatCount(caughtBaseCount)} / ${formatCount(baseEntries.length)}`;
   elements.landingShinyMetric.textContent = `${formatCount(shinyEntryCount)} / ${formatCount(shinyDexEntries.length)}`;
@@ -142,6 +453,7 @@ function renderCollections(options = {}) {
   setProgressBar(elements.mainProgressBar, mainRatio);
   setProgressBar(elements.shinyProgressBar, shinyRatio);
   setProgressBar(elements.ownedProgressBar, ownedRatio);
+  renderAchievementBadges(achievementResults);
 
   elements.generationBreakdownSummary.textContent = `${GENERATION_RANGES.length} gens · ${formatCount(
     baseEntries.length
@@ -432,6 +744,809 @@ function renderTrainerVault() {
   renderFavoritePicker();
 }
 
+function getFirstRunStepIndex(step = state.ui.firstRun.step) {
+  return FIRST_RUN_SETUP_STEPS.indexOf(step);
+}
+
+function getFirstRunStepTitle(step = state.ui.firstRun.step) {
+  switch (step) {
+    case "login":
+      return {
+        title: "Log in to your trainer account",
+        subtitle: "Sign in first, then PokéPilot will open under that cloud account."
+      };
+    case "account":
+      return {
+        title: "Create or connect an account",
+        subtitle: "Cloud sync is optional, but it keeps your profile, saves, favorites, and setup available on other devices."
+      };
+    case "profile":
+      return {
+        title: "Name this trainer profile",
+        subtitle: "This is the local profile name PokéPilot uses across Dashboard, Journey, HOME, and settings."
+      };
+    case "games":
+      return {
+        title: "Pick the games you own",
+        subtitle: "These choices power catchability, missing coverage, suggestions, shiny pools, and Journey filters."
+      };
+    case "states":
+      return {
+        title: "Set where those saves are",
+        subtitle: "Choose your active save and rough story state. You can fine-tune badges and objectives later in Journey."
+      };
+    case "goal":
+      return {
+        title: "Choose your main goal",
+        subtitle: "This guides where PokéPilot sends you after setup and keeps the dashboard language focused."
+      };
+    case "favorite":
+      return {
+        title: "Pick a favorite Pokémon",
+        subtitle: "This only fills your Vault showcase. You will not be asked to mark owned Pokémon during setup."
+      };
+    default:
+      return {
+        title: "Welcome to PokéPilot",
+        subtitle: "Choose how you want to start, then Rotom will help configure the site around your saves."
+      };
+  }
+}
+
+function hasExistingFirstRunSetupSignals() {
+  const hasExtraProfile = state.profileMeta.profiles.some((profile) => profile.id !== DEFAULT_PROFILE_ID);
+  const hasOwnedGame = Object.values(state.tracker.games ?? {}).some((game) => game?.owned);
+  const hasCaughtPokemon = Object.values(state.caughtMap ?? {}).some((value) => normalizeCaughtCount(value) > 0);
+  const hasFavorite = Object.keys(state.favoritesMap ?? {}).length > 0;
+
+  return Boolean(state.profileSetup.completed || hasExtraProfile || hasOwnedGame || hasCaughtPokemon || hasFavorite);
+}
+
+function shouldAutoOpenFirstRunHelper() {
+  return !state.firstRun.dismissed && !hasExistingFirstRunSetupSignals();
+}
+
+function setFirstRunStep(step) {
+  state.ui.firstRun.step = step;
+  renderFirstRunHelper();
+}
+
+function openFirstRunHelper(step = "welcome") {
+  state.ui.firstRun.open = true;
+  state.ui.firstRun.step = step;
+  renderFirstRunHelper();
+}
+
+function closeFirstRunHelper() {
+  state.ui.firstRun.open = false;
+  renderFirstRunHelper();
+}
+
+function completeFirstRunGuest() {
+  state.firstRun.dismissed = true;
+  state.firstRun.guest = true;
+  state.firstRun.completedAt = new Date().toISOString();
+  saveFirstRunState();
+  closeFirstRunHelper();
+  setStatus("Guest session ready.");
+}
+
+function getFirstRunGoalView(goalId = state.profileSetup.mainGoal) {
+  switch (goalId) {
+    case "shiny-dex":
+      return "shiny";
+    case "journey":
+      return "journey";
+    case "home-boxes":
+      return "home";
+    case "form-dex":
+    case "living-dex":
+      return "archive";
+    default:
+      return "landing";
+  }
+}
+
+function completeFirstRunSetup() {
+  state.profileSetup.completed = true;
+  state.profileSetup.finishedAt = new Date().toISOString();
+  saveProfileSetupState();
+
+  state.firstRun.dismissed = true;
+  state.firstRun.completed = true;
+  state.firstRun.guest = false;
+  state.firstRun.completedAt = state.profileSetup.finishedAt;
+  saveFirstRunState();
+
+  closeFirstRunHelper();
+  setActiveView(getFirstRunGoalView());
+  setStatus("First-time setup complete.");
+}
+
+function refreshFirstRunConnectedViews() {
+  saveTrackerState();
+  renderTracker();
+  renderCollections();
+  renderHomeOrganizer();
+  renderShinyHelper();
+  renderSuggestors();
+  refreshResults();
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+}
+
+function syncFirstRunAuthFieldsToAccount() {
+  const emailInput = elements.firstRunContent.querySelector("[data-first-run-auth-email]");
+  const passwordInput = elements.firstRunContent.querySelector("[data-first-run-auth-password]");
+
+  if (emailInput && elements.accountEmailInput) {
+    elements.accountEmailInput.value = emailInput.value.trim();
+  }
+
+  if (passwordInput && elements.accountPasswordInput) {
+    elements.accountPasswordInput.value = passwordInput.value;
+  }
+}
+
+async function submitFirstRunAuth(mode) {
+  syncFirstRunAuthFieldsToAccount();
+  const ok = mode === "sign-up" ? await signUpCloudAccount() : await signInCloudAccount();
+  renderFirstRunHelper();
+  return ok;
+}
+
+function applyFirstRunProfileName() {
+  const input = elements.firstRunContent.querySelector("[data-first-run-profile-name]");
+  const normalized = String(input?.value ?? "").trim();
+  if (!normalized) {
+    return;
+  }
+
+  const profile = getActiveProfile();
+  if (profile && profile.name !== normalized) {
+    profile.name = normalized;
+    saveProfileMeta();
+    renderTrainerVault();
+    renderCollections();
+  }
+}
+
+function setFirstRunGameOwned(gameId, owned) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  if (!game || !trackerState) {
+    return;
+  }
+
+  if (gameHasSeparateVersions(game)) {
+    const versions = getGameVersions(game);
+    if (owned && !versions.some((version) => trackerState.versions?.[version.id])) {
+      trackerState.versions[versions[0]?.id] = true;
+    } else if (!owned) {
+      versions.forEach((version) => {
+        trackerState.versions[version.id] = false;
+      });
+    }
+  } else {
+    trackerState.owned = owned;
+  }
+
+  syncTrackerOwnershipSelection(game, trackerState);
+  if (owned && state.tracker.activeGame === "none") {
+    state.tracker.activeGame = gameId;
+  }
+  refreshFirstRunConnectedViews();
+}
+
+function setFirstRunGameVersion(gameId, versionId, owned) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  if (!game || !trackerState?.versions) {
+    return;
+  }
+
+  trackerState.versions[versionId] = owned;
+  syncTrackerOwnershipSelection(game, trackerState);
+  if (trackerState.owned && state.tracker.activeGame === "none") {
+    state.tracker.activeGame = gameId;
+  }
+  refreshFirstRunConnectedViews();
+}
+
+function setFirstRunGameDlc(gameId, owned) {
+  const trackerState = state.tracker.games[gameId];
+  if (!trackerState) {
+    return;
+  }
+
+  trackerState.hasDlc = Boolean(owned);
+  refreshFirstRunConnectedViews();
+}
+
+function getFirstRunGameStage(gameId) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  if (!game || !trackerState) {
+    return "start";
+  }
+
+  if (trackerState.postgame) {
+    return "postgame";
+  }
+
+  if (trackerState.hallOfFame) {
+    return "clear";
+  }
+
+  return trackerState.progress >= Math.ceil((game.progressMax || 1) * 0.45) ? "mid" : "start";
+}
+
+function setFirstRunGameStage(gameId, stage) {
+  const game = getGameMeta(gameId);
+  const trackerState = state.tracker.games[gameId];
+  if (!game || !trackerState) {
+    return;
+  }
+
+  const milestones = Array.isArray(game.milestones) ? game.milestones : [];
+  const progressMax = Number(game.progressMax) || 0;
+  const normalizedStage = ["start", "mid", "clear", "postgame"].includes(stage) ? stage : "start";
+  trackerState.hallOfFame = normalizedStage === "clear" || normalizedStage === "postgame";
+  trackerState.postgame = normalizedStage === "postgame";
+  trackerState.progress =
+    normalizedStage === "postgame" || normalizedStage === "clear"
+      ? progressMax
+      : normalizedStage === "mid"
+        ? Math.max(1, Math.ceil(progressMax * 0.45))
+        : 0;
+  trackerState.milestone =
+    normalizedStage === "postgame"
+      ? milestones[milestones.length - 1] ?? "Postgame"
+      : normalizedStage === "clear"
+        ? milestones[Math.min(2, milestones.length - 1)] ?? "Main Story Clear"
+        : normalizedStage === "mid"
+          ? milestones[Math.min(1, milestones.length - 1)] ?? "Mid Story"
+          : milestones[0] ?? "New Save";
+
+  refreshFirstRunConnectedViews();
+}
+
+function setFirstRunMainGoal(goalId) {
+  if (!MAIN_GOAL_OPTION_IDS.has(goalId)) {
+    return;
+  }
+
+  state.profileSetup.mainGoal = goalId;
+  saveProfileSetupState();
+  renderCollections();
+  renderFirstRunHelper();
+}
+
+function getFirstRunFavoriteChoices() {
+  if (!state.entries.length) {
+    return [];
+  }
+
+  const query = normalizeSearch(state.ui.firstRun.favoriteQuery);
+  if (query) {
+    return state.entries
+      .filter((entry) => entry.searchBlob?.includes(query) || normalizeSearch(entry.displayName).includes(query))
+      .slice(0, 12);
+  }
+
+  const starterNames = [
+    "pikachu",
+    "eevee",
+    "charizard",
+    "lucario",
+    "gengar",
+    "gardevoir",
+    "sylveon",
+    "greninja",
+    "mimikyu",
+    "dragonite",
+    "arceus",
+    "rotom"
+  ];
+  const starterEntries = starterNames.map((name) => state.entriesByName.get(name)).filter(Boolean);
+  return starterEntries.length ? starterEntries : getBaseEntries().slice(0, 12);
+}
+
+function chooseFirstRunFavorite(name) {
+  const entry = state.entriesByName.get(name);
+  if (!entry) {
+    return;
+  }
+
+  setFavoriteState(entry.name, true);
+  state.profileSetup.favoritePokemonName = entry.name;
+  saveProfileSetupState();
+  syncFavoriteDisplays();
+  renderFirstRunHelper();
+  setStatus(`${entry.displayName} added to favorites.`);
+}
+
+function createFirstRunActionButton(label, action, className = "ghost-button detail-link-button") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.dataset.firstRunAction = action;
+  button.textContent = label;
+  return button;
+}
+
+function createFirstRunCard(title, detail) {
+  const card = document.createElement("article");
+  card.className = "first-run-card";
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  const copy = document.createElement("p");
+  copy.textContent = detail;
+  card.append(heading, copy);
+  return card;
+}
+
+function renderFirstRunWelcome(container) {
+  const intro = createFirstRunCard(
+    "Rotom can configure this save in a few pages.",
+    "Start fresh, continue as a guest, or log in first. The setup will not ask you to mark every Pokémon you own."
+  );
+  const actions = document.createElement("div");
+  actions.className = "first-run-choice-grid";
+  actions.append(
+    createFirstRunActionButton("First time here", "start", "primary-action compact"),
+    createFirstRunActionButton("Continue as guest", "guest"),
+    createFirstRunActionButton("Log in", "login")
+  );
+  container.append(intro, actions);
+}
+
+function renderFirstRunAuth(container, mode = "setup") {
+  const signedIn = Boolean(state.cloud.user);
+  const card = createFirstRunCard(
+    signedIn ? `Signed in as ${getCloudUserLabel()}` : "Cloud account",
+    signedIn
+      ? "This setup will be saved under the signed-in trainer account once cloud sync runs."
+      : "Enter an email and password to create or connect a cloud account. You can skip this and keep using a local guest profile."
+  );
+  container.appendChild(card);
+
+  if (!signedIn) {
+    const fields = document.createElement("div");
+    fields.className = "first-run-auth-grid";
+
+    const email = document.createElement("input");
+    email.type = "email";
+    email.placeholder = "Trainer email";
+    email.autocomplete = "email";
+    email.dataset.firstRunAuthEmail = "true";
+    email.value = elements.accountEmailInput?.value ?? "";
+
+    const password = document.createElement("input");
+    password.type = "password";
+    password.placeholder = "Password";
+    password.autocomplete = mode === "login" ? "current-password" : "new-password";
+    password.dataset.firstRunAuthPassword = "true";
+
+    fields.append(email, password);
+    container.appendChild(fields);
+
+    const actions = document.createElement("div");
+    actions.className = "first-run-inline-actions";
+    actions.append(
+      createFirstRunActionButton("Sign In", "auth-sign-in", "primary-action compact"),
+      createFirstRunActionButton("Create Account", "auth-sign-up")
+    );
+    if (mode === "setup") {
+      actions.append(createFirstRunActionButton("Skip account", "next-step"));
+    } else {
+      actions.append(createFirstRunActionButton("Continue as guest", "guest"));
+    }
+    container.appendChild(actions);
+  }
+
+  if (state.cloud.message) {
+    const detail = document.createElement("p");
+    detail.className = `first-run-message is-${state.cloud.messageTone}`;
+    detail.textContent = state.cloud.message;
+    container.appendChild(detail);
+  }
+}
+
+function renderFirstRunProfile(container) {
+  const profile = getActiveProfile();
+  const field = document.createElement("label");
+  field.className = "select-shell compact-field first-run-field";
+  const label = document.createElement("span");
+  label.textContent = "Trainer Profile Name";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Example: Jack";
+  input.value = profile?.name === "Guest Trainer" ? "" : profile?.name ?? "";
+  input.dataset.firstRunProfileName = "true";
+  field.append(label, input);
+  container.appendChild(field);
+}
+
+function renderFirstRunGames(container) {
+  const grid = document.createElement("div");
+  grid.className = "first-run-game-grid";
+
+  GAME_CATALOG.forEach((game) => {
+    const trackerState = state.tracker.games[game.id];
+    const card = document.createElement("article");
+    card.className = "first-run-game-card";
+    card.classList.toggle("active", Boolean(trackerState?.owned));
+
+    const titleRow = document.createElement("label");
+    titleRow.className = "tracker-toggle first-run-owned-toggle";
+    const ownedInput = document.createElement("input");
+    ownedInput.type = "checkbox";
+    ownedInput.checked = Boolean(trackerState?.owned);
+    ownedInput.dataset.firstRunOwnedGame = game.id;
+    const title = document.createElement("span");
+    title.textContent = game.name;
+    titleRow.append(ownedInput, title);
+    card.appendChild(titleRow);
+
+    if (gameHasSeparateVersions(game)) {
+      const versionGrid = document.createElement("div");
+      versionGrid.className = "tracker-version-grid first-run-version-grid";
+      getGameVersions(game).forEach((version) => {
+        const versionLabel = document.createElement("label");
+        versionLabel.className = "tracker-version-toggle";
+        versionLabel.classList.toggle("active", Boolean(trackerState?.versions?.[version.id]));
+        const versionInput = document.createElement("input");
+        versionInput.type = "checkbox";
+        versionInput.checked = Boolean(trackerState?.versions?.[version.id]);
+        versionInput.dataset.firstRunVersionGame = game.id;
+        versionInput.dataset.firstRunVersion = version.id;
+        const versionText = document.createElement("span");
+        versionText.textContent = version.shortLabel ?? version.label;
+        versionLabel.append(versionInput, versionText);
+        versionGrid.appendChild(versionLabel);
+      });
+      card.appendChild(versionGrid);
+    }
+
+    if (gameHasDlcCoverage(game.id)) {
+      const dlcLabel = document.createElement("label");
+      dlcLabel.className = "tracker-toggle journey-dlc-toggle";
+      dlcLabel.classList.toggle("active", trackerHasDlc(game.id));
+      const dlcInput = document.createElement("input");
+      dlcInput.type = "checkbox";
+      dlcInput.checked = trackerHasDlc(game.id);
+      dlcInput.dataset.firstRunDlcGame = game.id;
+      const dlcText = document.createElement("span");
+      dlcText.textContent = "I own the DLC";
+      dlcLabel.append(dlcInput, dlcText);
+      card.appendChild(dlcLabel);
+    }
+
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+}
+
+function renderFirstRunStates(container) {
+  const ownedGames = GAME_CATALOG.filter((game) => state.tracker.games[game.id]?.owned);
+  if (!ownedGames.length) {
+    container.appendChild(
+      createFirstRunCard("No owned games selected yet.", "Go back one page and pick at least one game if you want Journey and suggestions configured now.")
+    );
+    return;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "first-run-game-grid";
+  ownedGames.forEach((game) => {
+    const trackerState = state.tracker.games[game.id];
+    const card = document.createElement("article");
+    card.className = "first-run-game-card active";
+
+    const heading = document.createElement("div");
+    heading.className = "first-run-game-heading";
+    const title = document.createElement("strong");
+    title.textContent = game.name;
+    const activeLabel = document.createElement("label");
+    activeLabel.className = "tracker-toggle";
+    const activeInput = document.createElement("input");
+    activeInput.type = "radio";
+    activeInput.name = "first-run-active-game";
+    activeInput.checked = state.tracker.activeGame === game.id;
+    activeInput.dataset.firstRunActiveGame = game.id;
+    const activeText = document.createElement("span");
+    activeText.textContent = "Active save";
+    activeLabel.append(activeInput, activeText);
+    heading.append(title, activeLabel);
+
+    const stageField = document.createElement("label");
+    stageField.className = "select-shell compact-field first-run-field";
+    const stageLabel = document.createElement("span");
+    stageLabel.textContent = "Current State";
+    const stageSelect = document.createElement("select");
+    stageSelect.dataset.firstRunStageGame = game.id;
+    [
+      ["start", "Just started"],
+      ["mid", "Mid-story"],
+      ["clear", "Main story clear"],
+      ["postgame", "Postgame / cleanup"]
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      option.selected = getFirstRunGameStage(game.id) === value;
+      stageSelect.appendChild(option);
+    });
+    stageField.append(stageLabel, stageSelect);
+
+    const note = document.createElement("p");
+    note.className = "first-run-card-note";
+    note.textContent = `${trackerState.milestone} · ${game.progressLabel}: ${trackerState.progress}/${game.progressMax}`;
+
+    card.append(heading, stageField, note);
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+}
+
+function renderFirstRunGoal(container) {
+  const grid = document.createElement("div");
+  grid.className = "first-run-choice-grid first-run-choice-grid--goals";
+  MAIN_GOAL_OPTIONS.forEach((goal) => {
+    const label = document.createElement("label");
+    label.className = "first-run-goal-card";
+    label.classList.toggle("active", state.profileSetup.mainGoal === goal.id);
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "first-run-main-goal";
+    input.value = goal.id;
+    input.checked = state.profileSetup.mainGoal === goal.id;
+    input.dataset.firstRunGoal = goal.id;
+    const title = document.createElement("strong");
+    title.textContent = goal.label;
+    const detail = document.createElement("span");
+    detail.textContent = goal.detail;
+    label.append(input, title, detail);
+    grid.appendChild(label);
+  });
+  container.appendChild(grid);
+}
+
+function renderFirstRunFavorite(container) {
+  const selected = state.profileSetup.favoritePokemonName
+    ? state.entriesByName.get(state.profileSetup.favoritePokemonName)
+    : null;
+
+  const field = document.createElement("label");
+  field.className = "select-shell compact-field first-run-field";
+  const label = document.createElement("span");
+  label.textContent = "Search Favorite";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Search by name or Dex number";
+  input.autocomplete = "off";
+  input.value = state.ui.firstRun.favoriteQuery;
+  input.dataset.firstRunFavoriteSearch = "true";
+  field.append(label, input);
+  container.appendChild(field);
+
+  if (selected) {
+    const selectedCard = createFirstRunCard("Selected Favorite", selected.displayName);
+    selectedCard.classList.add("first-run-selected-favorite");
+    container.appendChild(selectedCard);
+  }
+
+  const list = document.createElement("div");
+  list.className = "first-run-favorite-list";
+  const choices = getFirstRunFavoriteChoices();
+  if (!choices.length) {
+    list.appendChild(createCollectionEmptyState("The Dex is still loading. You can finish setup and pick a favorite later in Settings."));
+  } else {
+    choices.forEach((entry) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "first-run-favorite-choice";
+      button.dataset.firstRunFavoriteName = entry.name;
+
+      const sprite = document.createElement("img");
+      sprite.src = entry.listSprite;
+      sprite.alt = "";
+      sprite.loading = "lazy";
+      sprite.decoding = "async";
+
+      const copy = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = entry.displayName;
+      const meta = document.createElement("small");
+      meta.textContent = `#${formatNumber(entry.baseNumber)} · ${getEntryVariantLabel(entry)}`;
+      copy.append(name, meta);
+      button.append(sprite, copy);
+      list.appendChild(button);
+    });
+  }
+
+  container.appendChild(list);
+}
+
+function renderFirstRunHelper() {
+  if (!elements.firstRunOverlay) {
+    return;
+  }
+
+  const isOpen = Boolean(state.ui.firstRun.open);
+  elements.firstRunOverlay.classList.toggle("hidden", !isOpen);
+  elements.firstRunOverlay.hidden = !isOpen;
+  if (!isOpen) {
+    return;
+  }
+
+  const step = state.ui.firstRun.step || "welcome";
+  const meta = getFirstRunStepTitle(step);
+  elements.firstRunTitle.textContent = meta.title;
+  elements.firstRunSubtitle.textContent = meta.subtitle;
+
+  const stepIndex = getFirstRunStepIndex(step);
+  elements.firstRunProgress.textContent =
+    stepIndex >= 0 ? `Step ${stepIndex + 1} of ${FIRST_RUN_SETUP_STEPS.length}` : "Choose a path";
+  elements.firstRunBackButton.hidden = step === "welcome";
+  elements.firstRunNextButton.hidden = step === "welcome" || step === "login";
+  elements.firstRunNextButton.textContent = step === "favorite" ? "Finish Setup" : "Next";
+
+  elements.firstRunContent.replaceChildren();
+  switch (step) {
+    case "login":
+      renderFirstRunAuth(elements.firstRunContent, "login");
+      break;
+    case "account":
+      renderFirstRunAuth(elements.firstRunContent, "setup");
+      break;
+    case "profile":
+      renderFirstRunProfile(elements.firstRunContent);
+      break;
+    case "games":
+      renderFirstRunGames(elements.firstRunContent);
+      break;
+    case "states":
+      renderFirstRunStates(elements.firstRunContent);
+      break;
+    case "goal":
+      renderFirstRunGoal(elements.firstRunContent);
+      break;
+    case "favorite":
+      renderFirstRunFavorite(elements.firstRunContent);
+      break;
+    default:
+      renderFirstRunWelcome(elements.firstRunContent);
+      break;
+  }
+}
+
+function goToNextFirstRunStep() {
+  const step = state.ui.firstRun.step;
+  if (step === "profile") {
+    applyFirstRunProfileName();
+  }
+
+  if (step === "favorite") {
+    completeFirstRunSetup();
+    return;
+  }
+
+  const index = getFirstRunStepIndex(step);
+  setFirstRunStep(FIRST_RUN_SETUP_STEPS[Math.min(index + 1, FIRST_RUN_SETUP_STEPS.length - 1)] ?? "account");
+}
+
+function goToPreviousFirstRunStep() {
+  const step = state.ui.firstRun.step;
+  if (step === "login" || step === "account") {
+    setFirstRunStep("welcome");
+    return;
+  }
+
+  const index = getFirstRunStepIndex(step);
+  setFirstRunStep(FIRST_RUN_SETUP_STEPS[Math.max(index - 1, 0)] ?? "welcome");
+}
+
+async function handleFirstRunAction(action) {
+  switch (action) {
+    case "start":
+      setFirstRunStep("account");
+      break;
+    case "guest":
+      completeFirstRunGuest();
+      break;
+    case "login":
+      setFirstRunStep("login");
+      break;
+    case "next-step":
+      goToNextFirstRunStep();
+      break;
+    case "auth-sign-in": {
+      const ok = await submitFirstRunAuth("sign-in");
+      if (ok && state.ui.firstRun.step === "login") {
+        state.firstRun.dismissed = true;
+        state.firstRun.completed = true;
+        state.firstRun.guest = false;
+        state.firstRun.completedAt = new Date().toISOString();
+        saveFirstRunState();
+        closeFirstRunHelper();
+        setActiveView("landing");
+      }
+      break;
+    }
+    case "auth-sign-up": {
+      const ok = await submitFirstRunAuth("sign-up");
+      if (ok && state.ui.firstRun.step === "account") {
+        setFirstRunStep("profile");
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+function handleFirstRunInput(event) {
+  const target = event.target;
+  if (target?.matches?.("[data-first-run-favorite-search]")) {
+    state.ui.firstRun.favoriteQuery = target.value;
+    renderFirstRunHelper();
+    window.requestAnimationFrame(() => {
+      const searchInput = elements.firstRunContent.querySelector("[data-first-run-favorite-search]");
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+      }
+    });
+  }
+}
+
+function handleFirstRunChange(event) {
+  const target = event.target;
+  if (!target) {
+    return;
+  }
+
+  if (target.dataset.firstRunOwnedGame) {
+    setFirstRunGameOwned(target.dataset.firstRunOwnedGame, target.checked);
+    renderFirstRunHelper();
+    return;
+  }
+
+  if (target.dataset.firstRunVersionGame && target.dataset.firstRunVersion) {
+    setFirstRunGameVersion(target.dataset.firstRunVersionGame, target.dataset.firstRunVersion, target.checked);
+    renderFirstRunHelper();
+    return;
+  }
+
+  if (target.dataset.firstRunDlcGame) {
+    setFirstRunGameDlc(target.dataset.firstRunDlcGame, target.checked);
+    renderFirstRunHelper();
+    return;
+  }
+
+  if (target.dataset.firstRunActiveGame) {
+    setActiveGame(target.dataset.firstRunActiveGame);
+    renderFirstRunHelper();
+    return;
+  }
+
+  if (target.dataset.firstRunStageGame) {
+    setFirstRunGameStage(target.dataset.firstRunStageGame, target.value);
+    renderFirstRunHelper();
+    return;
+  }
+
+  if (target.dataset.firstRunGoal) {
+    setFirstRunMainGoal(target.dataset.firstRunGoal);
+  }
+}
+
 function findEvolutionTrail(node, speciesName, trail = []) {
   const nextTrail = [...trail, node];
   if (node.species.name === speciesName) {
@@ -719,6 +1834,10 @@ function renderHomeOrganizer(options = {}) {
         }
 
         const nextValue = !isBoxedInHome(entry.name);
+        recordUndoAction({
+          label: `${entry.displayName} HOME box mark`,
+          homeNames: [entry.name]
+        });
         setHomeBoxedState(entry.name, nextValue);
         renderHomeOrganizer();
         setStatus(`${entry.displayName} ${nextValue ? "marked boxed in" : "removed from"} ${currentBox.name}.`);

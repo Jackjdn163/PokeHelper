@@ -28,6 +28,8 @@ const API_CACHE_STORAGE_KEY = "dexter-api-cache-v1";
 const DEX_INDEX_CACHE_STORAGE_KEY = "dexter-dex-index-cache-v1";
 const UI_SESSION_STORAGE_KEY = "dexter-ui-session-v1";
 const ACCOUNT_SYNC_STORAGE_KEY = "dexter-account-sync-v1";
+const FIRST_RUN_STORAGE_KEY = "dexter-first-run-helper-v1";
+const PROFILE_SETUP_STORAGE_KEY = "dexter-profile-setup-v1";
 const POKEARTH_BASE_URL = "https://www.serebii.net";
 const POKEMONDB_HOME_SPRITE_BASE_URL = "https://img.pokemondb.net/sprites/home";
 const POKEAPI_HOME_SPRITE_BASE_URL =
@@ -416,6 +418,37 @@ const GAME_CATALOG = [
     milestones: ["Hotel Z Start", "Wild Zone Patrol", "Z-A Royale", "Postgame / DLC"]
   }
 ];
+
+const MAIN_GOAL_OPTIONS = [
+  {
+    id: "living-dex",
+    label: "Living Dex",
+    detail: "Prioritize one kept copy of every available Pokémon and form."
+  },
+  {
+    id: "form-dex",
+    label: "All Forms",
+    detail: "Track alternate forms, genders, regional forms, and special appearances."
+  },
+  {
+    id: "shiny-dex",
+    label: "Shiny Dex",
+    detail: "Lean into shiny hunt planning, odds, and shiny completion."
+  },
+  {
+    id: "journey",
+    label: "Game Journeys",
+    detail: "Use PokéPilot as a playthrough, badge, DLC, and postgame tracker."
+  },
+  {
+    id: "home-boxes",
+    label: "HOME Boxes",
+    detail: "Organize storage boxes and focus on moving collection gaps into HOME."
+  }
+];
+const MAIN_GOAL_OPTION_IDS = new Set(MAIN_GOAL_OPTIONS.map((option) => option.id));
+const DEFAULT_MAIN_GOAL_ID = "living-dex";
+const FIRST_RUN_SETUP_STEPS = ["account", "profile", "games", "states", "goal", "favorite"];
 
 const GAME_SHINY_ODDS = {
   lgpe: {
@@ -1956,6 +1989,8 @@ const GENERATION_RANGES = [
 
 const FAVORITE_PICKER_RESULT_LIMIT = 80;
 const SHINY_HUB_RESULT_LIMIT = 80;
+const ACHIEVEMENT_INITIAL_VISIBLE_COUNT = 12;
+const ACHIEVEMENT_LOAD_MORE_COUNT = 12;
 
 const elements = {
   navTabs: [...document.querySelectorAll("[data-view]")],
@@ -1968,6 +2003,7 @@ const elements = {
   openEntryButton: document.querySelector("#open-entry-btn"),
   randomButton: document.querySelector("#random-btn"),
   statusText: document.querySelector("#status-text"),
+  undoActionButton: document.querySelector("#undo-action-btn"),
   scopeButtons: [...document.querySelectorAll("[data-scope]")],
   archiveModeButtons: [...document.querySelectorAll("[data-archive-mode]")],
   archiveViewButtons: [...document.querySelectorAll("[data-archive-view]")],
@@ -1984,6 +2020,14 @@ const elements = {
   archiveDuplicateModeToggle: document.querySelector("#archive-duplicate-mode-toggle"),
   archiveDuplicateNote: document.querySelector("#archive-duplicate-note"),
   sessionButton: document.querySelector("#session-button"),
+  firstRunOverlay: document.querySelector("#first-run-overlay"),
+  firstRunProgress: document.querySelector("#first-run-progress"),
+  firstRunTitle: document.querySelector("#first-run-title"),
+  firstRunSubtitle: document.querySelector("#first-run-subtitle"),
+  firstRunContent: document.querySelector("#first-run-content"),
+  firstRunBackButton: document.querySelector("#first-run-back-btn"),
+  firstRunNextButton: document.querySelector("#first-run-next-btn"),
+  firstRunCloseButton: document.querySelector("#first-run-close-btn"),
   landingWelcome: document.querySelector("#landing-welcome"),
   landingSummary: document.querySelector("#landing-summary"),
   landingProfileMetric: document.querySelector("#landing-profile-metric"),
@@ -2079,6 +2123,10 @@ const elements = {
   generationBreakdownSummary: document.querySelector("#generation-breakdown-summary"),
   generationBreakdownNote: document.querySelector("#generation-breakdown-note"),
   generationBreakdownGrid: document.querySelector("#generation-breakdown-grid"),
+  achievementCount: document.querySelector("#achievement-count"),
+  achievementSummary: document.querySelector("#achievement-summary"),
+  achievementList: document.querySelector("#achievement-list"),
+  achievementLoadMoreButton: document.querySelector("#achievement-load-more-btn"),
   randomTargetSummary: document.querySelector("#random-target-summary"),
   targetList: document.querySelector("#target-list"),
   shinyTargetList: document.querySelector("#shiny-target-list"),
@@ -2093,6 +2141,8 @@ const elements = {
   landingCompletionValue: document.querySelector("#landing-completion-value"),
   landingCompletionCount: document.querySelector("#landing-completion-count"),
   landingCompletionBreakdown: document.querySelector("#landing-completion-breakdown"),
+  landingAchievementSummary: document.querySelector("#landing-achievement-summary"),
+  landingAchievementGrid: document.querySelector("#landing-achievement-grid"),
   landingTaskList: document.querySelector("#landing-task-list"),
   landingJourneyGrid: document.querySelector("#landing-journey-grid"),
   landingSuggestionGrid: document.querySelector("#landing-suggestion-grid"),
@@ -2262,6 +2312,12 @@ const state = {
     selectedRandomTargetName: null,
     selectedShinyTargetName: null,
     landingActionMode: null,
+    achievementVisibleCount: ACHIEVEMENT_INITIAL_VISIBLE_COUNT,
+    firstRun: {
+      open: false,
+      step: "welcome",
+      favoriteQuery: ""
+    },
     favoritePicker: {
       open: false,
       mode: "favorites",
@@ -2280,6 +2336,8 @@ const state = {
     signatures: new Set()
   },
   profileMeta: profileMetaSeed,
+  firstRun: loadFirstRunState(),
+  profileSetup: loadProfileSetupState(),
   caughtMap: loadCaughtMap(),
   shinyMap: loadShinyMap(),
   tracker: loadTrackerState(),
@@ -2319,6 +2377,7 @@ const state = {
     currentPokemonName: null,
     restoring: false
   },
+  lastUndoAction: null,
   deferredViewRenders: new Set(VALID_VIEW_IDS),
   activeRequestId: 0,
   archiveStats: {

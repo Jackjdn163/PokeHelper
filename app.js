@@ -1,4 +1,4 @@
-const APP_CHUNK_VERSION = "117";
+const APP_CHUNK_VERSION = "120";
 const VERCEL_TELEMETRY_HOSTS = ["pokepilot.site", "www.pokepilot.site"];
 const APP_CHUNKS = [
   "./scripts/app/00-config-data-state.js",

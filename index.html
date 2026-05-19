@@ -22,7 +22,7 @@
       href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=102" />
+    <link rel="stylesheet" href="./styles.css?v=105" />
   </head>
   <body>
     <div class="app-shell">
@@ -56,6 +56,9 @@
 
         <div class="system-strip" aria-label="System status">
           <span class="system-chip online">Dex Net Online</span>
+          <button type="button" class="system-chip undo-action-chip" id="undo-action-btn" disabled>
+            Undo
+          </button>
         </div>
 
         <button type="button" class="ghost-button" id="session-button">Guest Session</button>
@@ -294,6 +297,21 @@
                 <small class="dashboard-metric-note" id="landing-storage-note">HOME organizer on standby</small>
               </article>
             </div>
+
+            <article class="panel dashboard-feature-card dashboard-feature-card--wide dashboard-card-achievements">
+              <div class="dashboard-card-head">
+                <div>
+                  <h3>Mini Achievement Badges</h3>
+                  <p class="dashboard-card-subtext" id="landing-achievement-summary">
+                    Collection milestones will appear here as your profile grows.
+                  </p>
+                </div>
+                <button type="button" class="ghost-button dashboard-link-button" data-open-view="collection">
+                  View All
+                </button>
+              </div>
+              <div class="achievement-strip" id="landing-achievement-grid"></div>
+            </article>
 
             <div class="dashboard-home-grid">
               <div class="dashboard-home-main">
@@ -1247,6 +1265,20 @@
               </article>
             </div>
 
+            <article class="subcard collection-card collection-card--achievements">
+              <div class="subcard-heading">
+                <h3>Mini Achievement Badges</h3>
+                <span id="achievement-count">0/50</span>
+              </div>
+              <p class="results-summary" id="achievement-summary">
+                Unlock badges through collection progress, shinies, HOME boxes, Journey setup, starters, and favorite picks.
+              </p>
+              <div class="achievement-grid" id="achievement-list"></div>
+              <button type="button" class="ghost-button detail-link-button achievement-load-more" id="achievement-load-more-btn">
+                Load More
+              </button>
+            </article>
+
             <article class="subcard collection-card collection-card--generation-board generation-breakdown-card">
               <div class="subcard-heading">
                 <h3>Generation Breakdown</h3>
@@ -1670,6 +1702,52 @@
       </section>
     </div>
 
+    <div class="first-run-overlay hidden" id="first-run-overlay" hidden>
+      <article class="first-run-dialog" role="dialog" aria-modal="true" aria-labelledby="first-run-title">
+        <div class="first-run-shell">
+          <aside class="first-run-rotom-panel" aria-label="Rotom Pokedex setup helper">
+            <div class="rotom-dex" aria-hidden="true">
+              <span class="rotom-dex-screen"></span>
+              <span class="rotom-dex-eye rotom-dex-eye-left"></span>
+              <span class="rotom-dex-eye rotom-dex-eye-right"></span>
+              <span class="rotom-dex-mouth"></span>
+            </div>
+            <div class="first-run-rotom-copy">
+              <span>ROTOM DEX</span>
+              <strong>Setup Helper</strong>
+              <p id="first-run-progress">Ready</p>
+            </div>
+          </aside>
+
+          <section class="first-run-main">
+            <div class="first-run-head">
+              <div>
+                <p class="section-label">First-Time Setup</p>
+                <h2 id="first-run-title">Welcome to PokéPilot</h2>
+                <p id="first-run-subtitle">
+                  Choose how you want to start, then Rotom will help configure the site around your saves.
+                </p>
+              </div>
+              <button type="button" class="ghost-button detail-link-button" id="first-run-close-btn">
+                Close
+              </button>
+            </div>
+
+            <div class="first-run-content" id="first-run-content"></div>
+
+            <div class="first-run-actions">
+              <button type="button" class="ghost-button detail-link-button" id="first-run-back-btn">
+                Back
+              </button>
+              <button type="button" class="primary-action compact" id="first-run-next-btn">
+                Next
+              </button>
+            </div>
+          </section>
+        </div>
+      </article>
+    </div>
+
     <div class="vault-picker-overlay hidden" id="favorite-picker-overlay">
       <article class="vault-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="favorite-picker-title">
         <div class="subcard-heading">
@@ -1729,7 +1807,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=96"></script>
-    <script type="module" src="./app.js?v=117"></script>
+    <script type="module" src="./app.js?v=120"></script>
     <script defer src="./scroll-memory.js?v=1"></script>
     <script defer src="./ai-panel.js?v=4"></script>
   </body>

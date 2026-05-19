@@ -418,6 +418,13 @@ function catchSelectedShinyHubTarget() {
     return;
   }
 
+  if (!isCaught(target.name) || !isShiny(target.name)) {
+    recordUndoAction({
+      label: `${target.displayName} shiny hunt catch`,
+      caughtNames: [target.name],
+      shinyNames: [target.name]
+    });
+  }
   setCaughtState(target.name, true);
   setShinyState(target.name, true);
   if (state.currentPokemon?.name === target.name) {

@@ -675,7 +675,7 @@ async function signInCloudAccount() {
   if (!client) {
     setCloudMessage("Cloud accounts are not configured on this build yet.", "warn");
     renderTrainerVault();
-    return;
+    return false;
   }
 
   const email = elements.accountEmailInput.value.trim();
@@ -684,7 +684,7 @@ async function signInCloudAccount() {
   if (!email || !password) {
     setCloudMessage("Enter both an email and a password to sign in.", "warn");
     renderTrainerVault();
-    return;
+    return false;
   }
 
   state.cloud.busy = true;
@@ -699,11 +699,13 @@ async function signInCloudAccount() {
 
     elements.accountPasswordInput.value = "";
     setCloudMessage(`Signed in as ${email}. Checking your cloud save…`, "success");
+    return true;
   } catch (error) {
     state.cloud.forcePullOnNextHydration = false;
     state.cloud.busy = false;
     setCloudMessage(formatCloudError(error, "Sign in failed."), "error");
     renderTrainerVault();
+    return false;
   }
 }
 
@@ -712,7 +714,7 @@ async function signUpCloudAccount() {
   if (!client) {
     setCloudMessage("Cloud accounts are not configured on this build yet.", "warn");
     renderTrainerVault();
-    return;
+    return false;
   }
 
   const email = elements.accountEmailInput.value.trim();
@@ -721,7 +723,7 @@ async function signUpCloudAccount() {
   if (!email || !password) {
     setCloudMessage("Enter both an email and a password to create a cloud account.", "warn");
     renderTrainerVault();
-    return;
+    return false;
   }
 
   state.cloud.busy = true;
@@ -749,7 +751,7 @@ async function signUpCloudAccount() {
     if (data.session) {
       setCloudMessage(`Account created for ${email}. Linking this device now…`, "success");
       renderTrainerVault();
-      return;
+      return true;
     }
 
     setCloudMessage(
@@ -757,10 +759,12 @@ async function signUpCloudAccount() {
       "success"
     );
     renderTrainerVault();
+    return true;
   } catch (error) {
     state.cloud.busy = false;
     setCloudMessage(formatCloudError(error, "Account creation failed."), "error");
     renderTrainerVault();
+    return false;
   }
 }
 

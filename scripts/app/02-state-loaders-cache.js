@@ -464,6 +464,7 @@ function loadProfileIntoState() {
   state.favoritesMap = loadFavoritesMap();
   state.bookmarksMap = loadBookmarksMap();
   state.favoriteTypes = loadFavoriteTypesState();
+  state.profileSetup = loadProfileSetupState();
   state.gameChecklistState = loadGameChecklistState();
   state.homeBoxes = loadHomeBoxesState();
   state.shinyHub = loadShinyHubState();
@@ -478,6 +479,7 @@ function switchProfile(profileId) {
   state.profileMeta.activeProfileId = profileId;
   saveProfileMeta();
   loadProfileIntoState();
+  clearLastUndoAction();
   if (state.entries.length) {
     refreshRandomTargets();
   }
@@ -516,6 +518,7 @@ function createProfile(name) {
   state.profileMeta.activeProfileId = id;
   saveProfileMeta();
   loadProfileIntoState();
+  clearLastUndoAction();
   if (state.entries.length) {
     refreshRandomTargets();
   }

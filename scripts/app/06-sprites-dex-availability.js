@@ -726,6 +726,7 @@ function commitDexIndexState(snapshot, options = {}) {
     renderTrainerVault();
     renderHomeOrganizer();
     renderSuggestors();
+    renderFirstRunHelper();
     if (state.currentPokemon) {
       renderCurrentPokemon(state.currentPokemon);
     }

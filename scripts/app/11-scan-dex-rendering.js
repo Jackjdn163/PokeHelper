@@ -707,11 +707,17 @@ function describeCaughtCountChange(entry, previousCount, nextCount) {
 
 function updateLivingDexCount(entry, nextCount) {
   const previousCount = getCaughtCount(entry.name);
-  const normalizedCount = setCaughtCount(entry.name, nextCount);
+  const nextNormalizedCount = normalizeCaughtCount(nextCount);
 
-  if (normalizedCount === previousCount) {
+  if (nextNormalizedCount === previousCount) {
     return;
   }
+
+  recordUndoAction({
+    label: `${entry.displayName} duplicate count`,
+    caughtNames: [entry.name]
+  });
+  const normalizedCount = setCaughtCount(entry.name, nextNormalizedCount);
 
   refreshResults();
   renderCollections();
@@ -1072,7 +1078,17 @@ function getVisibleArchiveEntries() {
 }
 
 function updateArchiveTrackedState(entry, tracked) {
-  if (isArchiveShinyMode()) {
+  const shinyMode = isArchiveShinyMode();
+  const previousTracked = shinyMode ? isShiny(entry.name) : isCaught(entry.name);
+  if (previousTracked !== tracked) {
+    recordUndoAction({
+      label: `${entry.displayName} ${shinyMode ? "shiny mark" : "catch mark"}`,
+      caughtNames: shinyMode ? [] : [entry.name],
+      shinyNames: shinyMode ? [entry.name] : []
+    });
+  }
+
+  if (shinyMode) {
     setShinyState(entry.name, tracked);
   } else {
     setCaughtState(entry.name, tracked);
@@ -1088,7 +1104,7 @@ function updateArchiveTrackedState(entry, tracked) {
 
   setStatus(
     `${entry.displayName} ${
-      isArchiveShinyMode()
+      shinyMode
         ? tracked
           ? "caught in the shiny dex."
           : "removed from the shiny dex."
@@ -1336,6 +1352,10 @@ function toggleCurrentCaught() {
   }
 
   const nextValue = !isCaught(state.currentPokemon.name);
+  recordUndoAction({
+    label: `${state.currentPokemon.displayName} catch mark`,
+    caughtNames: [state.currentPokemon.name]
+  });
   setCaughtState(state.currentPokemon.name, nextValue);
   renderCurrentPokemon(state.currentPokemon);
   renderCollections();
@@ -1359,6 +1379,10 @@ function toggleCurrentShiny() {
   }
 
   const nextValue = !isShiny(state.currentPokemon.name);
+  recordUndoAction({
+    label: `${state.currentPokemon.displayName} shiny mark`,
+    shinyNames: [state.currentPokemon.name]
+  });
   setShinyState(state.currentPokemon.name, nextValue);
   renderCurrentPokemon(state.currentPokemon);
   renderCollections();

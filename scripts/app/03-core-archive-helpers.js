@@ -161,6 +161,109 @@ function setShinyState(name, value) {
   saveShinyMap();
 }
 
+function normalizeUndoNames(names = []) {
+  const list = Array.isArray(names) ? names : [names];
+  return [...new Set(list.map((name) => String(name || "").trim()).filter(Boolean))];
+}
+
+function getHomeBoxedSnapshotValue(name) {
+  return typeof isBoxedInHome === "function" ? isBoxedInHome(name) : Boolean(state.homeBoxes.boxedMap[name]);
+}
+
+function recordUndoAction({ label, caughtNames = [], shinyNames = [], homeNames = [] } = {}) {
+  const caught = normalizeUndoNames(caughtNames).map((name) => ({
+    name,
+    count: getCaughtCount(name)
+  }));
+  const shiny = normalizeUndoNames(shinyNames).map((name) => ({
+    name,
+    value: isShiny(name)
+  }));
+  const home = normalizeUndoNames(homeNames).map((name) => ({
+    name,
+    value: getHomeBoxedSnapshotValue(name)
+  }));
+
+  if (!caught.length && !shiny.length && !home.length) {
+    return;
+  }
+
+  state.lastUndoAction = {
+    label: label || "last action",
+    caught,
+    shiny,
+    home
+  };
+  renderUndoActionButton();
+}
+
+function clearLastUndoAction() {
+  state.lastUndoAction = null;
+  renderUndoActionButton();
+}
+
+function renderUndoActionButton() {
+  if (!elements.undoActionButton) {
+    return;
+  }
+
+  const action = state.lastUndoAction;
+  elements.undoActionButton.disabled = !action;
+  elements.undoActionButton.textContent = action ? "Undo Last" : "Undo";
+  elements.undoActionButton.title = action
+    ? `Undo ${action.label}`
+    : "Undo the latest catch, shiny, duplicate, or HOME box change.";
+}
+
+function restoreHomeBoxedSnapshot(name, value) {
+  if (value) {
+    state.homeBoxes.boxedMap[name] = true;
+  } else {
+    delete state.homeBoxes.boxedMap[name];
+  }
+}
+
+function refreshAfterUndoAction(action) {
+  refreshResults();
+  renderCollections();
+  renderHomeOrganizer();
+
+  if (action.shiny.length) {
+    renderShinyHub();
+  }
+
+  if (state.currentPokemon) {
+    renderCurrentPokemon(state.currentPokemon);
+  }
+}
+
+function undoLastAction() {
+  const action = state.lastUndoAction;
+  if (!action) {
+    setStatus("No catch, shiny, duplicate, or HOME box change is waiting to undo.");
+    return;
+  }
+
+  action.caught.forEach(({ name, count }) => {
+    setCaughtCount(name, count);
+  });
+  action.shiny.forEach(({ name, value }) => {
+    setShinyState(name, value);
+  });
+  action.home.forEach(({ name, value }) => {
+    restoreHomeBoxedSnapshot(name, value);
+  });
+
+  if (action.home.length) {
+    saveHomeBoxesState();
+  }
+
+  state.lastUndoAction = null;
+  refreshAfterUndoAction(action);
+  renderUndoActionButton();
+  setStatus(`Undid ${action.label}.`);
+}
+
 function getGameChecklistCaughtState(gameId, name) {
   const gameLink = state.gameChecklistState.links[gameId];
   if (gameLink) {
@@ -519,6 +622,12 @@ function markSuggestedTargetCaught() {
 
   state.ui.landingActionMode = null;
   state.ui.selectedRandomTargetName = null;
+  if (!isCaught(target.name)) {
+    recordUndoAction({
+      label: `${target.displayName} hunt-board catch`,
+      caughtNames: [target.name]
+    });
+  }
   setCaughtState(target.name, true);
 
   if (state.currentPokemon?.name === target.name) {
@@ -559,6 +668,13 @@ function markSuggestedTargetShiny() {
 
   state.ui.landingActionMode = null;
   state.ui.selectedShinyTargetName = null;
+  if (!isCaught(target.name) || !isShiny(target.name)) {
+    recordUndoAction({
+      label: `${target.displayName} hunt-board shiny`,
+      caughtNames: [target.name],
+      shinyNames: [target.name]
+    });
+  }
   setCaughtState(target.name, true);
   setShinyState(target.name, true);
 
